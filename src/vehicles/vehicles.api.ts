@@ -32,11 +32,16 @@ export interface PaginatedVehicles {
   totalPages: number;
 }
 
+export type VehicleListView =
+  | 'current'
+  | 'all';
+
 export interface ListVehiclesQuery {
   page?: number;
   limit?: number;
   search?: string;
   schoolId?: string;
+  view?: VehicleListView;
   status?: VehicleStatus;
 }
 
@@ -95,6 +100,13 @@ function buildQueryString(
     parameters.set(
       'schoolId',
       query.schoolId,
+    );
+  }
+
+  if (query.view) {
+    parameters.set(
+      'view',
+      query.view,
     );
   }
 

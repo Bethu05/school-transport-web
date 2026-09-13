@@ -21,19 +21,73 @@ export interface Stop {
   updatedAt: string;
 }
 
-/**
- * Fetch stops visible to the authenticated tenant.
- *
- * The Routes UI filters this list to active stops belonging
- * to the route's school, plus tenant-wide shared stops.
- */
-export function listStops(
+export interface PaginatedStops {
+  items: Stop[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface ListStopsQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  schoolId?: string;
+  status?: StopStatus;
+}
+
+function buildStopsQueryString(
+  query: ListStopsQuery,
+): string {
+  const parameters = new URLSearchParams();
+
+  if (query.page) parameters.set('page', String(query.page));
+  if (query.limit) parameters.set('limit', String(query.limit));
+  if (query.search?.trim()) parameters.set('search', query.search.trim());
+  if (query.schoolId) parameters.set('schoolId', query.schoolId);
+  if (query.status) parameters.set('status', query.status);
+
+  const value = parameters.toString();
+  return value ? `?${value}` : '';
+}
+
+export function listStopsPage(
   tenantId: string,
-): Promise<Stop[]> {
-  return apiRequest<Stop[]>(
-    '/stops',
+  query: ListStopsQuery = {},
+): Promise<PaginatedStops> {
+  return apiRequest<PaginatedStops>(
+    `/stops${buildStopsQueryString(query)}`,
     {
       tenantId,
     },
   );
+}
+
+/**
+ * Compatibility helper for RouteStopsDialog.
+ * The Stops dashboard uses listStopsPage().
+ */
+export async function listStops(
+  tenantId: string,
+): Promise<Stop[]> {
+  const items: Stop[] = [];
+  let page = 1;
+  let totalPages = 1;
+
+  while (page <= totalPages) {
+    const response = await listStopsPage(
+      tenantId,
+      {
+        page,
+        limit: 100,
+      },
+    );
+
+    items.push(...response.items);
+    totalPages = response.totalPages;
+    page += 1;
+  }
+
+  return items;
 }
