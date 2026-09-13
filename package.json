@@ -13,7 +13,11 @@
     "test:vehicles-api": "node --env-file=.env.development.local scripts/test-vehicles-api.mjs",
     "test:drivers-api": "node --env-file=.env.development.local scripts/test-drivers-api.mjs",
     "test:vehicles-crud-api": "node --env-file=.env.development.local scripts/test-vehicles-crud-api.mjs",
-    "test:drivers-crud-api": "node --env-file=.env.development.local scripts/test-drivers-crud-api.mjs"
+    "test:drivers-crud-api": "node --env-file=.env.development.local scripts/test-drivers-crud-api.mjs",
+    "test:students-crud-api": "node --env-file=.env.development.local scripts/test-students-crud-api.mjs",
+    "test:student-stops-api": "node --env-file=.env.development.local scripts/test-student-stops-api.mjs",
+    "test:guardians-crud-api": "node --env-file=.env.development.local scripts/test-guardians-crud-api.mjs",
+    "test:transport-manager-guardian-permissions-api": "node --env-file=.env.development.local scripts/test-transport-manager-guardian-permissions-api.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

@@ -46,6 +46,13 @@ interface AuthContextValue {
     | ActiveTenant
     | null;
 
+  /**
+   * Effective permissions returned by the backend for the
+   * authenticated user's active tenant membership.
+   */
+  permissions:
+    readonly string[];
+
   loading: boolean;
 
   authenticated: boolean;
@@ -128,6 +135,14 @@ export function AuthProvider({
     >(null);
 
   const [
+    permissions,
+    setPermissions,
+  ] =
+    useState<
+      readonly string[]
+    >([]);
+
+  const [
     loading,
     setLoading,
   ] =
@@ -177,6 +192,10 @@ export function AuthProvider({
             context.tenant,
           );
 
+          setPermissions(
+            context.permissions,
+          );
+
           return;
         }
 
@@ -194,6 +213,8 @@ export function AuthProvider({
         );
 
         setTenant(null);
+
+        setPermissions([]);
       } catch {
         /**
          * Any invalid or expired session
@@ -205,6 +226,8 @@ export function AuthProvider({
         setUser(null);
 
         setTenant(null);
+
+        setPermissions([]);
       } finally {
         setLoading(false);
       }
@@ -242,6 +265,10 @@ export function AuthProvider({
         context.tenant,
       );
 
+      setPermissions(
+        context.permissions,
+      );
+
       return;
     }
 
@@ -253,6 +280,8 @@ export function AuthProvider({
     );
 
     setTenant(null);
+
+    setPermissions([]);
   }
 
   /**
@@ -265,6 +294,8 @@ export function AuthProvider({
     setUser(null);
 
     setTenant(null);
+
+    setPermissions([]);
   }
 
   const value =
@@ -273,6 +304,8 @@ export function AuthProvider({
         user,
 
         tenant,
+
+        permissions,
 
         loading,
 
@@ -286,6 +319,7 @@ export function AuthProvider({
       [
         user,
         tenant,
+        permissions,
         loading,
       ],
     );

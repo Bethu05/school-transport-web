@@ -30,6 +30,13 @@ interface CurrentUserResponse {
 export interface AuthContextResponse {
   user: AuthenticatedUser;
   tenant: ActiveTenant;
+
+  /**
+   * Effective permissions calculated by the backend.
+   *
+   * This is the frontend authorization source of truth.
+   */
+  permissions: string[];
 }
 
 /**

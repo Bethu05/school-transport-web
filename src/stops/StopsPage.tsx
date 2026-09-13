@@ -121,6 +121,7 @@ function errorMessage(
 
 export function StopsPage() {
     const {
+    permissions,
         tenant,
     } = useAuth();
 
@@ -202,19 +203,19 @@ export function StopsPage() {
 
     const canCreate =
         hasFrontendPermission(
-            tenant?.role,
+            permissions,
             FRONTEND_PERMISSIONS.STOPS_CREATE,
         );
 
     const canUpdate =
         hasFrontendPermission(
-            tenant?.role,
+            permissions,
             FRONTEND_PERMISSIONS.STOPS_UPDATE,
         );
 
     const canDeactivate =
         hasFrontendPermission(
-            tenant?.role,
+            permissions,
             FRONTEND_PERMISSIONS.STOPS_DEACTIVATE,
         );
 

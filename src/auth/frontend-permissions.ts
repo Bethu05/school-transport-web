@@ -1,11 +1,20 @@
 /**
- * Frontend permission mirror used only to control visibility of actions.
+ * Permission names used by frontend UI components.
  *
- * SECURITY:
- * The backend PermissionGuard remains the source of truth and still
- * authorizes every request. This helper only prevents the UI from
- * advertising actions that the current tenant role cannot perform.
+ * IMPORTANT:
+ *
+ * These constants do NOT grant permissions.
+ *
+ * The backend calculates the authenticated user's effective
+ * permissions and returns them through /auth/context.
+ *
+ * The frontend only asks:
+ *
+ *   does permissions[] contain X?
+ *
+ * This prevents frontend/backend role-permission drift.
  */
+
 export const FRONTEND_PERMISSIONS = {
   STOPS_READ:
     'stops.read',
@@ -18,67 +27,61 @@ export const FRONTEND_PERMISSIONS = {
 
   STOPS_DEACTIVATE:
     'stops.deactivate',
+
+  STUDENTS_READ:
+    'students.read',
+
+  STUDENTS_CREATE:
+    'students.create',
+
+  STUDENTS_UPDATE:
+    'students.update',
+
+  STUDENTS_DEACTIVATE:
+    'students.deactivate',
+
+  STUDENTS_MANAGE_STOPS:
+    'students.manage_stops',
+
+  GUARDIANS_READ:
+    'guardians.read',
+
+  GUARDIANS_CREATE:
+    'guardians.create',
+
+  GUARDIANS_UPDATE:
+    'guardians.update',
+
+  GUARDIANS_ACTIVATE:
+    'guardians.activate',
+
+  GUARDIANS_DEACTIVATE:
+    'guardians.deactivate',
+
+  GUARDIANS_MANAGE_STUDENTS:
+    'guardians.manage_students',
 } as const;
 
 export type FrontendPermission =
   (typeof FRONTEND_PERMISSIONS)[keyof typeof FRONTEND_PERMISSIONS];
 
-const ALL_STOP_PERMISSIONS:
-  readonly FrontendPermission[] = [
-    FRONTEND_PERMISSIONS.STOPS_READ,
-    FRONTEND_PERMISSIONS.STOPS_CREATE,
-    FRONTEND_PERMISSIONS.STOPS_UPDATE,
-    FRONTEND_PERMISSIONS.STOPS_DEACTIVATE,
-  ];
-
-const ROLE_PERMISSIONS:
-  Record<
-    string,
-    readonly FrontendPermission[]
-  > = {
-    owner:
-      ALL_STOP_PERMISSIONS,
-
-    admin:
-      ALL_STOP_PERMISSIONS,
-
-    transport_manager: [
-      FRONTEND_PERMISSIONS.STOPS_READ,
-      FRONTEND_PERMISSIONS.STOPS_CREATE,
-      FRONTEND_PERMISSIONS.STOPS_UPDATE,
-      FRONTEND_PERMISSIONS.STOPS_DEACTIVATE,
-    ],
-
-    dispatcher: [
-      FRONTEND_PERMISSIONS.STOPS_READ,
-      FRONTEND_PERMISSIONS.STOPS_CREATE,
-    ],
-
-    staff: [
-      FRONTEND_PERMISSIONS.STOPS_READ,
-    ],
-
-    driver: [],
-
-    guardian: [],
-  };
-
+/**
+ * UI authorization is based exclusively on the effective
+ * permission set supplied by the backend.
+ *
+ * Backend PermissionGuard remains authoritative for the request
+ * itself; this helper controls frontend visibility/availability.
+ */
 export function hasFrontendPermission(
-  role:
-    | string
+  permissions:
+    readonly string[]
     | undefined,
   permission:
     FrontendPermission,
 ): boolean {
-  if (!role) {
-    return false;
-  }
-
   return (
-    ROLE_PERMISSIONS[
-      role
-    ] ?? []
-  ).includes(
-    permission,
+    permissions?.includes(
+      permission,
+    ) ?? false
   );
 }
