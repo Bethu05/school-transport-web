@@ -46,6 +46,10 @@ import {
 } from '../auth/AuthProvider';
 
 import {
+  PaginationControls,
+} from '../components/PaginationControls';
+
+import {
   createVehicle,
   listVehicles,
   retireVehicle,
@@ -60,7 +64,7 @@ import {
   VehicleFormDialog,
 } from './VehicleFormDialog';
 
-const PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 10;
 
 const EMPTY_VEHICLES: Vehicle[] = [];
 
@@ -153,6 +157,21 @@ export function VehiclesPage() {
       'all',
     );
 
+  // Server-side pagination state.
+  const [
+    page,
+    setPage,
+  ] =
+    useState(1);
+
+  const [
+    limit,
+    setLimit,
+  ] =
+    useState(
+      DEFAULT_PAGE_SIZE,
+    );
+
   const [
     formOpen,
     setFormOpen,
@@ -201,6 +220,8 @@ export function VehiclesPage() {
         tenantId,
         search,
         status,
+        page,
+        limit,
       ],
 
       enabled:
@@ -219,10 +240,9 @@ export function VehiclesPage() {
           return listVehicles(
             tenantId,
             {
-              page: 1,
+              page,
 
-              limit:
-                PAGE_SIZE,
+              limit,
 
               search:
                 search ||
@@ -906,11 +926,16 @@ export function VehiclesPage() {
             value={search}
 
             onChange={
-              (event) =>
+              (event) => {
                 setSearch(
                   event.target
                     .value,
-                )
+                );
+
+                setPage(
+                  1,
+                );
+              }
             }
 
             label="Search vehicles"
@@ -952,11 +977,16 @@ export function VehiclesPage() {
               value={status}
 
               onChange={
-                (event) =>
+                (event) => {
                   setStatus(
                     event.target
                       .value as StatusFilter,
-                  )
+                  );
+
+                  setPage(
+                    1,
+                  );
+                }
               }
             >
               <MenuItem value="all">
@@ -1410,6 +1440,48 @@ export function VehiclesPage() {
               </Box>
             ),
           )}
+
+          <PaginationControls
+            page={
+              vehiclesQuery.data
+                ?.page ??
+              page
+            }
+
+            limit={
+              vehiclesQuery.data
+                ?.limit ??
+              limit
+            }
+
+            total={
+              vehiclesQuery.data
+                ?.total ??
+              0
+            }
+
+            totalPages={
+              vehiclesQuery.data
+                ?.totalPages ??
+              0
+            }
+
+            onPageChange={
+              setPage
+            }
+
+            onLimitChange={(
+              nextLimit,
+            ) => {
+              setLimit(
+                nextLimit,
+              );
+
+              setPage(
+                1,
+              );
+            }}
+          />
         </Paper>
       ) : null}
 
