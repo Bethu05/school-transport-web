@@ -38,6 +38,20 @@ export function createAppTheme(
 
       primary: {
         main:
+          colors.brand.teal,
+
+        light:
+          colors.brand.tealLight,
+
+        dark:
+          colors.brand.tealDark,
+
+        contrastText:
+          colors.neutral.white,
+      },
+
+      secondary: {
+        main:
           colors.brand.champagneGold,
 
         light:
@@ -48,17 +62,6 @@ export function createAppTheme(
 
         contrastText:
           colors.neutral.graphite900,
-      },
-
-      secondary: {
-        main:
-          colors.brand.bronze,
-
-        light:
-          colors.brand.lightGold,
-
-        dark:
-          colors.brand.deepBronze,
       },
 
       success: {
@@ -108,13 +111,13 @@ export function createAppTheme(
       action: {
         hover:
           dark
-            ? 'rgba(255,255,255,0.045)'
-            : 'rgba(201,165,92,0.055)',
+            ? 'rgba(36,166,157,0.08)'
+            : 'rgba(8,127,121,0.06)',
 
         selected:
           dark
-            ? 'rgba(201,165,92,0.12)'
-            : 'rgba(201,165,92,0.10)',
+            ? 'rgba(36,166,157,0.18)'
+            : 'rgba(8,127,121,0.12)',
       },
     },
 

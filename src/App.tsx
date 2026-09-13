@@ -45,6 +45,14 @@ import {
 } from './stops/StopsPage';
 
 import {
+  StudentsPage,
+} from './students/StudentsPage';
+
+import {
+  GuardiansPage,
+} from './guardians/GuardiansPage';
+
+import {
   VehiclesPage,
 } from './vehicles/VehiclesPage';
 
@@ -203,9 +211,7 @@ function App() {
         path="/students"
         element={
           <ProtectedPage>
-            <PlaceholderPage
-              title="Students"
-            />
+            <StudentsPage />
           </ProtectedPage>
         }
       />
@@ -214,9 +220,7 @@ function App() {
         path="/guardians"
         element={
           <ProtectedPage>
-            <PlaceholderPage
-              title="Guardians"
-            />
+            <GuardiansPage />
           </ProtectedPage>
         }
       />

@@ -8,10 +8,17 @@
 
 export const colors = {
   brand: {
-    champagneGold: '#C9A55C',
-    lightGold: '#E1C47A',
-    bronze: '#9E7B36',
-    deepBronze: '#A67F39',
+    midnight: '#0B1F2A',
+    navy: '#123B52',
+
+    teal: '#087F79',
+    tealLight: '#24A69D',
+    tealDark: '#05635E',
+
+    champagneGold: '#D4A84F',
+    lightGold: '#F0CF7A',
+    bronze: '#A97828',
+    deepBronze: '#805916',
   },
 
   neutral: {
@@ -29,24 +36,24 @@ export const colors = {
 
     white: '#FFFFFF',
 
-    ivory: '#F5F1E8',
-    paper: '#FFFDF8',
-    warmPaper: '#F9F4E9',
-    warmCanvas: '#F8F3E9',
+    ivory: '#F2F7F7',
+    paper: '#FFFFFF',
+    warmPaper: '#F7FBFB',
+    warmCanvas: '#EEF5F5',
 
-    warmMap: '#EEE6D6',
-    warmMapSoft: '#F9F5EB',
+    warmMap: '#DDECEC',
+    warmMapSoft: '#F4FAFA',
 
-    warmHeroMid: '#F7F1E4',
-    warmHeroEnd: '#EDE1C8',
+    warmHeroMid: '#EAF6F5',
+    warmHeroEnd: '#D6ECE9',
 
-    darkHeroEnd: '#302A1E',
+    darkHeroEnd: '#103A3C',
   },
 
   status: {
-    success: '#5F9471',
-    warning: '#C28A3D',
-    danger: '#C35E58',
+    success: '#238568',
+    warning: '#D4932F',
+    danger: '#C95757',
     inactive: '#85898F',
     muted: '#8C8070',
   },
@@ -58,21 +65,21 @@ export const colors = {
   },
 
   dashboard: {
-    tripsAccent: '#D8B768',
-    vehiclesAccent: '#B3904D',
-    driversAccent: '#8C8070',
-    studentsAccent: '#AE9565',
+    tripsAccent: '#1AA99A',
+    vehiclesAccent: '#3B82F6',
+    driversAccent: '#8B5CF6',
+    studentsAccent: '#E0A83D',
 
     readinessMuted: '#8E806B',
     previewText: '#9B8352',
 
-    heroTextDark: '#E3C77F',
-    heroTextLight: '#80612D',
+    heroTextDark: '#62D4C7',
+    heroTextLight: '#087F79',
 
-    liveMapLabel: '#D4B267',
+    liveMapLabel: '#24A69D',
 
-    mapMarkerPrimary: '#C9A55C',
-    mapMarkerSecondary: '#9D824D',
+    mapMarkerPrimary: '#087F79',
+    mapMarkerSecondary: '#3B82F6',
     mapMarkerMuted: '#807565',
   },
 } as const;

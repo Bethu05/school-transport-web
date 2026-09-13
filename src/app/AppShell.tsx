@@ -159,6 +159,7 @@ const navigation: NavigationItem[] = [
     roles: [
       'owner',
       'admin',
+      'transport_manager',
     ],
   },
 
