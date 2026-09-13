@@ -37,6 +37,10 @@ import {
 } from './routes/RoutesPage';
 
 import {
+  TripsPage,
+} from './trips/TripsPage';
+
+import {
   VehiclesPage,
 } from './vehicles/VehiclesPage';
 
@@ -122,13 +126,15 @@ function App() {
         }
       />
 
+      {/* ======================================================
+          REAL TRIPS MODULE
+          ====================================================== */}
+
       <Route
         path="/trips"
         element={
           <ProtectedPage>
-            <PlaceholderPage
-              title="Trips"
-            />
+            <TripsPage />
           </ProtectedPage>
         }
       />
@@ -182,6 +188,10 @@ function App() {
           </ProtectedPage>
         }
       />
+
+      {/* ======================================================
+          FUTURE MODULES
+          ====================================================== */}
 
       <Route
         path="/students"
