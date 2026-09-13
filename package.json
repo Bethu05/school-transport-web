@@ -7,9 +7,19 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:frontend": "npm run lint && npm run build",
+    "test:dev-logins": "node --env-file=.env.development.local scripts/test-dev-logins.mjs",
+    "test:vehicles-api": "node --env-file=.env.development.local scripts/test-vehicles-api.mjs",
+    "test:drivers-api": "node --env-file=.env.development.local scripts/test-drivers-api.mjs",
+    "test:vehicles-crud-api": "node --env-file=.env.development.local scripts/test-vehicles-crud-api.mjs",
+    "test:drivers-crud-api": "node --env-file=.env.development.local scripts/test-drivers-crud-api.mjs"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^9.4.0",
+    "@mui/material": "^9.4.0",
     "@tanstack/react-query": "^5.102.8",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -17,7 +27,7 @@
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
-    "@types/node": "^24.13.3",
+    "@types/node": "^24.13.4",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
