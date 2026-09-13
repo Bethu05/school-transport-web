@@ -24,6 +24,22 @@ export interface Route {
   updatedAt: string;
 }
 
+export interface PaginatedRoutes {
+  items: Route[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface ListRoutesQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: RouteStatus;
+  routeType?: RouteType;
+}
+
 export interface RouteStop {
   id: string;
   tenantId: string;
@@ -79,18 +95,117 @@ export interface RemoveRouteStopResult {
   success: boolean;
 }
 
+function buildRoutesQueryString(
+  query:
+    ListRoutesQuery,
+): string {
+  const parameters =
+    new URLSearchParams();
+
+  if (query.page) {
+    parameters.set(
+      'page',
+      String(
+        query.page,
+      ),
+    );
+  }
+
+  if (query.limit) {
+    parameters.set(
+      'limit',
+      String(
+        query.limit,
+      ),
+    );
+  }
+
+  if (
+    query.search?.trim()
+  ) {
+    parameters.set(
+      'search',
+      query.search.trim(),
+    );
+  }
+
+  if (query.status) {
+    parameters.set(
+      'status',
+      query.status,
+    );
+  }
+
+  if (query.routeType) {
+    parameters.set(
+      'routeType',
+      query.routeType,
+    );
+  }
+
+  const value =
+    parameters.toString();
+
+  return value
+    ? `?${value}`
+    : '';
+}
+
 /**
- * Fetch every route visible inside the authenticated tenant.
+ * Server-side paginated Route list.
  */
-export function listRoutes(
+export function listRoutesPage(
   tenantId: string,
-): Promise<Route[]> {
-  return apiRequest<Route[]>(
-    '/routes',
+  query:
+    ListRoutesQuery = {},
+): Promise<PaginatedRoutes> {
+  return apiRequest<PaginatedRoutes>(
+    `/routes${buildRoutesQueryString(
+      query,
+    )}`,
     {
       tenantId,
     },
   );
+}
+
+/**
+ * Compatibility helper for Trips and other existing
+ * consumers that still expect a plain Route[].
+ */
+export async function listRoutes(
+  tenantId: string,
+): Promise<Route[]> {
+  const routes:
+    Route[] = [];
+
+  let page = 1;
+
+  const limit = 100;
+
+  while (true) {
+    const response =
+      await listRoutesPage(
+        tenantId,
+        {
+          page,
+          limit,
+        },
+      );
+
+    routes.push(
+      ...response.items,
+    );
+
+    if (
+      page >=
+      response.totalPages
+    ) {
+      return routes;
+    }
+
+    page += 1;
+  }
 }
 
 /**
