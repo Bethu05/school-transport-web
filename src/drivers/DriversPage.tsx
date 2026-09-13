@@ -1,5 +1,4 @@
 import {
-  useMemo,
   useState,
 } from 'react';
 
@@ -49,9 +48,13 @@ import {
 } from '../auth/AuthProvider';
 
 import {
+  PaginationControls,
+} from '../components/PaginationControls';
+
+import {
   createDriver,
   deactivateDriver,
-  listDrivers,
+  listDriversPage,
   updateDriver,
   type CreateDriverInput,
   type Driver,
@@ -65,8 +68,6 @@ import {
 
 const BUSINESS_TIME_ZONE =
   'Africa/Nairobi';
-
-const EMPTY_DRIVERS: Driver[] = [];
 
 type StatusFilter =
   | 'all'
@@ -232,8 +233,20 @@ export function DriversPage() {
     setStatus,
   ] =
     useState<StatusFilter>(
-      'all',
+      'active',
     );
+
+  const [
+    page,
+    setPage,
+  ] =
+    useState(1);
+
+  const [
+    limit,
+    setLimit,
+  ] =
+    useState(10);
 
   const [
     formOpen,
@@ -281,6 +294,10 @@ export function DriversPage() {
       queryKey: [
         'drivers',
         tenantId,
+        search,
+        status,
+        page,
+        limit,
       ],
 
       enabled:
@@ -296,21 +313,128 @@ export function DriversPage() {
             );
           }
 
-          return listDrivers(
+          return listDriversPage(
             tenantId,
+            {
+              page,
+
+              limit,
+
+              search:
+                search.trim() ||
+                undefined,
+
+              status:
+                status ===
+                  'all'
+                  ? undefined
+                  : status,
+            },
           );
+        },
+    });
+
+  const driverSummaryQuery =
+    useQuery({
+      queryKey: [
+        'drivers-summary',
+        tenantId,
+      ],
+
+      enabled:
+        Boolean(
+          tenantId,
+        ),
+
+      queryFn:
+        async () => {
+          if (!tenantId) {
+            throw new Error(
+              'No active tenant',
+            );
+          }
+
+          const [
+            all,
+            active,
+            inactive,
+            suspended,
+          ] =
+            await Promise.all([
+              listDriversPage(
+                tenantId,
+                {
+                  page: 1,
+                  limit: 1,
+                },
+              ),
+
+              listDriversPage(
+                tenantId,
+                {
+                  page: 1,
+                  limit: 1,
+                  status:
+                    'active',
+                },
+              ),
+
+              listDriversPage(
+                tenantId,
+                {
+                  page: 1,
+                  limit: 1,
+                  status:
+                    'inactive',
+                },
+              ),
+
+              listDriversPage(
+                tenantId,
+                {
+                  page: 1,
+                  limit: 1,
+                  status:
+                    'suspended',
+                },
+              ),
+            ]);
+
+          return {
+            total:
+              all.total,
+
+            active:
+              active.total,
+
+            inactive:
+              inactive.total,
+
+            suspended:
+              suspended.total,
+          };
         },
     });
 
   async function refreshDrivers():
     Promise<void> {
-    await queryClient.invalidateQueries(
-      {
-        queryKey: [
-          'drivers',
-        ],
-      },
-    );
+    await Promise.all([
+      queryClient.invalidateQueries(
+        {
+          queryKey: [
+            'drivers',
+          ],
+        },
+      ),
+
+      queryClient.invalidateQueries(
+        {
+          queryKey: [
+            'drivers-summary',
+          ],
+        },
+      ),
+    ]);
   }
 
   const createMutation =
@@ -454,92 +578,17 @@ export function DriversPage() {
     });
 
   const drivers =
-    driversQuery.data ??
-    EMPTY_DRIVERS;
+    driversQuery.data
+      ?.items ??
+    [];
 
   const summary =
-    useMemo(
-      () => ({
-        total:
-          drivers.length,
-
-        active:
-          drivers.filter(
-            (driver) =>
-              driver.status ===
-              'active',
-          ).length,
-
-        inactive:
-          drivers.filter(
-            (driver) =>
-              driver.status ===
-              'inactive',
-          ).length,
-
-        suspended:
-          drivers.filter(
-            (driver) =>
-              driver.status ===
-              'suspended',
-          ).length,
-      }),
-      [drivers],
-    );
-
-  const filteredDrivers =
-    useMemo(
-      () => {
-        const term =
-          search
-            .trim()
-            .toLowerCase();
-
-        return drivers.filter(
-          (driver) => {
-            if (
-              status !==
-              'all' &&
-              driver.status !==
-              status
-            ) {
-              return false;
-            }
-
-            if (!term) {
-              return true;
-            }
-
-            const searchable =
-              [
-                driver.firstName,
-
-                driver.lastName,
-
-                driver.email ??
-                '',
-
-                driver.phone ??
-                '',
-
-                driver.licenseClass ??
-                '',
-              ]
-                .join(' ')
-                .toLowerCase();
-
-            return searchable.includes(
-              term,
-            );
-          },
-        );
-      },
-      [
-        drivers,
-        search,
-        status,
-      ],
-    );
+    driverSummaryQuery.data ?? {
+      total: 0,
+      active: 0,
+      inactive: 0,
+      suspended: 0,
+    };
 
   function openCreate():
     void {
@@ -1017,11 +1066,16 @@ export function DriversPage() {
             value={search}
 
             onChange={
-              (event) =>
+              (event) => {
                 setSearch(
                   event.target
                     .value,
-                )
+                );
+
+                setPage(
+                  1,
+                );
+              }
             }
 
             label="Search drivers"
@@ -1063,11 +1117,16 @@ export function DriversPage() {
               value={status}
 
               onChange={
-                (event) =>
+                (event) => {
                   setStatus(
                     event.target
                       .value as StatusFilter,
-                  )
+                  );
+
+                  setPage(
+                    1,
+                  );
+                }
               }
             >
               <MenuItem value="all">
@@ -1134,7 +1193,7 @@ export function DriversPage() {
 
       {!driversQuery.isLoading &&
         !driversQuery.isError &&
-        filteredDrivers.length ===
+        drivers.length ===
         0 ? (
         <Paper
           elevation={0}
@@ -1181,7 +1240,7 @@ export function DriversPage() {
 
       {!driversQuery.isLoading &&
         !driversQuery.isError &&
-        filteredDrivers.length >
+        drivers.length >
         0 ? (
         <Paper
           elevation={0}
@@ -1264,7 +1323,7 @@ export function DriversPage() {
             )}
           </Box>
 
-          {filteredDrivers.map(
+          {drivers.map(
             (
               driver,
               index,
@@ -1307,7 +1366,7 @@ export function DriversPage() {
 
                     borderBottom:
                       index ===
-                        filteredDrivers.length -
+                        drivers.length -
                         1
                         ? 'none'
                         : '1px solid',
@@ -1630,6 +1689,48 @@ export function DriversPage() {
               );
             },
           )}
+
+          <PaginationControls
+            page={
+              driversQuery.data
+                ?.page ??
+              page
+            }
+
+            limit={
+              driversQuery.data
+                ?.limit ??
+              limit
+            }
+
+            total={
+              driversQuery.data
+                ?.total ??
+              0
+            }
+
+            totalPages={
+              driversQuery.data
+                ?.totalPages ??
+              0
+            }
+
+            onPageChange={
+              setPage
+            }
+
+            onLimitChange={(
+              nextLimit,
+            ) => {
+              setLimit(
+                nextLimit,
+              );
+
+              setPage(
+                1,
+              );
+            }}
+          />
         </Paper>
       ) : null}
 

@@ -55,7 +55,11 @@ interface DriverFormState {
 
   phone: string;
 
+  email: string;
+
   licenseNumber: string;
+
+  licenseClass: string;
 
   licenseExpiryDate: string;
 
@@ -71,7 +75,11 @@ const EMPTY_FORM:
 
   phone: '',
 
+  email: '',
+
   licenseNumber: '',
+
+  licenseClass: '',
 
   licenseExpiryDate: '',
 
@@ -100,8 +108,16 @@ function createDriverFormState(
       driver.phone ??
       '',
 
+    email:
+      driver.email ??
+      '',
+
     licenseNumber:
       driver.licenseNumber,
+
+    licenseClass:
+      driver.licenseClass ??
+      '',
 
     licenseExpiryDate:
       dateInputValue(
@@ -116,19 +132,9 @@ function createDriverFormState(
 /**
  * Licence expiry is a business calendar date.
  *
- * The API currently serialises PostgreSQL DATE
- * values as UTC Date strings.
- *
- * Example:
- *
- * 2031-12-31 Nairobi
- *
- * can arrive as:
- *
- * 2031-12-30T21:00:00.000Z
- *
- * Convert it back into the Nairobi calendar date
- * before putting it into an HTML date input.
+ * PostgreSQL DATE values may arrive serialized as a full
+ * timestamp. Convert the value back to the Nairobi calendar
+ * date before putting it into an HTML date input.
  */
 function dateInputValue(
   value:
@@ -210,6 +216,16 @@ function dateInputValue(
   return `${year}-${month}-${day}`;
 }
 
+function optionalValue(
+  value: string,
+): string | undefined {
+  const trimmed =
+    value.trim();
+
+  return trimmed ||
+    undefined;
+}
+
 export function DriverFormDialog({
   open,
   driver,
@@ -239,7 +255,6 @@ export function DriverFormDialog({
 
   const editing =
     driver !== null;
-
 
   function updateField<
     K extends keyof DriverFormState,
@@ -293,10 +308,7 @@ export function DriverFormDialog({
       return;
     }
 
-    if (
-      !editing &&
-      !licenseNumber
-    ) {
+    if (!licenseNumber) {
       setValidationError(
         'Licence number is required.',
       );
@@ -314,10 +326,19 @@ export function DriverFormDialog({
       return;
     }
 
-    /**
-     * Editing uses only the fields already
-     * proven by our Drivers CRUD API test.
-     */
+    if (
+      form.email.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        form.email.trim(),
+      )
+    ) {
+      setValidationError(
+        'Enter a valid email address.',
+      );
+
+      return;
+    }
+
     if (editing) {
       const input:
         UpdateDriverInput = {
@@ -326,8 +347,21 @@ export function DriverFormDialog({
         lastName,
 
         phone:
-          form.phone.trim() ||
-          undefined,
+          optionalValue(
+            form.phone,
+          ),
+
+        email:
+          optionalValue(
+            form.email,
+          ),
+
+        licenseNumber,
+
+        licenseClass:
+          optionalValue(
+            form.licenseClass,
+          ),
 
         licenseExpiryDate:
           form.licenseExpiryDate,
@@ -349,7 +383,22 @@ export function DriverFormDialog({
 
       lastName,
 
+      phone:
+        optionalValue(
+          form.phone,
+        ),
+
+      email:
+        optionalValue(
+          form.email,
+        ),
+
       licenseNumber,
+
+      licenseClass:
+        optionalValue(
+          form.licenseClass,
+        ),
 
       licenseExpiryDate:
         form.licenseExpiryDate,
@@ -386,6 +435,8 @@ export function DriverFormDialog({
       >
         <DialogTitle
           sx={{
+            pb: 1,
+
             fontWeight:
               850,
           }}
@@ -396,10 +447,51 @@ export function DriverFormDialog({
         </DialogTitle>
 
         <DialogContent>
+          <Typography
+            sx={{
+              mb: 2.5,
+
+              color:
+                'text.secondary',
+
+              fontSize:
+                12.5,
+
+              lineHeight:
+                1.6,
+            }}
+          >
+            {editing
+              ? 'Update the driver profile, contact details and licence information.'
+              : 'Create a driver profile with the information required for transport operations.'}
+          </Typography>
+
+          {validationError ? (
+            <Alert
+              severity="error"
+
+              sx={{
+                mb: 2,
+              }}
+            >
+              {validationError}
+            </Alert>
+          ) : null}
+
+          {error ? (
+            <Alert
+              severity="error"
+
+              sx={{
+                mb: 2,
+              }}
+            >
+              {error}
+            </Alert>
+          ) : null}
+
           <Box
             sx={{
-              pt: 1,
-
               display:
                 'grid',
 
@@ -414,100 +506,147 @@ export function DriverFormDialog({
               gap: 2,
             }}
           >
-            {(validationError ||
-              error) ? (
-              <Alert
-                severity="error"
-
-                sx={{
-                  gridColumn:
-                    '1 / -1',
-                }}
-              >
-                {validationError ??
-                  error}
-              </Alert>
-            ) : null}
-
             <TextField
-              required
-
               label="First name"
+
+              required
 
               value={
                 form.firstName
               }
 
-              onChange={
-                (event) =>
-                  updateField(
-                    'firstName',
-                    event.target
-                      .value,
-                  )
+              onChange={(
+                event,
+              ) =>
+                updateField(
+                  'firstName',
+                  event.target
+                    .value,
+                )
               }
             />
 
             <TextField
-              required
-
               label="Last name"
+
+              required
 
               value={
                 form.lastName
               }
 
-              onChange={
-                (event) =>
-                  updateField(
-                    'lastName',
-                    event.target
-                      .value,
-                  )
+              onChange={(
+                event,
+              ) =>
+                updateField(
+                  'lastName',
+                  event.target
+                    .value,
+                )
               }
             />
 
             <TextField
-              required
+              label="Phone"
 
-              disabled={
-                editing
+              value={
+                form.phone
               }
 
+              onChange={(
+                event,
+              ) =>
+                updateField(
+                  'phone',
+                  event.target
+                    .value,
+                )
+              }
+
+              placeholder="+254..."
+            />
+
+            <TextField
+              label="Email"
+
+              type="email"
+
+              value={
+                form.email
+              }
+
+              onChange={(
+                event,
+              ) =>
+                updateField(
+                  'email',
+                  event.target
+                    .value,
+                )
+              }
+
+              placeholder="driver@example.com"
+            />
+
+            <TextField
               label="Licence number"
+
+              required
 
               value={
                 form.licenseNumber
               }
 
-              onChange={
-                (event) =>
-                  updateField(
-                    'licenseNumber',
-                    event.target
-                      .value,
-                  )
+              onChange={(
+                event,
+              ) =>
+                updateField(
+                  'licenseNumber',
+                  event.target
+                    .value,
+                )
               }
             />
 
             <TextField
-              required
+              label="Licence class"
+
+              value={
+                form.licenseClass
+              }
+
+              onChange={(
+                event,
+              ) =>
+                updateField(
+                  'licenseClass',
+                  event.target
+                    .value,
+                )
+              }
+
+              placeholder="e.g. D"
+            />
+
+            <TextField
+              label="Licence expiry"
 
               type="date"
 
-              label="Licence expiry"
+              required
 
               value={
                 form.licenseExpiryDate
               }
 
-              onChange={
-                (event) =>
-                  updateField(
-                    'licenseExpiryDate',
-                    event.target
-                      .value,
-                  )
+              onChange={(
+                event,
+              ) =>
+                updateField(
+                  'licenseExpiryDate',
+                  event.target
+                    .value,
+                )
               }
 
               slotProps={{
@@ -516,44 +655,6 @@ export function DriverFormDialog({
                 },
               }}
             />
-
-            {editing ? (
-              <TextField
-                label="Phone"
-
-                value={
-                  form.phone
-                }
-
-                onChange={
-                  (event) =>
-                    updateField(
-                      'phone',
-                      event.target
-                        .value,
-                    )
-                }
-
-                placeholder="+254..."
-              />
-            ) : (
-              <Box>
-                <Typography
-                  sx={{
-                    color:
-                      'text.secondary',
-
-                    fontSize:
-                      11.5,
-
-                    lineHeight:
-                      1.7,
-                  }}
-                >
-                  Contact details can be added after the driver record has been created.
-                </Typography>
-              </Box>
-            )}
 
             <TextField
               select
@@ -564,47 +665,34 @@ export function DriverFormDialog({
                 form.status
               }
 
-              onChange={
-                (event) =>
-                  updateField(
-                    'status',
-                    event.target
-                      .value as DriverStatus,
-                  )
+              onChange={(
+                event,
+              ) =>
+                updateField(
+                  'status',
+                  event.target
+                    .value as DriverStatus,
+                )
               }
             >
-              <MenuItem value="active">
+              <MenuItem
+                value="active"
+              >
                 Active
               </MenuItem>
 
-              <MenuItem value="inactive">
+              <MenuItem
+                value="inactive"
+              >
                 Inactive
               </MenuItem>
 
-              <MenuItem value="suspended">
+              <MenuItem
+                value="suspended"
+              >
                 Suspended
               </MenuItem>
             </TextField>
-
-            {editing ? (
-              <Typography
-                sx={{
-                  gridColumn:
-                    '1 / -1',
-
-                  color:
-                    'text.secondary',
-
-                  fontSize:
-                    10.5,
-
-                  lineHeight:
-                    1.6,
-                }}
-              >
-                The licence number is intentionally locked during editing until licence-number updates are separately verified against the backend contract.
-              </Typography>
-            ) : null}
           </Box>
         </DialogContent>
 

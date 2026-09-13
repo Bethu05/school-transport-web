@@ -46,43 +46,135 @@ export interface Driver {
   updatedAt: string;
 }
 
+export interface PaginatedDrivers {
+  items: Driver[];
+
+  page: number;
+
+  limit: number;
+
+  total: number;
+
+  totalPages: number;
+}
+
+export interface ListDriversQuery {
+  page?: number;
+
+  limit?: number;
+
+  search?: string;
+
+  status?: DriverStatus;
+}
+
 /**
- * Fields confirmed by the backend Drivers
- * CRUD checkpoint.
+ * Driver fields supported by the backend create contract.
  */
 export interface CreateDriverInput {
+  schoolId?: string;
+
   firstName: string;
 
   lastName: string;
 
+  phone?: string;
+
+  email?: string;
+
   licenseNumber: string;
+
+  licenseClass?: string;
 
   licenseExpiryDate: string;
 
   status?: DriverStatus;
 }
 
+/**
+ * Driver fields supported by the backend PATCH contract.
+ */
 export interface UpdateDriverInput {
+  schoolId?: string;
+
   firstName?: string;
 
   lastName?: string;
 
   phone?: string;
 
+  email?: string;
+
+  licenseNumber?: string;
+
+  licenseClass?: string;
+
   licenseExpiryDate?: string;
 
   status?: DriverStatus;
 }
 
+function buildQueryString(
+  query:
+    ListDriversQuery,
+): string {
+  const parameters =
+    new URLSearchParams();
+
+  if (query.page) {
+    parameters.set(
+      'page',
+      String(
+        query.page,
+      ),
+    );
+  }
+
+  if (query.limit) {
+    parameters.set(
+      'limit',
+      String(
+        query.limit,
+      ),
+    );
+  }
+
+  if (
+    query.search?.trim()
+  ) {
+    parameters.set(
+      'search',
+      query.search.trim(),
+    );
+  }
+
+  if (query.status) {
+    parameters.set(
+      'status',
+      query.status,
+    );
+  }
+
+  const value =
+    parameters.toString();
+
+  return value
+    ? `?${value}`
+    : '';
+}
+
 /**
- * Fetch every driver visible to the
- * authenticated tenant.
+ * Server-side paginated Driver list.
  */
-export function listDrivers(
+export function listDriversPage(
   tenantId: string,
-): Promise<Driver[]> {
-  return apiRequest<Driver[]>(
-    '/drivers',
+  query:
+    ListDriversQuery = {},
+): Promise<PaginatedDrivers> {
+  return apiRequest<PaginatedDrivers>(
+    `/drivers${buildQueryString(
+      query,
+    )}`,
     {
       tenantId,
     },
@@ -90,16 +182,54 @@ export function listDrivers(
 }
 
 /**
- * Requires drivers.create.
+ * Compatibility helper for Trips and existing consumers
+ * that still expect a plain Driver[].
  */
+export async function listDrivers(
+  tenantId: string,
+): Promise<Driver[]> {
+  const drivers:
+    Driver[] = [];
+
+  let page = 1;
+
+  const limit = 100;
+
+  while (true) {
+    const response =
+      await listDriversPage(
+        tenantId,
+        {
+          page,
+          limit,
+        },
+      );
+
+    drivers.push(
+      ...response.items,
+    );
+
+    if (
+      page >=
+      response.totalPages
+    ) {
+      return drivers;
+    }
+
+    page += 1;
+  }
+}
+
 export function createDriver(
   tenantId: string,
-  input: CreateDriverInput,
+  input:
+    CreateDriverInput,
 ): Promise<Driver> {
   return apiRequest<Driver>(
     '/drivers',
     {
-      method: 'POST',
+      method:
+        'POST',
 
       tenantId,
 
@@ -111,18 +241,17 @@ export function createDriver(
   );
 }
 
-/**
- * Requires drivers.update.
- */
 export function updateDriver(
   tenantId: string,
   driverId: string,
-  input: UpdateDriverInput,
+  input:
+    UpdateDriverInput,
 ): Promise<Driver> {
   return apiRequest<Driver>(
     `/drivers/${driverId}`,
     {
-      method: 'PATCH',
+      method:
+        'PATCH',
 
       tenantId,
 
@@ -134,12 +263,6 @@ export function updateDriver(
   );
 }
 
-/**
- * Drivers are deactivated rather than
- * physically deleted.
- *
- * Requires drivers.deactivate.
- */
 export function deactivateDriver(
   tenantId: string,
   driverId: string,
@@ -147,7 +270,8 @@ export function deactivateDriver(
   return apiRequest<Driver>(
     `/drivers/${driverId}`,
     {
-      method: 'DELETE',
+      method:
+        'DELETE',
 
       tenantId,
     },
