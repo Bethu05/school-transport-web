@@ -37,10 +37,6 @@ import {
 } from './routes/RoutesPage';
 
 import {
-  StopsPage,
-} from './stops/StopsPage';
-
-import {
   TripsPage,
 } from './trips/TripsPage';
 
@@ -160,7 +156,9 @@ function App() {
         path="/stops"
         element={
           <ProtectedPage>
-            <StopsPage />
+            <PlaceholderPage
+              title="Stops"
+            />
           </ProtectedPage>
         }
       />

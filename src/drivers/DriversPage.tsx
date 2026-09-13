@@ -49,17 +49,9 @@ import {
 } from '../auth/AuthProvider';
 
 import {
-  PaginationControls,
-} from '../components/PaginationControls';
-
-import {
-  useDebouncedValue,
-} from '../hooks/useDebouncedValue';
-
-import {
   createDriver,
   deactivateDriver,
-  listDriversPage,
+  listDrivers,
   updateDriver,
   type CreateDriverInput,
   type Driver,
@@ -240,23 +232,7 @@ export function DriversPage() {
     setStatus,
   ] =
     useState<StatusFilter>(
-      'active',
-    );
-
-  const [
-    page,
-    setPage,
-  ] = useState(1);
-
-  const [
-    limit,
-    setLimit,
-  ] = useState(10);
-
-  const debouncedSearch =
-    useDebouncedValue(
-      search,
-      300,
+      'all',
     );
 
   const [
@@ -305,10 +281,6 @@ export function DriversPage() {
       queryKey: [
         'drivers',
         tenantId,
-        debouncedSearch,
-        status,
-        page,
-        limit,
       ],
 
       enabled:
@@ -324,19 +296,8 @@ export function DriversPage() {
             );
           }
 
-          return listDriversPage(
+          return listDrivers(
             tenantId,
-            {
-              page,
-              limit,
-              search:
-                debouncedSearch ||
-                undefined,
-              status:
-                status === 'all'
-                  ? undefined
-                  : status,
-            },
           );
         },
     });
@@ -486,8 +447,6 @@ export function DriversPage() {
             null,
           );
 
-          setPage(1);
-
           setSuccessMessage(
             'Driver deactivated successfully.',
           );
@@ -495,17 +454,14 @@ export function DriversPage() {
     });
 
   const drivers =
-    driversQuery.data
-      ?.items ??
+    driversQuery.data ??
     EMPTY_DRIVERS;
 
   const summary =
     useMemo(
       () => ({
         total:
-          driversQuery.data
-            ?.total ??
-          0,
+          drivers.length,
 
         active:
           drivers.filter(
@@ -528,15 +484,62 @@ export function DriversPage() {
               'suspended',
           ).length,
       }),
-      [
-        drivers,
-        driversQuery.data
-          ?.total,
-      ],
+      [drivers],
     );
 
   const filteredDrivers =
-    drivers;
+    useMemo(
+      () => {
+        const term =
+          search
+            .trim()
+            .toLowerCase();
+
+        return drivers.filter(
+          (driver) => {
+            if (
+              status !==
+              'all' &&
+              driver.status !==
+              status
+            ) {
+              return false;
+            }
+
+            if (!term) {
+              return true;
+            }
+
+            const searchable =
+              [
+                driver.firstName,
+
+                driver.lastName,
+
+                driver.email ??
+                '',
+
+                driver.phone ??
+                '',
+
+                driver.licenseClass ??
+                '',
+              ]
+                .join(' ')
+                .toLowerCase();
+
+            return searchable.includes(
+              term,
+            );
+          },
+        );
+      },
+      [
+        drivers,
+        search,
+        status,
+      ],
+    );
 
   function openCreate():
     void {
@@ -794,7 +797,7 @@ export function DriversPage() {
         {[
           {
             label:
-              'Matching Drivers',
+              'Total Drivers',
 
             value:
               summary.total,
@@ -808,7 +811,7 @@ export function DriversPage() {
 
           {
             label:
-              'Active on Page',
+              'Active',
 
             value:
               summary.active,
@@ -822,7 +825,7 @@ export function DriversPage() {
 
           {
             label:
-              'Inactive on Page',
+              'Inactive',
 
             value:
               summary.inactive,
@@ -836,7 +839,7 @@ export function DriversPage() {
 
           {
             label:
-              'Suspended on Page',
+              'Suspended',
 
             value:
               summary.suspended,
@@ -1014,13 +1017,11 @@ export function DriversPage() {
             value={search}
 
             onChange={
-              (event) => {
+              (event) =>
                 setSearch(
                   event.target
                     .value,
-                );
-                setPage(1);
-              }
+                )
             }
 
             label="Search drivers"
@@ -1062,13 +1063,11 @@ export function DriversPage() {
               value={status}
 
               onChange={
-                (event) => {
+                (event) =>
                   setStatus(
                     event.target
                       .value as StatusFilter,
-                  );
-                  setPage(1);
-                }
+                  )
               }
             >
               <MenuItem value="all">
@@ -1631,36 +1630,6 @@ export function DriversPage() {
               );
             },
           )}
-
-          <PaginationControls
-            page={
-              driversQuery.data
-                ?.page ??
-              page
-            }
-            limit={
-              driversQuery.data
-                ?.limit ??
-              limit
-            }
-            total={
-              driversQuery.data
-                ?.total ??
-              0
-            }
-            totalPages={
-              driversQuery.data
-                ?.totalPages ??
-              0
-            }
-            onPageChange={
-              setPage
-            }
-            onLimitChange={(nextLimit) => {
-              setLimit(nextLimit);
-              setPage(1);
-            }}
-          />
         </Paper>
       ) : null}
 

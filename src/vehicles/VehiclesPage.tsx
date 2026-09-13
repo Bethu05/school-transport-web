@@ -46,14 +46,6 @@ import {
 } from '../auth/AuthProvider';
 
 import {
-  PaginationControls,
-} from '../components/PaginationControls';
-
-import {
-  useDebouncedValue,
-} from '../hooks/useDebouncedValue';
-
-import {
   createVehicle,
   listVehicles,
   retireVehicle,
@@ -68,10 +60,11 @@ import {
   VehicleFormDialog,
 } from './VehicleFormDialog';
 
+const PAGE_SIZE = 100;
+
 const EMPTY_VEHICLES: Vehicle[] = [];
 
 type StatusFilter =
-  | 'current'
   | 'all'
   | VehicleStatus;
 
@@ -157,23 +150,7 @@ export function VehiclesPage() {
     setStatus,
   ] =
     useState<StatusFilter>(
-      'current',
-    );
-
-  const [
-    page,
-    setPage,
-  ] = useState(1);
-
-  const [
-    limit,
-    setLimit,
-  ] = useState(10);
-
-  const debouncedSearch =
-    useDebouncedValue(
-      search,
-      300,
+      'all',
     );
 
   const [
@@ -222,10 +199,8 @@ export function VehiclesPage() {
       queryKey: [
         'vehicles',
         tenantId,
-        debouncedSearch,
+        search,
         status,
-        page,
-        limit,
       ],
 
       enabled:
@@ -244,22 +219,18 @@ export function VehiclesPage() {
           return listVehicles(
             tenantId,
             {
-              page,
+              page: 1,
 
-              limit,
+              limit:
+                PAGE_SIZE,
 
               search:
-                debouncedSearch ||
+                search ||
                 undefined,
 
-              view:
-                status === 'current'
-                  ? 'current'
-                  : 'all',
-
               status:
-                status === 'current' ||
-                status === 'all'
+                status ===
+                  'all'
                   ? undefined
                   : status,
             },
@@ -420,8 +391,6 @@ export function VehiclesPage() {
           setRetireTarget(
             null,
           );
-
-          setPage(1);
 
           setSuccessMessage(
             'Vehicle retired successfully.',
@@ -722,7 +691,7 @@ export function VehiclesPage() {
         {[
           {
             label:
-              'Matching Vehicles',
+              'Total Fleet',
 
             value:
               summary.total,
@@ -736,7 +705,7 @@ export function VehiclesPage() {
 
           {
             label:
-              'Active on Page',
+              'Active',
 
             value:
               summary.active,
@@ -750,7 +719,7 @@ export function VehiclesPage() {
 
           {
             label:
-              'Maintenance on Page',
+              'Maintenance',
 
             value:
               summary.maintenance,
@@ -764,7 +733,7 @@ export function VehiclesPage() {
 
           {
             label:
-              'GPS on Page',
+              'GPS Equipped',
 
             value:
               summary.withGps,
@@ -937,13 +906,11 @@ export function VehiclesPage() {
             value={search}
 
             onChange={
-              (event) => {
+              (event) =>
                 setSearch(
                   event.target
                     .value,
-                );
-                setPage(1);
-              }
+                )
             }
 
             label="Search vehicles"
@@ -985,19 +952,13 @@ export function VehiclesPage() {
               value={status}
 
               onChange={
-                (event) => {
+                (event) =>
                   setStatus(
                     event.target
                       .value as StatusFilter,
-                  );
-                  setPage(1);
-                }
+                  )
               }
             >
-              <MenuItem value="current">
-                Operational
-              </MenuItem>
-
               <MenuItem value="all">
                 All statuses
               </MenuItem>
@@ -1449,18 +1410,6 @@ export function VehiclesPage() {
               </Box>
             ),
           )}
-
-          <PaginationControls
-            page={vehiclesQuery.data?.page ?? page}
-            limit={vehiclesQuery.data?.limit ?? limit}
-            total={vehiclesQuery.data?.total ?? 0}
-            totalPages={vehiclesQuery.data?.totalPages ?? 0}
-            onPageChange={setPage}
-            onLimitChange={(nextLimit) => {
-              setLimit(nextLimit);
-              setPage(1);
-            }}
-          />
         </Paper>
       ) : null}
 

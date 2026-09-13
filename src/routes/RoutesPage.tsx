@@ -49,14 +49,6 @@ import {
 } from '../auth/AuthProvider';
 
 import {
-  PaginationControls,
-} from '../components/PaginationControls';
-
-import {
-  useDebouncedValue,
-} from '../hooks/useDebouncedValue';
-
-import {
   listSchools,
   type School,
 } from '../schools/schools.api';
@@ -65,7 +57,7 @@ import {
   activateRoute,
   createRoute,
   deactivateRoute,
-  listRoutesPage,
+  listRoutes,
   updateRoute,
   type CreateRouteInput,
   type Route,
@@ -182,23 +174,7 @@ export function RoutesPage() {
     setStatus,
   ] =
     useState<StatusFilter>(
-      'active',
-    );
-
-  const [
-    page,
-    setPage,
-  ] = useState(1);
-
-  const [
-    limit,
-    setLimit,
-  ] = useState(10);
-
-  const debouncedSearch =
-    useDebouncedValue(
-      search,
-      300,
+      'all',
     );
 
   const [
@@ -263,11 +239,6 @@ export function RoutesPage() {
       queryKey: [
         'routes',
         tenantId,
-        debouncedSearch,
-        status,
-        routeType,
-        page,
-        limit,
       ],
 
       enabled:
@@ -283,23 +254,8 @@ export function RoutesPage() {
             );
           }
 
-          return listRoutesPage(
+          return listRoutes(
             tenantId,
-            {
-              page,
-              limit,
-              search:
-                debouncedSearch ||
-                undefined,
-              status:
-                status === 'all'
-                  ? undefined
-                  : status,
-              routeType:
-                routeType === 'all'
-                  ? undefined
-                  : routeType,
-            },
           );
         },
     });
@@ -475,8 +431,6 @@ export function RoutesPage() {
             null,
           );
 
-          setPage(1);
-
           setSuccessMessage(
             'Route deactivated successfully.',
           );
@@ -513,8 +467,7 @@ export function RoutesPage() {
     });
 
   const routes =
-    routesQuery.data
-      ?.items ??
+    routesQuery.data ??
     EMPTY_ROUTES;
 
   const schools =
@@ -550,15 +503,76 @@ export function RoutesPage() {
     );
 
   const filteredRoutes =
-    routes;
+    useMemo(
+      () => {
+        const normalizedSearch =
+          search
+            .trim()
+            .toLowerCase();
+
+        return routes.filter(
+          (route) => {
+            if (
+              status !==
+              'all' &&
+              route.status !==
+              status
+            ) {
+              return false;
+            }
+
+            if (
+              routeType !==
+              'all' &&
+              route.routeType !==
+              routeType
+            ) {
+              return false;
+            }
+
+            if (
+              !normalizedSearch
+            ) {
+              return true;
+            }
+
+            return [
+              route.name,
+              route.code ??
+              '',
+              schoolName(
+                route.schoolId,
+              ),
+              schoolById.get(
+                route.schoolId,
+              )?.code ??
+              '',
+            ].some(
+              (value) =>
+                value
+                  .toLowerCase()
+                  .includes(
+                    normalizedSearch,
+                  ),
+            );
+          },
+        );
+      },
+      [
+        routes,
+        search,
+        status,
+        routeType,
+        schoolById,
+        schoolName,
+      ],
+    );
 
   const summary =
     useMemo(
       () => ({
         total:
-          routesQuery.data
-            ?.total ??
-          0,
+          routes.length,
 
         active:
           routes.filter(
@@ -583,8 +597,6 @@ export function RoutesPage() {
       }),
       [
         routes,
-        routesQuery.data
-          ?.total,
       ],
     );
 
@@ -855,7 +867,7 @@ export function RoutesPage() {
         {[
           {
             label:
-              'Matching Routes',
+              'Total Routes',
 
             value:
               summary.total,
@@ -869,7 +881,7 @@ export function RoutesPage() {
 
           {
             label:
-              'Active on Page',
+              'Active',
 
             value:
               summary.active,
@@ -883,7 +895,7 @@ export function RoutesPage() {
 
           {
             label:
-              'Inactive on Page',
+              'Inactive',
 
             value:
               summary.inactive,
@@ -897,7 +909,7 @@ export function RoutesPage() {
 
           {
             label:
-              'Pickup on Page',
+              'Pickup Routes',
 
             value:
               summary.pickup,
@@ -1078,13 +1090,11 @@ export function RoutesPage() {
             }
 
             onChange={
-              (event) => {
+              (event) =>
                 setSearch(
                   event.target
                     .value,
-                );
-                setPage(1);
-              }
+                )
             }
 
             label="Search routes"
@@ -1128,13 +1138,11 @@ export function RoutesPage() {
               }
 
               onChange={
-                (event) => {
+                (event) =>
                   setRouteType(
                     event.target
                       .value as TypeFilter,
-                  );
-                  setPage(1);
-                }
+                  )
               }
             >
               <MenuItem value="all">
@@ -1172,13 +1180,11 @@ export function RoutesPage() {
               }
 
               onChange={
-                (event) => {
+                (event) =>
                   setStatus(
                     event.target
                       .value as StatusFilter,
-                  );
-                  setPage(1);
-                }
+                  )
               }
             >
               <MenuItem value="all">
@@ -1689,18 +1695,6 @@ export function RoutesPage() {
               </Box>
             ),
           )}
-
-          <PaginationControls
-            page={routesQuery.data?.page ?? page}
-            limit={routesQuery.data?.limit ?? limit}
-            total={routesQuery.data?.total ?? 0}
-            totalPages={routesQuery.data?.totalPages ?? 0}
-            onPageChange={setPage}
-            onLimitChange={(nextLimit) => {
-              setLimit(nextLimit);
-              setPage(1);
-            }}
-          />
         </Paper>
       ) : null}
 

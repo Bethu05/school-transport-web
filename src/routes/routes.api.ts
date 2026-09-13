@@ -24,23 +24,6 @@ export interface Route {
   updatedAt: string;
 }
 
-export interface PaginatedRoutes {
-  items: Route[];
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
-export interface ListRoutesQuery {
-  page?: number;
-  limit?: number;
-  search?: string;
-  schoolId?: string;
-  status?: RouteStatus;
-  routeType?: RouteType;
-}
-
 export interface RouteStop {
   id: string;
   tenantId: string;
@@ -58,6 +41,11 @@ export interface RouteStop {
 }
 
 export interface CreateRouteInput {
+  /**
+   * Required by the backend when the route is first created.
+   *
+   * schoolId is intentionally immutable after creation.
+   */
   schoolId: string;
   name: string;
   code?: string;
@@ -65,6 +53,12 @@ export interface CreateRouteInput {
 }
 
 export interface UpdateRouteInput {
+  /**
+   * schoolId and status are deliberately absent.
+   *
+   * Route school ownership is immutable after creation.
+   * Status changes use the dedicated activate/deactivate endpoints.
+   */
   name?: string;
   code?: string;
   routeType?: RouteType;
@@ -85,60 +79,18 @@ export interface RemoveRouteStopResult {
   success: boolean;
 }
 
-function buildRoutesQueryString(
-  query: ListRoutesQuery,
-): string {
-  const parameters = new URLSearchParams();
-
-  if (query.page) parameters.set('page', String(query.page));
-  if (query.limit) parameters.set('limit', String(query.limit));
-  if (query.search?.trim()) parameters.set('search', query.search.trim());
-  if (query.schoolId) parameters.set('schoolId', query.schoolId);
-  if (query.status) parameters.set('status', query.status);
-  if (query.routeType) parameters.set('routeType', query.routeType);
-
-  const value = parameters.toString();
-  return value ? `?${value}` : '';
-}
-
-export function listRoutesPage(
+/**
+ * Fetch every route visible inside the authenticated tenant.
+ */
+export function listRoutes(
   tenantId: string,
-  query: ListRoutesQuery = {},
-): Promise<PaginatedRoutes> {
-  return apiRequest<PaginatedRoutes>(
-    `/routes${buildRoutesQueryString(query)}`,
+): Promise<Route[]> {
+  return apiRequest<Route[]>(
+    '/routes',
     {
       tenantId,
     },
   );
-}
-
-/**
- * Compatibility helper for trip scheduling and other selectors.
- * The Routes dashboard uses listRoutesPage().
- */
-export async function listRoutes(
-  tenantId: string,
-): Promise<Route[]> {
-  const items: Route[] = [];
-  let page = 1;
-  let totalPages = 1;
-
-  while (page <= totalPages) {
-    const response = await listRoutesPage(
-      tenantId,
-      {
-        page,
-        limit: 100,
-      },
-    );
-
-    items.push(...response.items);
-    totalPages = response.totalPages;
-    page += 1;
-  }
-
-  return items;
 }
 
 /**
