@@ -6,18 +6,29 @@ import {
 import {
     Alert,
     Box,
+    Button,
     Chip,
     CircularProgress,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     FormControl,
+    IconButton,
     InputLabel,
     MenuItem,
     Paper,
     Select,
+    Snackbar,
     TextField,
+    Tooltip,
     Typography,
 } from '@mui/material';
 
 import {
+    AddRounded,
+    ArchiveRounded,
+    EditRounded,
     LocationOnRounded,
     PlaceRounded,
     SearchRounded,
@@ -25,8 +36,15 @@ import {
 } from '@mui/icons-material';
 
 import {
+    useMutation,
     useQuery,
+    useQueryClient,
 } from '@tanstack/react-query';
+
+import {
+    FRONTEND_PERMISSIONS,
+    hasFrontendPermission,
+} from '../auth/frontend-permissions';
 
 import {
     useAuth,
@@ -42,10 +60,19 @@ import {
 } from '../schools/schools.api';
 
 import {
+    createStop,
+    deactivateStop,
     listStopsPage,
+    updateStop,
+    type CreateStopInput,
     type Stop,
     type StopStatus,
+    type UpdateStopInput,
 } from './stops.api';
+
+import {
+    StopFormDialog,
+} from './StopFormDialog';
 
 const EMPTY_STOPS:
     Stop[] = [];
@@ -58,7 +85,8 @@ type StatusFilter =
     | StopStatus;
 
 function statusLabel(
-    status: string,
+    status:
+        StopStatus,
 ): string {
     switch (status) {
         case 'active':
@@ -66,23 +94,18 @@ function statusLabel(
 
         case 'inactive':
             return 'Inactive';
-
-        default:
-            return status;
     }
 }
 
 function statusColor(
-    status: string,
+    status:
+        StopStatus,
 ): string {
     switch (status) {
         case 'active':
             return '#5F9471';
 
         case 'inactive':
-            return '#85898F';
-
-        default:
             return '#85898F';
     }
 }
@@ -93,13 +116,16 @@ function errorMessage(
     return error instanceof
         Error
         ? error.message
-        : 'Stops could not be loaded.';
+        : 'The operation could not be completed.';
 }
 
 export function StopsPage() {
     const {
         tenant,
     } = useAuth();
+
+    const queryClient =
+        useQueryClient();
 
     const [
         search,
@@ -133,8 +159,64 @@ export function StopsPage() {
     ] =
         useState(10);
 
+    const [
+        formOpen,
+        setFormOpen,
+    ] =
+        useState(false);
+
+    const [
+        editingStop,
+        setEditingStop,
+    ] =
+        useState<
+            Stop | null
+        >(null);
+
+    const [
+        deactivateTarget,
+        setDeactivateTarget,
+    ] =
+        useState<
+            Stop | null
+        >(null);
+
+    const [
+        mutationError,
+        setMutationError,
+    ] =
+        useState<
+            string | null
+        >(null);
+
+    const [
+        successMessage,
+        setSuccessMessage,
+    ] =
+        useState<
+            string | null
+        >(null);
+
     const tenantId =
         tenant?.tenantId;
+
+    const canCreate =
+        hasFrontendPermission(
+            tenant?.role,
+            FRONTEND_PERMISSIONS.STOPS_CREATE,
+        );
+
+    const canUpdate =
+        hasFrontendPermission(
+            tenant?.role,
+            FRONTEND_PERMISSIONS.STOPS_UPDATE,
+        );
+
+    const canDeactivate =
+        hasFrontendPermission(
+            tenant?.role,
+            FRONTEND_PERMISSIONS.STOPS_DEACTIVATE,
+        );
 
     const schoolsQuery =
         useQuery({
@@ -282,6 +364,187 @@ export function StopsPage() {
                 },
         });
 
+    async function refreshStops():
+        Promise<void> {
+        await Promise.all([
+            queryClient.invalidateQueries(
+                {
+                    queryKey: [
+                        'stops-page',
+                    ],
+                },
+            ),
+
+            queryClient.invalidateQueries(
+                {
+                    queryKey: [
+                        'stops-summary',
+                    ],
+                },
+            ),
+
+            /**
+             * RouteStopsDialog uses this compatibility query key.
+             */
+            queryClient.invalidateQueries(
+                {
+                    queryKey: [
+                        'stops',
+                    ],
+                },
+            ),
+        ]);
+    }
+
+    const createMutation =
+        useMutation({
+            mutationFn:
+                async (
+                    input:
+                        CreateStopInput,
+                ) => {
+                    if (!tenantId) {
+                        throw new Error(
+                            'No active tenant',
+                        );
+                    }
+
+                    return createStop(
+                        tenantId,
+                        input,
+                    );
+                },
+
+            onSuccess:
+                async () => {
+                    await refreshStops();
+
+                    setPage(
+                        1,
+                    );
+
+                    setFormOpen(
+                        false,
+                    );
+
+                    setEditingStop(
+                        null,
+                    );
+
+                    setMutationError(
+                        null,
+                    );
+
+                    setSuccessMessage(
+                        'Stop added successfully.',
+                    );
+                },
+
+            onError:
+                (error) => {
+                    setMutationError(
+                        errorMessage(
+                            error,
+                        ),
+                    );
+                },
+        });
+
+    const updateMutation =
+        useMutation({
+            mutationFn:
+                async ({
+                    stopId:
+                    mutationStopId,
+                    input,
+                }: {
+                    stopId:
+                    string;
+
+                    input:
+                    UpdateStopInput;
+                }) => {
+                    if (!tenantId) {
+                        throw new Error(
+                            'No active tenant',
+                        );
+                    }
+
+                    return updateStop(
+                        tenantId,
+                        mutationStopId,
+                        input,
+                    );
+                },
+
+            onSuccess:
+                async () => {
+                    await refreshStops();
+
+                    setFormOpen(
+                        false,
+                    );
+
+                    setEditingStop(
+                        null,
+                    );
+
+                    setMutationError(
+                        null,
+                    );
+
+                    setSuccessMessage(
+                        'Stop updated successfully.',
+                    );
+                },
+
+            onError:
+                (error) => {
+                    setMutationError(
+                        errorMessage(
+                            error,
+                        ),
+                    );
+                },
+        });
+
+    const deactivateMutation =
+        useMutation({
+            mutationFn:
+                async (
+                    stopIdToDeactivate:
+                        string,
+                ) => {
+                    if (!tenantId) {
+                        throw new Error(
+                            'No active tenant',
+                        );
+                    }
+
+                    return deactivateStop(
+                        tenantId,
+                        stopIdToDeactivate,
+                    );
+                },
+
+            onSuccess:
+                async () => {
+                    await refreshStops();
+
+                    setPage(
+                        1,
+                    );
+
+                    setDeactivateTarget(
+                        null,
+                    );
+
+                    setSuccessMessage(
+                        'Stop deactivated successfully.',
+                    );
+                },
+        });
+
     const schools =
         schoolsQuery.data ??
         EMPTY_SCHOOLS;
@@ -331,37 +594,169 @@ export function StopsPage() {
             inactive: 0,
         };
 
+    function openCreate():
+        void {
+        setMutationError(
+            null,
+        );
+
+        setEditingStop(
+            null,
+        );
+
+        setFormOpen(
+            true,
+        );
+    }
+
+    function openEdit(
+        stop:
+            Stop,
+    ): void {
+        setMutationError(
+            null,
+        );
+
+        setEditingStop(
+            stop,
+        );
+
+        setFormOpen(
+            true,
+        );
+    }
+
+    function closeForm():
+        void {
+        if (
+            createMutation.isPending ||
+            updateMutation.isPending
+        ) {
+            return;
+        }
+
+        setMutationError(
+            null,
+        );
+
+        setFormOpen(
+            false,
+        );
+
+        setEditingStop(
+            null,
+        );
+    }
+
+    async function submitStop(
+        input:
+            | CreateStopInput
+            | UpdateStopInput,
+    ): Promise<void> {
+        setMutationError(
+            null,
+        );
+
+        if (editingStop) {
+            await updateMutation.mutateAsync(
+                {
+                    stopId:
+                        editingStop.id,
+
+                    input:
+                        input as UpdateStopInput,
+                },
+            );
+
+            return;
+        }
+
+        await createMutation.mutateAsync(
+            input as CreateStopInput,
+        );
+    }
+
+    const formSaving =
+        createMutation.isPending ||
+        updateMutation.isPending;
+
     return (
         <Box>
             <Box
                 sx={{
                     mb: 3,
+
+                    display:
+                        'flex',
+
+                    flexDirection: {
+                        xs:
+                            'column',
+
+                        md:
+                            'row',
+                    },
+
+                    alignItems: {
+                        xs:
+                            'flex-start',
+
+                        md:
+                            'flex-end',
+                    },
+
+                    justifyContent:
+                        'space-between',
+
+                    gap: 2,
                 }}
             >
-                <Typography
-                    variant="h4"
+                <Box>
+                    <Typography
+                        variant="h4"
 
-                    sx={{
-                        fontWeight:
-                            900,
-                    }}
-                >
-                    Stops
-                </Typography>
+                        sx={{
+                            fontWeight:
+                                900,
+                        }}
+                    >
+                        Stops
+                    </Typography>
 
-                <Typography
-                    sx={{
-                        mt: 0.75,
+                    <Typography
+                        sx={{
+                            mt: 0.75,
 
-                        color:
-                            'text.secondary',
+                            color:
+                                'text.secondary',
 
-                        fontSize:
-                            13,
-                    }}
-                >
-                    Browse transport stops across the tenant. Active stops are shown by default.
-                </Typography>
+                            fontSize:
+                                13,
+                        }}
+                    >
+                        Manage shared and school-specific transport stops. Active stops are shown by default.
+                    </Typography>
+                </Box>
+
+                {canCreate ? (
+                    <Button
+                        variant="contained"
+
+                        startIcon={
+                            <AddRounded />
+                        }
+
+                        onClick={
+                            openCreate
+                        }
+
+                        disabled={
+                            schoolsQuery.isLoading
+                        }
+                    >
+                        Add stop
+                    </Button>
+                ) : null}
             </Box>
 
             <Box
@@ -706,7 +1101,8 @@ export function StopsPage() {
                         mb: 2,
                     }}
                 >
-                    School names could not be loaded. Stops can still be viewed.
+                    School names could not be loaded. Existing stops can still be viewed,
+                    but a school-specific stop cannot be created until the school list is available.
                 </Alert>
             ) : null}
 
@@ -824,7 +1220,7 @@ export function StopsPage() {
                             },
 
                             gridTemplateColumns:
-                                '1.25fr .7fr 1fr 1.5fr .75fr .7fr',
+                                '1.2fr .65fr .95fr 1.4fr .65fr .65fr 90px',
 
                             gap: 2,
 
@@ -845,6 +1241,7 @@ export function StopsPage() {
                             'Address',
                             'Geofence',
                             'Status',
+                            'Actions',
                         ].map(
                             (heading) => (
                                 <Typography
@@ -898,7 +1295,7 @@ export function StopsPage() {
                                             '1fr',
 
                                         lg:
-                                            '1.25fr .7fr 1fr 1.5fr .75fr .7fr',
+                                            '1.2fr .65fr .95fr 1.4fr .65fr .65fr 90px',
                                     },
 
                                     alignItems:
@@ -966,19 +1363,45 @@ export function StopsPage() {
                                         <LocationOnRounded />
                                     </Box>
 
-                                    <Typography
-                                        noWrap
-
+                                    <Box
                                         sx={{
-                                            fontSize:
-                                                12.5,
-
-                                            fontWeight:
-                                                800,
+                                            minWidth: 0,
                                         }}
                                     >
-                                        {stop.name}
-                                    </Typography>
+                                        <Typography
+                                            noWrap
+
+                                            sx={{
+                                                fontSize:
+                                                    12.5,
+
+                                                fontWeight:
+                                                    800,
+                                            }}
+                                        >
+                                            {stop.name}
+                                        </Typography>
+
+                                        <Typography
+                                            noWrap
+
+                                            sx={{
+                                                color:
+                                                    'text.secondary',
+
+                                                fontSize:
+                                                    10.5,
+                                            }}
+                                        >
+                                            {stop.latitude.toFixed(
+                                                5,
+                                            )}
+                                            {', '}
+                                            {stop.longitude.toFixed(
+                                                5,
+                                            )}
+                                        </Typography>
+                                    </Box>
                                 </Box>
 
                                 <Typography
@@ -1087,6 +1510,66 @@ export function StopsPage() {
                                             )}30`,
                                     }}
                                 />
+
+                                <Box
+                                    sx={{
+                                        display:
+                                            'flex',
+                                    }}
+                                >
+                                    {canUpdate ? (
+                                        <Tooltip title="Edit stop">
+                                            <IconButton
+                                                size="small"
+
+                                                onClick={() =>
+                                                    openEdit(
+                                                        stop,
+                                                    )
+                                                }
+                                            >
+                                                <EditRounded
+                                                    fontSize="small"
+                                                />
+                                            </IconButton>
+                                        </Tooltip>
+                                    ) : null}
+
+                                    {canDeactivate &&
+                                        stop.status ===
+                                        'active' ? (
+                                        <Tooltip title="Deactivate stop">
+                                            <IconButton
+                                                size="small"
+
+                                                onClick={() =>
+                                                    setDeactivateTarget(
+                                                        stop,
+                                                    )
+                                                }
+                                            >
+                                                <ArchiveRounded
+                                                    fontSize="small"
+                                                />
+                                            </IconButton>
+                                        </Tooltip>
+                                    ) : null}
+
+                                    {!canUpdate &&
+                                        !canDeactivate ? (
+                                        <Typography
+                                            sx={{
+                                                color:
+                                                    'text.secondary',
+
+                                                fontSize:
+                                                    12,
+                                            }}
+                                        >
+                                            —
+                                        </Typography>
+                                    ) : null}
+                                </Box>
                             </Box>
                         ),
                     )}
@@ -1134,6 +1617,190 @@ export function StopsPage() {
                     />
                 </Paper>
             ) : null}
+
+            <StopFormDialog
+                key={`${formOpen ? 'open' : 'closed'}:${editingStop?.id ?? 'new'}`}
+
+                open={
+                    formOpen
+                }
+
+                stop={
+                    editingStop
+                }
+
+                stopSchoolName={
+                    editingStop
+                        ? schoolName(
+                            editingStop,
+                        )
+                        : ''
+                }
+
+                schools={
+                    schools
+                }
+
+                saving={
+                    formSaving
+                }
+
+                error={
+                    mutationError
+                }
+
+                onClose={
+                    closeForm
+                }
+
+                onSubmit={
+                    submitStop
+                }
+            />
+
+            <Dialog
+                open={
+                    deactivateTarget !==
+                    null
+                }
+
+                onClose={() =>
+                    !deactivateMutation.isPending &&
+                    setDeactivateTarget(
+                        null,
+                    )
+                }
+
+                maxWidth="xs"
+
+                fullWidth
+            >
+                <DialogTitle
+                    sx={{
+                        fontWeight:
+                            850,
+                    }}
+                >
+                    Deactivate stop?
+                </DialogTitle>
+
+                <DialogContent>
+                    {deactivateMutation.isError ? (
+                        <Alert
+                            severity="error"
+
+                            sx={{
+                                mb: 2,
+                            }}
+                        >
+                            {errorMessage(
+                                deactivateMutation.error,
+                            )}
+                        </Alert>
+                    ) : null}
+
+                    <Typography
+                        sx={{
+                            color:
+                                'text.secondary',
+
+                            fontSize:
+                                13,
+
+                            lineHeight:
+                                1.7,
+                        }}
+                    >
+                        {deactivateTarget
+                            ? `${deactivateTarget.name} will become inactive. Historical route and trip records remain intact.`
+                            : ''}
+                    </Typography>
+                </DialogContent>
+
+                <DialogActions
+                    sx={{
+                        px: 3,
+
+                        pb: 3,
+                    }}
+                >
+                    <Button
+                        disabled={
+                            deactivateMutation.isPending
+                        }
+
+                        onClick={() =>
+                            setDeactivateTarget(
+                                null,
+                            )
+                        }
+                    >
+                        Cancel
+                    </Button>
+
+                    <Button
+                        variant="contained"
+
+                        disabled={
+                            deactivateMutation.isPending ||
+                            !deactivateTarget
+                        }
+
+                        onClick={() => {
+                            if (
+                                deactivateTarget
+                            ) {
+                                deactivateMutation.mutate(
+                                    deactivateTarget.id,
+                                );
+                            }
+                        }}
+                    >
+                        {deactivateMutation.isPending
+                            ? 'Deactivating...'
+                            : 'Deactivate stop'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Snackbar
+                open={
+                    successMessage !==
+                    null
+                }
+
+                autoHideDuration={
+                    3500
+                }
+
+                onClose={() =>
+                    setSuccessMessage(
+                        null,
+                    )
+                }
+
+                anchorOrigin={{
+                    vertical:
+                        'bottom',
+
+                    horizontal:
+                        'right',
+                }}
+            >
+                <Alert
+                    severity="success"
+
+                    variant="filled"
+
+                    onClose={() =>
+                        setSuccessMessage(
+                            null,
+                        )
+                    }
+                >
+                    {successMessage}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }

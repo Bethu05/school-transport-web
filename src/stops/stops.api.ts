@@ -33,7 +33,7 @@ export interface Stop {
     number;
 
   status:
-    StopStatus | string;
+    StopStatus;
 
   createdAt: string;
 
@@ -62,6 +62,44 @@ export interface ListStopsQuery {
   schoolId?: string;
 
   status?: StopStatus;
+}
+
+/**
+ * Stop lifecycle is intentionally not exposed through
+ * generic create/update payloads here.
+ *
+ * New stops use the backend default active state.
+ * Deactivation uses the dedicated DELETE endpoint protected by
+ * stops.deactivate.
+ */
+export interface CreateStopInput {
+  schoolId?: string;
+
+  name: string;
+
+  code?: string;
+
+  address?: string;
+
+  latitude: number;
+
+  longitude: number;
+
+  geofenceRadiusMeters?: number;
+}
+
+export interface UpdateStopInput {
+  name?: string;
+
+  code?: string;
+
+  address?: string;
+
+  latitude?: number;
+
+  longitude?: number;
+
+  geofenceRadiusMeters?: number;
 }
 
 function buildQueryString(
@@ -120,11 +158,6 @@ function buildQueryString(
     : '';
 }
 
-/**
- * Server-side paginated Stops endpoint.
- *
- * The future Stops dashboard uses this directly.
- */
 export function listStopsPage(
   tenantId: string,
   query:
@@ -142,10 +175,7 @@ export function listStopsPage(
 
 /**
  * Compatibility helper for RouteStopsDialog and any existing
- * consumers that expect Stop[] rather than a paginated response.
- *
- * The backend now paginates /stops, so we walk through all pages
- * in batches of 100 and return the original array shape.
+ * consumer that still expects Stop[].
  */
 export async function listStops(
   tenantId: string,
@@ -180,4 +210,62 @@ export async function listStops(
 
     page += 1;
   }
+}
+
+export function createStop(
+  tenantId: string,
+  input:
+    CreateStopInput,
+): Promise<Stop> {
+  return apiRequest<Stop>(
+    '/stops',
+    {
+      method:
+        'POST',
+
+      tenantId,
+
+      body:
+        JSON.stringify(
+          input,
+        ),
+    },
+  );
+}
+
+export function updateStop(
+  tenantId: string,
+  stopId: string,
+  input:
+    UpdateStopInput,
+): Promise<Stop> {
+  return apiRequest<Stop>(
+    `/stops/${stopId}`,
+    {
+      method:
+        'PATCH',
+
+      tenantId,
+
+      body:
+        JSON.stringify(
+          input,
+        ),
+    },
+  );
+}
+
+export function deactivateStop(
+  tenantId: string,
+  stopId: string,
+): Promise<Stop> {
+  return apiRequest<Stop>(
+    `/stops/${stopId}`,
+    {
+      method:
+        'DELETE',
+
+      tenantId,
+    },
+  );
 }
