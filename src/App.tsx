@@ -41,6 +41,10 @@ import {
 } from './trips/TripsPage';
 
 import {
+  StopsPage,
+} from './stops/StopsPage';
+
+import {
   VehiclesPage,
 } from './vehicles/VehiclesPage';
 
@@ -152,13 +156,15 @@ function App() {
         }
       />
 
+      {/* ======================================================
+          REAL STOPS MODULE
+          ====================================================== */}
+
       <Route
         path="/stops"
         element={
           <ProtectedPage>
-            <PlaceholderPage
-              title="Stops"
-            />
+            <StopsPage />
           </ProtectedPage>
         }
       />
