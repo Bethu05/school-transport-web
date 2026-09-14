@@ -29,6 +29,9 @@ import {
     CalendarMonthRounded,
     DirectionsBusRounded,
     EditRounded,
+    HowToRegRounded,
+    PlayArrowRounded,
+    CheckCircleRounded,
     PersonRounded,
     ScheduleRounded,
 } from '@mui/icons-material';
@@ -42,6 +45,11 @@ import {
 import {
     useAuth,
 } from '../auth/AuthProvider';
+
+import {
+    FRONTEND_PERMISSIONS,
+    hasFrontendPermission,
+} from '../auth/frontend-permissions';
 
 import {
     listDrivers,
@@ -60,9 +68,12 @@ import {
 
 import {
     cancelTrip,
+    boardTrip,
     createTrip,
+    completeTrip,
     listTrips,
     scheduleTrip,
+    startTrip,
     updateTrip,
     type CreateTripInput,
     type Trip,
@@ -105,6 +116,28 @@ function errorMessage(
     return error instanceof Error
         ? error.message
         : 'The operation could not be completed.';
+}
+
+
+class DraftSchedulingError extends Error {
+    readonly draft: Trip;
+
+    constructor(
+        draft: Trip,
+        cause: unknown,
+    ) {
+        super(
+            errorMessage(
+                cause,
+            ),
+        );
+
+        this.name =
+            'DraftSchedulingError';
+
+        this.draft =
+            draft;
+    }
 }
 
 function statusLabel(
@@ -365,8 +398,6 @@ function tripNeedsAttention(
     }
 
     return (
-        trip.status ===
-        'draft' ||
         !trip.vehicleId ||
         !trip.driverId
     );
@@ -429,6 +460,7 @@ function tripMatchesView(
 
 export function TripsPage() {
     const {
+        permissions,
         tenant,
     } = useAuth();
 
@@ -496,22 +528,56 @@ export function TripsPage() {
     const tenantId =
         tenant?.tenantId;
 
-    const role =
-        tenant?.role;
+    const canCreateTrips =
+        hasFrontendPermission(
+            permissions,
+            FRONTEND_PERMISSIONS.TRIPS_CREATE,
+        );
 
-    const canManageTrips =
-        role === 'owner' ||
-        role === 'admin' ||
-        role ===
-        'transport_manager' ||
-        role ===
-        'dispatcher';
+    const canScheduleTrips =
+        hasFrontendPermission(
+            permissions,
+            FRONTEND_PERMISSIONS.TRIPS_SCHEDULE,
+        );
+
+    const canUpdateTrips =
+        hasFrontendPermission(
+            permissions,
+            FRONTEND_PERMISSIONS.TRIPS_UPDATE,
+        );
+
+    const canBoardTrips =
+        hasFrontendPermission(
+            permissions,
+            FRONTEND_PERMISSIONS.TRIPS_BOARD,
+        );
+
+    const canStartTrips =
+        hasFrontendPermission(
+            permissions,
+            FRONTEND_PERMISSIONS.TRIPS_START,
+        );
+
+    const canCompleteTrips =
+        hasFrontendPermission(
+            permissions,
+            FRONTEND_PERMISSIONS.TRIPS_COMPLETE,
+        );
 
     const canCancelTrips =
-        role === 'owner' ||
-        role === 'admin' ||
-        role ===
-        'transport_manager';
+        hasFrontendPermission(
+            permissions,
+            FRONTEND_PERMISSIONS.TRIPS_CANCEL,
+        );
+
+    /**
+     * The current scheduling dialog creates a draft and then
+     * immediately schedules it, so both permissions are required.
+     */
+    const canCreateAndScheduleTrips =
+        canCreateTrips &&
+        canScheduleTrips;
+
 
     // ============================================================
     // DATA
@@ -663,10 +729,17 @@ export function TripsPage() {
                             input,
                         );
 
-                    return scheduleTrip(
-                        tenantId,
-                        draft.id,
-                    );
+                    try {
+                        return await scheduleTrip(
+                            tenantId,
+                            draft.id,
+                        );
+                    } catch (error) {
+                        throw new DraftSchedulingError(
+                            draft,
+                            error,
+                        );
+                    }
                 },
 
             onSuccess:
@@ -699,6 +772,29 @@ export function TripsPage() {
                     error,
                 ) => {
                     await refreshTrips();
+
+                    if (
+                        error instanceof
+                        DraftSchedulingError
+                    ) {
+                        setScheduleOpen(
+                            false,
+                        );
+
+                        setEditingTrip(
+                            error.draft,
+                        );
+
+                        setMutationError(
+                            `Draft saved. ${error.message}`,
+                        );
+
+                        setSuccessMessage(
+                            'Trip kept as a draft so it can be amended and scheduled again.',
+                        );
+
+                        return;
+                    }
 
                     setMutationError(
                         errorMessage(
@@ -753,6 +849,117 @@ export function TripsPage() {
                     setSuccessMessage(
                         'Trip updated successfully.',
                     );
+                },
+
+            onError:
+                (
+                    error,
+                ) => {
+                    setMutationError(
+                        errorMessage(
+                            error,
+                        ),
+                    );
+                },
+        });
+
+    // ============================================================
+    // OPERATIONAL LIFECYCLE
+    //
+    // scheduled   -> boarding
+    // boarding    -> in_progress
+    // in_progress -> completed
+    //
+    // Backend lifecycle validation remains authoritative.
+    // ============================================================
+
+    const lifecycleMutation =
+        useMutation({
+            mutationFn:
+                async ({
+                    tripId,
+                    action,
+                }: {
+                    tripId:
+                        string;
+
+                    action:
+                        | 'schedule'
+                        | 'board'
+                        | 'start'
+                        | 'complete';
+                }) => {
+                    if (!tenantId) {
+                        throw new Error(
+                            'No active tenant',
+                        );
+                    }
+
+                    switch (action) {
+                        case 'schedule':
+                            return scheduleTrip(
+                                tenantId,
+                                tripId,
+                            );
+
+                        case 'board':
+                            return boardTrip(
+                                tenantId,
+                                tripId,
+                            );
+
+                        case 'start':
+                            return startTrip(
+                                tenantId,
+                                tripId,
+                            );
+
+                        case 'complete':
+                            return completeTrip(
+                                tenantId,
+                                tripId,
+                            );
+                    }
+                },
+
+            onSuccess:
+                async (
+                    _trip,
+                    variables,
+                ) => {
+                    await refreshTrips();
+
+                    setMutationError(
+                        null,
+                    );
+
+                    switch (
+                        variables.action
+                    ) {
+                        case 'schedule':
+                            setSuccessMessage(
+                                'Trip scheduled successfully.',
+                            );
+                            break;
+
+                        case 'board':
+                            setSuccessMessage(
+                                'Trip moved to boarding.',
+                            );
+                            break;
+
+                        case 'start':
+                            setSuccessMessage(
+                                'Trip started successfully.',
+                            );
+                            break;
+
+                        case 'complete':
+                            setSuccessMessage(
+                                'Trip completed successfully.',
+                            );
+                            break;
+                    }
                 },
 
             onError:
@@ -917,6 +1124,13 @@ export function TripsPage() {
                             'scheduled',
                     ).length,
 
+                drafts:
+                    trips.filter(
+                        (trip) =>
+                            trip.status ===
+                            'draft',
+                    ).length,
+
                 actionRequired:
                     trips.filter(
                         tripNeedsAttention,
@@ -972,7 +1186,7 @@ export function TripsPage() {
         );
 
     const canOpenScheduler =
-        canManageTrips &&
+        canCreateAndScheduleTrips &&
         !schedulingResourcesLoading &&
         !schedulingResourcesError &&
         eligibleRoutes.length >
@@ -1106,7 +1320,7 @@ export function TripsPage() {
                     </Typography>
                 </Box>
 
-                {canManageTrips ? (
+                {canCreateAndScheduleTrips ? (
                     <Button
                         variant="contained"
                         startIcon={
@@ -1140,7 +1354,7 @@ export function TripsPage() {
                             'repeat(2, minmax(0, 1fr))',
 
                         md:
-                            'repeat(4, minmax(0, 1fr))',
+                            'repeat(5, minmax(0, 1fr))',
                     },
 
                     gap: 1.5,
@@ -1178,6 +1392,17 @@ export function TripsPage() {
 
                         icon:
                             <ScheduleRounded />,
+                    },
+
+                    {
+                        label:
+                            'Drafts',
+
+                        value:
+                            summary.drafts,
+
+                        icon:
+                            <EditRounded />,
                     },
 
                     {
@@ -1415,7 +1640,7 @@ export function TripsPage() {
                 </Alert>
             ) : null}
 
-            {canManageTrips &&
+            {canCreateAndScheduleTrips &&
                 !schedulingResourcesLoading &&
                 !schedulingResourcesError &&
                 !canOpenScheduler ? (
@@ -1549,7 +1774,7 @@ export function TripsPage() {
                             },
 
                             gridTemplateColumns:
-                                '1.05fr 1.3fr .95fr .95fr .8fr 90px',
+                                '1.05fr 1.3fr .95fr .95fr .8fr 330px',
 
                             gap: 2,
 
@@ -1605,10 +1830,30 @@ export function TripsPage() {
                             index,
                         ) => {
                             const showEdit =
-                                canManageTrips &&
+                                canUpdateTrips &&
                                 tripCanBeEdited(
                                     trip,
                                 );
+
+                            const showSchedule =
+                                canScheduleTrips &&
+                                trip.status ===
+                                'draft';
+
+                            const showBoard =
+                                canBoardTrips &&
+                                trip.status ===
+                                'scheduled';
+
+                            const showStart =
+                                canStartTrips &&
+                                trip.status ===
+                                'boarding';
+
+                            const showComplete =
+                                canCompleteTrips &&
+                                trip.status ===
+                                'in_progress';
 
                             const showCancel =
                                 canCancelTrips &&
@@ -1634,7 +1879,7 @@ export function TripsPage() {
                                                 '1fr',
 
                                             lg:
-                                                '1.05fr 1.3fr .95fr .95fr .8fr 90px',
+                                                '1.05fr 1.3fr .95fr .95fr .8fr 330px',
                                         },
 
                                         gap: {
@@ -1870,6 +2115,118 @@ export function TripsPage() {
                                             </Tooltip>
                                         ) : null}
 
+                                        {showSchedule ? (
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                startIcon={
+                                                    <ScheduleRounded />
+                                                }
+                                                disabled={
+                                                    lifecycleMutation.isPending
+                                                }
+                                                onClick={() => {
+                                                    setMutationError(
+                                                        null,
+                                                    );
+
+                                                    lifecycleMutation.mutate({
+                                                        tripId:
+                                                            trip.id,
+
+                                                        action:
+                                                            'schedule',
+                                                    });
+                                                }}
+                                            >
+                                                Schedule
+                                            </Button>
+                                        ) : null}
+
+                                        {showBoard ? (
+                                            <Button
+                                                size="small"
+                                                variant="contained"
+                                                startIcon={
+                                                    <HowToRegRounded />
+                                                }
+                                                disabled={
+                                                    lifecycleMutation.isPending
+                                                }
+                                                onClick={() => {
+                                                    setMutationError(
+                                                        null,
+                                                    );
+
+                                                    lifecycleMutation.mutate({
+                                                        tripId:
+                                                            trip.id,
+
+                                                        action:
+                                                            'board',
+                                                    });
+                                                }}
+                                            >
+                                                Board
+                                            </Button>
+                                        ) : null}
+
+                                        {showStart ? (
+                                            <Button
+                                                size="small"
+                                                variant="contained"
+                                                startIcon={
+                                                    <PlayArrowRounded />
+                                                }
+                                                disabled={
+                                                    lifecycleMutation.isPending
+                                                }
+                                                onClick={() => {
+                                                    setMutationError(
+                                                        null,
+                                                    );
+
+                                                    lifecycleMutation.mutate({
+                                                        tripId:
+                                                            trip.id,
+
+                                                        action:
+                                                            'start',
+                                                    });
+                                                }}
+                                            >
+                                                Start
+                                            </Button>
+                                        ) : null}
+
+                                        {showComplete ? (
+                                            <Button
+                                                size="small"
+                                                variant="contained"
+                                                startIcon={
+                                                    <CheckCircleRounded />
+                                                }
+                                                disabled={
+                                                    lifecycleMutation.isPending
+                                                }
+                                                onClick={() => {
+                                                    setMutationError(
+                                                        null,
+                                                    );
+
+                                                    lifecycleMutation.mutate({
+                                                        tripId:
+                                                            trip.id,
+
+                                                        action:
+                                                            'complete',
+                                                    });
+                                                }}
+                                            >
+                                                Complete
+                                            </Button>
+                                        ) : null}
+
                                         {showCancel ? (
                                             <Tooltip
                                                 title="Cancel trip"
@@ -1983,6 +2340,9 @@ export function TripsPage() {
                 }
                 trip={
                     editingTrip
+                }
+                routes={
+                    routes
                 }
                 vehicles={
                     vehicles

@@ -431,6 +431,17 @@ export function TripScheduleDialog({
         }
 
         if (
+            form.serviceDate <
+            businessDateToday()
+        ) {
+            setValidationError(
+                'The service date cannot be in the past.',
+            );
+
+            return;
+        }
+
+        if (
             !form.startTime
         ) {
             setValidationError(
@@ -707,6 +718,11 @@ export function TripScheduleDialog({
                                 inputLabel: {
                                     shrink:
                                         true,
+                                },
+
+                                htmlInput: {
+                                    min:
+                                        businessDateToday(),
                                 },
                             }}
                         />

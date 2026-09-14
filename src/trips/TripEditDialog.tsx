@@ -21,6 +21,10 @@ import type {
 } from '../drivers/drivers.api';
 
 import type {
+    Route,
+} from '../routes/routes.api';
+
+import type {
     Vehicle,
 } from '../vehicles/vehicles.api';
 
@@ -39,20 +43,23 @@ interface TripEditDialogProps {
     open: boolean;
 
     trip:
-    | Trip
-    | null;
+        | Trip
+        | null;
+
+    routes:
+        readonly Route[];
 
     vehicles:
-    readonly Vehicle[];
+        readonly Vehicle[];
 
     drivers:
-    readonly Driver[];
+        readonly Driver[];
 
     saving: boolean;
 
     error:
-    | string
-    | null;
+        | string
+        | null;
 
     onClose: () => void;
 
@@ -62,6 +69,8 @@ interface TripEditDialogProps {
 }
 
 interface TripEditFormState {
+    routeId: string;
+
     serviceDate: string;
 
     startTime: string;
@@ -75,11 +84,63 @@ interface TripEditFormState {
     notes: string;
 }
 
-/**
- * Convert an API timestamp into the local business
- * clock time shown to the transport operator.
- */
-function timeInputValue(
+function businessDateToday():
+    string {
+    const parts =
+        new Intl.DateTimeFormat(
+            'en-GB',
+            {
+                timeZone:
+                    BUSINESS_TIME_ZONE,
+
+                year:
+                    'numeric',
+
+                month:
+                    '2-digit',
+
+                day:
+                    '2-digit',
+            },
+        ).formatToParts(
+            new Date(),
+        );
+
+    const year =
+        parts.find(
+            (part) =>
+                part.type ===
+                'year',
+        )?.value;
+
+    const month =
+        parts.find(
+            (part) =>
+                part.type ===
+                'month',
+        )?.value;
+
+    const day =
+        parts.find(
+            (part) =>
+                part.type ===
+                'day',
+        )?.value;
+
+    if (
+        !year ||
+        !month ||
+        !day
+    ) {
+        throw new Error(
+            'Unable to determine business date',
+        );
+    }
+
+    return `${year}-${month}-${day}`;
+}
+
+function businessTimeFromTimestamp(
     value:
         | string
         | null,
@@ -124,93 +185,31 @@ function timeInputValue(
             (part) =>
                 part.type ===
                 'hour',
-        )?.value;
+        )?.value ?? '';
 
     const minute =
         parts.find(
             (part) =>
                 part.type ===
                 'minute',
-        )?.value;
-
-    if (
-        !hour ||
-        !minute
-    ) {
-        return '';
-    }
+        )?.value ?? '';
 
     return `${hour}:${minute}`;
 }
 
-/**
- * Convert the operator's business date/time back into
- * the explicit ISO value expected by the backend.
- */
 function toBusinessIso(
-    serviceDate: string,
+    date: string,
     time: string,
 ): string {
-    return (
-        `${serviceDate}` +
-        `T${time}:00` +
-        BUSINESS_UTC_OFFSET
-    );
+    return `${date}T${time}:00${BUSINESS_UTC_OFFSET}`;
 }
 
-function createFormState(
-    trip:
-        | Trip
-        | null,
-): TripEditFormState {
-    if (!trip) {
-        return {
-            serviceDate:
-                '',
-
-            startTime:
-                '',
-
-            endTime:
-                '',
-
-            vehicleId:
-                '',
-
-            driverId:
-                '',
-
-            notes:
-                '',
-        };
-    }
-
-    return {
-        serviceDate:
-            trip.serviceDate,
-
-        startTime:
-            timeInputValue(
-                trip.scheduledStartAt,
-            ),
-
-        endTime:
-            timeInputValue(
-                trip.scheduledEndAt,
-            ),
-
-        vehicleId:
-            trip.vehicleId ??
-            '',
-
-        driverId:
-            trip.driverId ??
-            '',
-
-        notes:
-            trip.notes ??
-            '',
-    };
+function routeLabel(
+    route: Route,
+): string {
+    return route.code
+        ? `${route.name} (${route.code})`
+        : route.name;
 }
 
 function vehicleLabel(
@@ -240,9 +239,71 @@ function driverLabel(
         .join(' ');
 }
 
+function createFormState(
+    trip:
+        | Trip
+        | null,
+): TripEditFormState {
+    if (!trip) {
+        return {
+            routeId:
+                '',
+
+            serviceDate:
+                '',
+
+            startTime:
+                '',
+
+            endTime:
+                '',
+
+            vehicleId:
+                '',
+
+            driverId:
+                '',
+
+            notes:
+                '',
+        };
+    }
+
+    return {
+        routeId:
+            trip.routeId,
+
+        serviceDate:
+            trip.serviceDate,
+
+        startTime:
+            businessTimeFromTimestamp(
+                trip.scheduledStartAt,
+            ),
+
+        endTime:
+            businessTimeFromTimestamp(
+                trip.scheduledEndAt,
+            ),
+
+        vehicleId:
+            trip.vehicleId ??
+            '',
+
+        driverId:
+            trip.driverId ??
+            '',
+
+        notes:
+            trip.notes ??
+            '',
+    };
+}
+
 export function TripEditDialog({
     open,
     trip,
+    routes,
     vehicles,
     drivers,
     saving,
@@ -269,53 +330,57 @@ export function TripEditDialog({
             string | null
         >(null);
 
-    /**
-     * The backend intentionally limits ordinary editing to
-     * Draft and Scheduled trips.
-     *
-     * Once boarding or execution begins, historical operating
-     * state should not be rewritten through this form.
-     */
-    const editable =
-        trip?.status ===
-        'draft' ||
-        trip?.status ===
-        'scheduled';
+    if (!trip) {
+        return null;
+    }
 
-    const compatibleVehicles =
-        vehicles.filter(
-            (vehicle) =>
+    /**
+     * Capture the non-null trip after the guard.
+     *
+     * TypeScript does not retain prop narrowing inside nested
+     * callbacks because props can theoretically change between
+     * renders.
+     */
+    const currentTrip =
+        trip;
+
+    const routeEditable =
+        currentTrip.status ===
+        'draft';
+
+    const routeOptions =
+        routes.filter(
+            (route) =>
+                route.schoolId ===
+                currentTrip.schoolId &&
                 (
-                    vehicle.status ===
-                    'active' ||
-                    vehicle.id ===
-                    trip?.vehicleId
-                ) &&
-                (
-                    !trip ||
-                    vehicle.schoolId ===
-                    null ||
-                    vehicle.schoolId ===
-                    trip.schoolId
+                    route.id ===
+                    currentTrip.routeId ||
+                    (
+                        route.status ===
+                        'active' &&
+                        route.stopCount >
+                        0
+                    )
                 ),
         );
 
-    const compatibleDrivers =
+    const vehicleOptions =
+        vehicles.filter(
+            (vehicle) =>
+                vehicle.status ===
+                'active' ||
+                vehicle.id ===
+                currentTrip.vehicleId,
+        );
+
+    const driverOptions =
         drivers.filter(
             (driver) =>
-                (
-                    driver.status ===
-                    'active' ||
-                    driver.id ===
-                    trip?.driverId
-                ) &&
-                (
-                    !trip ||
-                    driver.schoolId ===
-                    null ||
-                    driver.schoolId ===
-                    trip.schoolId
-                ),
+                driver.status ===
+                'active' ||
+                driver.id ===
+                currentTrip.driverId,
         );
 
     function updateField<
@@ -346,11 +411,11 @@ export function TripEditDialog({
         );
 
         if (
-            !trip ||
-            !editable
+            routeEditable &&
+            !form.routeId
         ) {
             setValidationError(
-                'This trip can no longer be edited.',
+                'Please select a route.',
             );
 
             return;
@@ -360,7 +425,18 @@ export function TripEditDialog({
             !form.serviceDate
         ) {
             setValidationError(
-                'Please select the service date.',
+                'Service date is required.',
+            );
+
+            return;
+        }
+
+        if (
+            form.serviceDate <
+            businessDateToday()
+        ) {
+            setValidationError(
+                'The service date cannot be in the past.',
             );
 
             return;
@@ -370,70 +446,19 @@ export function TripEditDialog({
             !form.startTime
         ) {
             setValidationError(
-                'Please enter the departure time.',
+                'Departure time is required.',
             );
 
             return;
         }
 
         if (
-            !form.endTime
+            form.endTime &&
+            form.endTime <=
+            form.startTime
         ) {
             setValidationError(
-                'Please enter the expected finish time.',
-            );
-
-            return;
-        }
-
-        if (
-            !form.vehicleId
-        ) {
-            setValidationError(
-                'Please select a vehicle.',
-            );
-
-            return;
-        }
-
-        if (
-            !form.driverId
-        ) {
-            setValidationError(
-                'Please select a driver.',
-            );
-
-            return;
-        }
-
-        const scheduledStartAt =
-            toBusinessIso(
-                form.serviceDate,
-                form.startTime,
-            );
-
-        const scheduledEndAt =
-            toBusinessIso(
-                form.serviceDate,
-                form.endTime,
-            );
-
-        const start =
-            new Date(
-                scheduledStartAt,
-            );
-
-        const end =
-            new Date(
-                scheduledEndAt,
-            );
-
-        if (
-            end.getTime() <=
-            start.getTime()
-        ) {
-            setValidationError(
-                'Expected finish time must be later than the departure time.',
+                'Finish time must be later than departure time.',
             );
 
             return;
@@ -444,18 +469,41 @@ export function TripEditDialog({
 
         const input:
             UpdateTripInput = {
+            ...(
+                routeEditable &&
+                form.routeId !==
+                currentTrip.routeId
+                    ? {
+                        routeId:
+                            form.routeId,
+                    }
+                    : {}
+            ),
+
             vehicleId:
-                form.vehicleId,
+                form.vehicleId ||
+                null,
 
             driverId:
-                form.driverId,
+                form.driverId ||
+                null,
 
             serviceDate:
                 form.serviceDate,
 
-            scheduledStartAt,
+            scheduledStartAt:
+                toBusinessIso(
+                    form.serviceDate,
+                    form.startTime,
+                ),
 
-            scheduledEndAt,
+            scheduledEndAt:
+                form.endTime
+                    ? toBusinessIso(
+                        form.serviceDate,
+                        form.endTime,
+                    )
+                    : null,
 
             notes:
                 notes ||
@@ -496,25 +544,11 @@ export function TripEditDialog({
                 </DialogTitle>
 
                 <DialogContent>
-                    <Typography
-                        sx={{
-                            mb: 2.5,
-
-                            color:
-                                'text.secondary',
-
-                            fontSize:
-                                13,
-
-                            lineHeight:
-                                1.6,
-                        }}
-                    >
-                        Update the vehicle, driver or operating times for this trip.
-                    </Typography>
-
                     <Box
                         sx={{
+                            pt:
+                                1,
+
                             display:
                                 'grid',
 
@@ -526,7 +560,8 @@ export function TripEditDialog({
                                     'repeat(2, minmax(0, 1fr))',
                             },
 
-                            gap: 2,
+                            gap:
+                                2,
                         }}
                     >
                         {validationError ||
@@ -543,46 +578,60 @@ export function TripEditDialog({
                             </Alert>
                         ) : null}
 
-                        {!editable &&
-                            trip ? (
-                            <Alert
-                                severity="info"
-                                sx={{
-                                    gridColumn:
-                                        '1 / -1',
-                                }}
-                            >
-                                This trip has already entered its operating lifecycle and can
-                                no longer be edited here.
-                            </Alert>
-                        ) : null}
-
                         <TextField
+                            select
                             label="Route"
                             value={
-                                trip?.routeCode
-                                    ? `${trip.routeName} (${trip.routeCode})`
-                                    : trip?.routeName ??
-                                    ''
+                                form.routeId
                             }
-                            disabled
-                            helperText="The route cannot be changed after the trip has been created."
+                            disabled={
+                                !routeEditable ||
+                                saving
+                            }
+                            onChange={(
+                                event,
+                            ) =>
+                                updateField(
+                                    'routeId',
+                                    event.target
+                                        .value,
+                                )
+                            }
+                            helperText={
+                                routeEditable
+                                    ? 'Route can be changed while this trip remains a draft.'
+                                    : 'Route is locked once the trip has been scheduled.'
+                            }
                             sx={{
                                 gridColumn:
                                     '1 / -1',
                             }}
-                        />
+                        >
+                            {routeOptions.map(
+                                (
+                                    route,
+                                ) => (
+                                    <MenuItem
+                                        key={
+                                            route.id
+                                        }
+                                        value={
+                                            route.id
+                                        }
+                                    >
+                                        {routeLabel(
+                                            route,
+                                        )}
+                                    </MenuItem>
+                                ),
+                            )}
+                        </TextField>
 
                         <TextField
-                            required
                             type="date"
                             label="Service date"
                             value={
                                 form.serviceDate
-                            }
-                            disabled={
-                                saving ||
-                                !editable
                             }
                             onChange={(
                                 event,
@@ -598,21 +647,19 @@ export function TripEditDialog({
                                     shrink:
                                         true,
                                 },
+
+                                htmlInput: {
+                                    min:
+                                        businessDateToday(),
+                                },
                             }}
                         />
 
-                        <Box />
-
                         <TextField
-                            required
                             type="time"
                             label="Departure"
                             value={
                                 form.startTime
-                            }
-                            disabled={
-                                saving ||
-                                !editable
                             }
                             onChange={(
                                 event,
@@ -632,15 +679,10 @@ export function TripEditDialog({
                         />
 
                         <TextField
-                            required
                             type="time"
-                            label="Expected finish"
+                            label="Finish"
                             value={
                                 form.endTime
-                            }
-                            disabled={
-                                saving ||
-                                !editable
                             }
                             onChange={(
                                 event,
@@ -650,6 +692,12 @@ export function TripEditDialog({
                                     event.target
                                         .value,
                                 )
+                            }
+                            helperText={
+                                currentTrip.status ===
+                                'draft'
+                                    ? 'Required before scheduling.'
+                                    : undefined
                             }
                             slotProps={{
                                 inputLabel: {
@@ -661,14 +709,9 @@ export function TripEditDialog({
 
                         <TextField
                             select
-                            required
                             label="Vehicle"
                             value={
                                 form.vehicleId
-                            }
-                            disabled={
-                                saving ||
-                                !editable
                             }
                             onChange={(
                                 event,
@@ -679,9 +722,12 @@ export function TripEditDialog({
                                         .value,
                                 )
                             }
-                            helperText="Choose the vehicle assigned to this trip."
                         >
-                            {compatibleVehicles.map(
+                            <MenuItem value="">
+                                Unassigned
+                            </MenuItem>
+
+                            {vehicleOptions.map(
                                 (
                                     vehicle,
                                 ) => (
@@ -703,14 +749,9 @@ export function TripEditDialog({
 
                         <TextField
                             select
-                            required
                             label="Driver"
                             value={
                                 form.driverId
-                            }
-                            disabled={
-                                saving ||
-                                !editable
                             }
                             onChange={(
                                 event,
@@ -721,9 +762,12 @@ export function TripEditDialog({
                                         .value,
                                 )
                             }
-                            helperText="Choose the driver assigned to this trip."
                         >
-                            {compatibleDrivers.map(
+                            <MenuItem value="">
+                                Unassigned
+                            </MenuItem>
+
+                            {driverOptions.map(
                                 (
                                     driver,
                                 ) => (
@@ -744,15 +788,9 @@ export function TripEditDialog({
                         </TextField>
 
                         <TextField
-                            multiline
-                            minRows={3}
                             label="Notes"
                             value={
                                 form.notes
-                            }
-                            disabled={
-                                saving ||
-                                !editable
                             }
                             onChange={(
                                 event,
@@ -763,34 +801,51 @@ export function TripEditDialog({
                                         .value,
                                 )
                             }
-                            placeholder="Optional operational notes"
-                            slotProps={{
-                                htmlInput: {
-                                    maxLength:
-                                        2000,
-                                },
-                            }}
+                            multiline
+                            minRows={
+                                3
+                            }
                             sx={{
                                 gridColumn:
                                     '1 / -1',
                             }}
                         />
+
+                        <Typography
+                            sx={{
+                                gridColumn:
+                                    '1 / -1',
+
+                                color:
+                                    'text.secondary',
+
+                                fontSize:
+                                    11.5,
+                            }}
+                        >
+                            {currentTrip.status ===
+                            'draft'
+                                ? 'Draft trips can be amended and scheduled again after resolving route, vehicle, driver or timing conflicts.'
+                                : 'This trip is already scheduled, so its route is locked.'}
+                        </Typography>
                     </Box>
                 </DialogContent>
 
                 <DialogActions
                     sx={{
-                        px: 3,
+                        px:
+                            3,
 
-                        pb: 3,
+                        pb:
+                            3,
                     }}
                 >
                     <Button
-                        disabled={
-                            saving
-                        }
                         onClick={
                             onClose
+                        }
+                        disabled={
+                            saving
                         }
                     >
                         Cancel
@@ -800,8 +855,7 @@ export function TripEditDialog({
                         type="submit"
                         variant="contained"
                         disabled={
-                            saving ||
-                            !editable
+                            saving
                         }
                     >
                         {saving

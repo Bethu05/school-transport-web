@@ -24,10 +24,26 @@ export const FRONTEND_PERMISSIONS = {
     'routes.read',
   TRIPS_READ:
     'trips.read',
+  TRIPS_CREATE:
+    'trips.create',
+  TRIPS_UPDATE:
+    'trips.update',
+  TRIPS_SCHEDULE:
+    'trips.schedule',
+  TRIPS_BOARD:
+    'trips.board',
+  TRIPS_START:
+    'trips.start',
+  TRIPS_COMPLETE:
+    'trips.complete',
+  TRIPS_CANCEL:
+    'trips.cancel',
   INCIDENTS_READ:
     'incidents.read',
   INCIDENTS_CREATE:
     'incidents.create',
+  INCIDENTS_UPDATE:
+    'incidents.update',
   STOPS_READ:
     'stops.read',
 

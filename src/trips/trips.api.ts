@@ -226,6 +226,7 @@ export interface CreateTripInput {
  * null explicitly removes an existing assignment.
  */
 export interface UpdateTripInput {
+  routeId?: string;
   vehicleId?:
     | string
     | null;

@@ -33,6 +33,14 @@ import {
 } from './home/HomePage';
 
 import {
+  IncidentsPage,
+} from './incidents/IncidentsPage';
+
+import {
+  NotificationsPage,
+} from './notifications/NotificationsPage';
+
+import {
   RoutesPage,
 } from './routes/RoutesPage';
 
@@ -55,6 +63,10 @@ import {
 import {
   VehiclesPage,
 } from './vehicles/VehiclesPage';
+
+import {
+  TrackingPage,
+} from './tracking/TrackingPage';
 
 function ProtectedPage({
   children,
@@ -131,9 +143,7 @@ function App() {
         path="/tracking"
         element={
           <ProtectedPage>
-            <PlaceholderPage
-              title="Live Tracking"
-            />
+            <TrackingPage />
           </ProtectedPage>
         }
       />
@@ -229,9 +239,7 @@ function App() {
         path="/incidents"
         element={
           <ProtectedPage>
-            <PlaceholderPage
-              title="Incidents"
-            />
+            <IncidentsPage />
           </ProtectedPage>
         }
       />
@@ -240,9 +248,7 @@ function App() {
         path="/notifications"
         element={
           <ProtectedPage>
-            <PlaceholderPage
-              title="Notifications"
-            />
+            <NotificationsPage />
           </ProtectedPage>
         }
       />
