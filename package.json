@@ -19,7 +19,19 @@
     "test:guardians-crud-api": "node --env-file=.env.development.local scripts/test-guardians-crud-api.mjs",
     "test:transport-manager-guardian-permissions-api": "node --env-file=.env.development.local scripts/test-transport-manager-guardian-permissions-api.mjs",
     "test:student-guardians-api": "node --env-file=.env.development.local scripts/test-student-guardians-api.mjs",
-    "test:navigation-permissions": "node scripts/test-navigation-permissions.mjs"
+    "test:navigation-permissions": "node scripts/test-navigation-permissions.mjs",
+    "test:trips-lifecycle-ui": "node scripts/test-trips-lifecycle-ui.mjs",
+    "test:trip-date-rules": "node scripts/test-trip-date-rules.mjs",
+    "test:trip-draft-workflow": "node scripts/test-trip-draft-workflow.mjs",
+    "test:incidents-frontend": "node scripts/test-incidents-frontend.mjs",
+    "test:notifications-frontend": "node scripts/test-notifications-frontend.mjs",
+    "test:notifications-api": "node --env-file=.env.development.local scripts/test-notifications-api.mjs",
+    "test:tracking-frontend": "node scripts/test-tracking-frontend.mjs",
+    "test:guardian-tracking-frontend": "node scripts/test-guardian-tracking-frontend.mjs",
+    "test:tracking-map-frontend": "node scripts/test-tracking-map-frontend.mjs",
+    "test:tracking-progress-frontend": "node scripts/test-tracking-progress-frontend.mjs",
+    "test:parent-dashboard-frontend": "node scripts/test-parent-dashboard-frontend.mjs",
+    "test:driver-dashboard-frontend": "node scripts/test-driver-dashboard-frontend.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -27,12 +39,14 @@
     "@mui/icons-material": "^9.4.0",
     "@mui/material": "^9.4.0",
     "@tanstack/react-query": "^5.102.8",
+    "leaflet": "^1.9.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.3",
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^24.13.4",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
