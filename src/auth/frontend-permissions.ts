@@ -16,6 +16,18 @@
  */
 
 export const FRONTEND_PERMISSIONS = {
+  DRIVERS_READ:
+    'drivers.read',
+  VEHICLES_READ:
+    'vehicles.read',
+  ROUTES_READ:
+    'routes.read',
+  TRIPS_READ:
+    'trips.read',
+  INCIDENTS_READ:
+    'incidents.read',
+  INCIDENTS_CREATE:
+    'incidents.create',
   STOPS_READ:
     'stops.read',
 

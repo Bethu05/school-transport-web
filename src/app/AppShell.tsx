@@ -46,6 +46,12 @@ import {
 } from '../auth/AuthProvider';
 
 import {
+  FRONTEND_PERMISSIONS,
+  hasFrontendPermission,
+  type FrontendPermission,
+} from '../auth/frontend-permissions';
+
+import {
   useColorMode,
 } from '../theme/AppThemeProvider';
 
@@ -59,7 +65,27 @@ interface NavigationItem {
   label: string;
   path: string;
   icon: ReactNode;
-  roles?: string[];
+
+  /**
+   * Standard tenant-wide page visibility.
+   *
+   * Effective permissions come from /auth/context.
+   */
+  permission?: FrontendPermission;
+
+  /**
+   * Used when either permission makes the page useful.
+   *
+   * Incidents is the first example:
+   * some users can report incidents without broad read access.
+   */
+  anyPermissions?: readonly FrontendPermission[];
+
+  /**
+   * Temporary fallback for special navigation whose access is
+   * role/relationship-specific rather than a simple page permission.
+   */
+  roles?: readonly string[];
 }
 
 const ALL_ROLES = [
@@ -89,89 +115,58 @@ const navigation: NavigationItem[] = [
     label: 'Trips',
     path: '/trips',
     icon: <ScheduleRounded />,
-    roles: [
-      'owner',
-      'admin',
-      'transport_manager',
-      'driver',
-    ],
+    permission: FRONTEND_PERMISSIONS.TRIPS_READ,
   },
 
   {
     label: 'Routes',
     path: '/routes',
     icon: <AltRouteRounded />,
-    roles: [
-      'owner',
-      'admin',
-      'transport_manager',
-    ],
+    permission: FRONTEND_PERMISSIONS.ROUTES_READ,
   },
 
   {
     label: 'Stops',
     path: '/stops',
     icon: <PlaceRounded />,
-    roles: [
-      'owner',
-      'admin',
-      'transport_manager',
-    ],
+    permission: FRONTEND_PERMISSIONS.STOPS_READ,
   },
 
   {
     label: 'Vehicles',
     path: '/vehicles',
     icon: <DirectionsBusRounded />,
-    roles: [
-      'owner',
-      'admin',
-      'transport_manager',
-    ],
+    permission: FRONTEND_PERMISSIONS.VEHICLES_READ,
   },
 
   {
     label: 'Drivers',
     path: '/drivers',
     icon: <BadgeRounded />,
-    roles: [
-      'owner',
-      'admin',
-      'transport_manager',
-    ],
+    permission: FRONTEND_PERMISSIONS.DRIVERS_READ,
   },
 
   {
     label: 'Students',
     path: '/students',
     icon: <SchoolRounded />,
-    roles: [
-      'owner',
-      'admin',
-      'transport_manager',
-    ],
+    permission: FRONTEND_PERMISSIONS.STUDENTS_READ,
   },
 
   {
     label: 'Guardians',
     path: '/guardians',
     icon: <FamilyRestroomRounded />,
-    roles: [
-      'owner',
-      'admin',
-      'transport_manager',
-    ],
+    permission: FRONTEND_PERMISSIONS.GUARDIANS_READ,
   },
 
   {
     label: 'Incidents',
     path: '/incidents',
     icon: <WarningAmberRounded />,
-    roles: [
-      'owner',
-      'admin',
-      'transport_manager',
-      'driver',
+    anyPermissions: [
+      FRONTEND_PERMISSIONS.INCIDENTS_READ,
+      FRONTEND_PERMISSIONS.INCIDENTS_CREATE,
     ],
   },
 
@@ -233,6 +228,7 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const {
+    permissions,
     user,
     tenant,
     logout,
@@ -259,14 +255,44 @@ export function AppShell({
 
   const visibleNavigation =
     navigation.filter(
-      (item) =>
-        !item.roles ||
-        (
-          role &&
-          item.roles.includes(
-            role,
+      (item) => {
+        if (
+          item.permission &&
+          !hasFrontendPermission(
+            permissions,
+            item.permission,
           )
-        ),
+        ) {
+          return false;
+        }
+
+        if (
+          item.anyPermissions &&
+          !item.anyPermissions.some(
+            (permission) =>
+              hasFrontendPermission(
+                permissions,
+                permission,
+              ),
+          )
+        ) {
+          return false;
+        }
+
+        if (
+          item.roles &&
+          !(
+            role &&
+            item.roles.includes(
+              role,
+            )
+          )
+        ) {
+          return false;
+        }
+
+        return true;
+      },
     );
 
   function handleLogout(): void {
@@ -356,7 +382,7 @@ export function AppShell({
       <Divider />
 
       {/* ================================================
-          ROLE-AWARE NAVIGATION
+          PERMISSION-AWARE NAVIGATION
           ================================================ */}
 
       <List
