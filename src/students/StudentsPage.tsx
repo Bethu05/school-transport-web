@@ -26,6 +26,7 @@ import {
 } from '@mui/material';
 
 import {
+  FamilyRestroomRounded,
   AddRounded,
   EditRounded,
   PersonOffRounded,
@@ -73,6 +74,10 @@ import {
 import {
   StudentFormDialog,
 } from './StudentFormDialog';
+
+import {
+  StudentGuardiansDialog,
+} from './StudentGuardiansDialog';
 
 import {
   StudentStopsDialog,
@@ -131,6 +136,35 @@ export function StudentsPage() {
 
   const queryClient =
     useQueryClient();
+
+  const [
+    guardiansStudent,
+    setGuardiansStudent,
+  ] =
+    useState<
+      Student | null
+    >(null);
+
+  /**
+   * Reading and managing Guardian relationships are separate
+   * capabilities.
+   *
+   * This keeps the UI compatible with future per-user permission
+   * overrides rather than assuming permissions from role names.
+   */
+  const canReadGuardians =
+    hasFrontendPermission(
+      permissions,
+      FRONTEND_PERMISSIONS.GUARDIANS_READ,
+    );
+
+  const canManageGuardians =
+    hasFrontendPermission(
+      permissions,
+      FRONTEND_PERMISSIONS.GUARDIANS_MANAGE_STUDENTS,
+    );
+
+
 
   const tenantId =
     tenant?.tenantId;
@@ -1633,6 +1667,29 @@ export function StudentsPage() {
                       </span>
                     </Tooltip>
 
+                  {canReadGuardians ? (
+                    <Tooltip
+                      title={
+                        canManageGuardians
+                          ? 'Manage guardians'
+                          : 'View guardians'
+                      }
+                    >
+                      <IconButton
+                        size="small"
+                        onClick={() =>
+                          setGuardiansStudent(
+                            student,
+                          )
+                        }
+                      >
+                        <FamilyRestroomRounded
+                          fontSize="small"
+                        />
+                      </IconButton>
+                    </Tooltip>
+                  ) : null}
+
                     <Tooltip
                       title={
                         student.status ===
@@ -1754,7 +1811,8 @@ export function StudentsPage() {
       />
 
       {tenantId ? (
-        <StudentStopsDialog
+        <>
+<StudentStopsDialog
           key={
             stopsStudent?.id ??
             'no-student'
@@ -1785,6 +1843,34 @@ export function StudentsPage() {
             )
           }
         />
+
+<StudentGuardiansDialog
+        key={`student-guardians:${guardiansStudent?.id ?? 'closed'}`}
+
+        open={
+          guardiansStudent !==
+          null
+        }
+
+        tenantId={
+          tenantId
+        }
+
+        student={
+          guardiansStudent
+        }
+
+        canManage={
+          canManageGuardians
+        }
+
+        onClose={() =>
+          setGuardiansStudent(
+            null,
+          )
+        }
+      />
+</>
       ) : null}
 
       <Dialog

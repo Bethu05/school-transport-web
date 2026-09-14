@@ -17,7 +17,8 @@
     "test:students-crud-api": "node --env-file=.env.development.local scripts/test-students-crud-api.mjs",
     "test:student-stops-api": "node --env-file=.env.development.local scripts/test-student-stops-api.mjs",
     "test:guardians-crud-api": "node --env-file=.env.development.local scripts/test-guardians-crud-api.mjs",
-    "test:transport-manager-guardian-permissions-api": "node --env-file=.env.development.local scripts/test-transport-manager-guardian-permissions-api.mjs"
+    "test:transport-manager-guardian-permissions-api": "node --env-file=.env.development.local scripts/test-transport-manager-guardian-permissions-api.mjs",
+    "test:student-guardians-api": "node --env-file=.env.development.local scripts/test-student-guardians-api.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
