@@ -32,6 +32,19 @@ import {
 } from '../../auth/AuthProvider';
 
 import {
+  FRONTEND_PERMISSIONS,
+  hasFrontendPermission,
+} from '../../auth/frontend-permissions';
+
+import {
+  DriverSafetyReportCard,
+} from './DriverSafetyReportCard';
+
+import {
+  DriverJourneyProgressCard,
+} from './DriverJourneyProgressCard';
+
+import {
   beginMyBoarding,
   completeMyTrip,
   getMyAssignedTrip,
@@ -155,6 +168,7 @@ function Detail({
 
 export function DriverDashboard() {
   const {
+    permissions,
     tenant,
     user,
   } = useAuth();
@@ -164,6 +178,15 @@ export function DriverDashboard() {
 
   const tenantId =
     tenant?.tenantId;
+
+
+  const canReportAssignedTripIncident =
+    hasFrontendPermission(
+      permissions,
+
+      FRONTEND_PERMISSIONS
+        .INCIDENTS_REPORT_ASSIGNED_TRIP,
+    );
 
   const tripQuery =
     useQuery({
@@ -237,6 +260,13 @@ export function DriverDashboard() {
           await queryClient.invalidateQueries({
             queryKey: [
               'my-driver-trip',
+              tenantId,
+            ],
+          });
+
+          await queryClient.invalidateQueries({
+            queryKey: [
+              'my-driver-journey-progress',
               tenantId,
             ],
           });
@@ -655,6 +685,33 @@ export function DriverDashboard() {
           </Paper>
         </Box>
       ) : null}
+
+
+      <DriverJourneyProgressCard
+        tenantId={
+          tenantId
+        }
+
+        enabled={
+          Boolean(
+            trip,
+          )
+        }
+      />
+
+
+      <DriverSafetyReportCard
+        tenantId={
+          tenantId
+        }
+
+        enabled={
+          Boolean(
+            trip &&
+            canReportAssignedTripIncident,
+          )
+        }
+      />
     </Box>
   );
 }

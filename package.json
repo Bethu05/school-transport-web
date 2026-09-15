@@ -31,7 +31,10 @@
     "test:tracking-map-frontend": "node scripts/test-tracking-map-frontend.mjs",
     "test:tracking-progress-frontend": "node scripts/test-tracking-progress-frontend.mjs",
     "test:parent-dashboard-frontend": "node scripts/test-parent-dashboard-frontend.mjs",
-    "test:driver-dashboard-frontend": "node scripts/test-driver-dashboard-frontend.mjs"
+    "test:driver-dashboard-frontend": "node scripts/test-driver-dashboard-frontend.mjs",
+    "test:driver-safety-frontend": "node scripts/test-driver-safety-frontend.mjs",
+    "test:driver-journey-frontend": "node scripts/test-driver-journey-frontend.mjs",
+    "test:driver-journey-realtime-frontend": "node scripts/test-driver-journey-realtime-frontend.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
