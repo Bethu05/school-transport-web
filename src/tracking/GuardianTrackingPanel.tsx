@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
+  Button,
   Chip,
   CircularProgress,
   Paper,
@@ -10,6 +11,7 @@ import {
 } from "@mui/material";
 
 import {
+  CenterFocusStrongRounded,
   DirectionsBusRounded,
   FamilyRestroomRounded,
   GpsFixedRounded,
@@ -27,6 +29,8 @@ import {
 import { LiveTrackingMap } from "./LiveTrackingMap";
 
 import { TrackingProgressPanel } from "./TrackingProgressPanel";
+
+import { sliceRouteBetweenPoints } from "./route-segment";
 
 import {
   createTrackingSocket,
@@ -76,9 +80,42 @@ export function GuardianTrackingPanel({
 
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
-  const [locationsByTrip, setLocationsByTrip] = useState<
+  /**
+   * WebSocket locations are kept separately from the bootstrap
+   * response.
+   *
+   * During rendering we choose whichever packet has the newest
+   * recordedAtEpochMs. This prevents a late HTTP response or a
+   * stale realtime packet from moving the bus backwards.
+   */
+  const [realtimeLocationsByTrip, setRealtimeLocationsByTrip] = useState<
     Record<string, VehicleLocationUpdate>
   >({});
+
+  const [realtimeTrailsByTrip, setRealtimeTrailsByTrip] = useState<
+    Record<
+      string,
+      {
+        latitude: number;
+        longitude: number;
+        recordedAtEpochMs: number;
+      }[]
+    >
+  >({});
+
+  const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+
+  const [followTripId, setFollowTripId] = useState<string | null>(null);
+
+  function selectTrip(tripId: string): void {
+    setSelectedTripId(tripId);
+
+    /**
+     * If Follow Bus is already enabled, transfer it to the
+     * newly selected authorised journey.
+     */
+    setFollowTripId((current) => (current === null ? null : tripId));
+  }
 
   const guardianQuery = useQuery({
     queryKey: ["guardian-live-tracking", tenantId],
@@ -117,6 +154,155 @@ export function GuardianTrackingPanel({
 
     return map;
   }, [trackableChildren]);
+
+  /**
+   * Each bootstrap is already relationship-authorised by the
+   * backend. Keying it by trip keeps all rendering below scoped
+   * to the exact journeys returned for this Guardian.
+   */
+  const bootstrapByTrip = useMemo(() => {
+    const map = new Map(
+      trackableChildren.flatMap((entry) =>
+        entry.trackingBootstrap
+          ? [
+              [
+                entry.trackingBootstrap.activeTrip.tripId,
+                entry.trackingBootstrap,
+              ] as const,
+            ]
+          : [],
+      ),
+    );
+
+    return map;
+  }, [trackableChildren]);
+
+  const locationsByTrip = useMemo(() => {
+    const locations: Record<string, VehicleLocationUpdate> = {};
+
+    for (const tripId of activeTripIds) {
+      const bootstrapLocation =
+        bootstrapByTrip.get(tripId)?.latestLocation ?? null;
+
+      const realtimeLocation = realtimeLocationsByTrip[tripId] ?? null;
+
+      if (
+        realtimeLocation &&
+        (!bootstrapLocation ||
+          realtimeLocation.recordedAtEpochMs >=
+            bootstrapLocation.recordedAtEpochMs)
+      ) {
+        locations[tripId] = realtimeLocation;
+
+        continue;
+      }
+
+      if (bootstrapLocation) {
+        locations[tripId] = bootstrapLocation;
+      }
+    }
+
+    return locations;
+  }, [activeTripIds, bootstrapByTrip, realtimeLocationsByTrip]);
+
+  const effectiveSelectedTripId =
+    selectedTripId && activeTripIds.includes(selectedTripId)
+      ? selectedTripId
+      : (activeTripIds[0] ?? null);
+
+  const selectedLocation = effectiveSelectedTripId
+    ? (locationsByTrip[effectiveSelectedTripId] ?? null)
+    : null;
+
+  const selectedBootstrap = effectiveSelectedTripId
+    ? (bootstrapByTrip.get(effectiveSelectedTripId) ?? null)
+    : null;
+
+  const selectedPlannedRoute =
+    selectedBootstrap?.routeGeometry?.status === "ready" &&
+    selectedBootstrap.routeGeometry.geometry
+      ? {
+          key: selectedBootstrap.routeGeometry.routeId,
+
+          coordinates: selectedBootstrap.routeGeometry.geometry.coordinates,
+        }
+      : null;
+
+  /**
+   * The highlighted road ahead is presentation-only geometry.
+   *
+   * ETA/distance values remain authoritative from the backend
+   * realtime packet.
+   */
+  const selectedRemainingRouteCoordinates =
+    selectedPlannedRoute && selectedLocation?.nextStop
+      ? sliceRouteBetweenPoints(
+          selectedPlannedRoute.coordinates,
+          {
+            latitude: selectedLocation.latitude,
+
+            longitude: selectedLocation.longitude,
+          },
+          {
+            latitude: selectedLocation.nextStop.latitude,
+
+            longitude: selectedLocation.nextStop.longitude,
+          },
+        )
+      : null;
+
+  const selectedRemainingRoute =
+    selectedRemainingRouteCoordinates && selectedLocation?.nextStop
+      ? {
+          key: `${selectedLocation.tripId}:remaining:${selectedLocation.nextStop.tripStopId}`,
+
+          coordinates: selectedRemainingRouteCoordinates,
+        }
+      : null;
+
+  const guardianTrails = activeTripIds.map((tripId) => {
+    const bootstrapLocation =
+      bootstrapByTrip.get(tripId)?.latestLocation ?? null;
+
+    const realtimeTrail = realtimeTrailsByTrip[tripId] ?? [];
+
+    const points = [
+      ...(bootstrapLocation
+        ? [
+            {
+              latitude: bootstrapLocation.latitude,
+
+              longitude: bootstrapLocation.longitude,
+
+              recordedAtEpochMs: bootstrapLocation.recordedAtEpochMs,
+            },
+          ]
+        : []),
+
+      ...realtimeTrail.filter(
+        (point) =>
+          !bootstrapLocation ||
+          point.recordedAtEpochMs > bootstrapLocation.recordedAtEpochMs,
+      ),
+    ]
+      .filter(
+        (point, index, all) =>
+          index === 0 ||
+          Math.abs(point.latitude - all[index - 1].latitude) > 0.000001 ||
+          Math.abs(point.longitude - all[index - 1].longitude) > 0.000001,
+      )
+      .slice(-40);
+
+    return {
+      key: tripId,
+
+      points: points.map((point) => ({
+        latitude: point.latitude,
+
+        longitude: point.longitude,
+      })),
+    };
+  });
 
   const guardianMapMarkers = activeTripIds.flatMap((tripId) => {
     const location = locationsByTrip[tripId];
@@ -244,11 +430,55 @@ export function GuardianTrackingPanel({
         return;
       }
 
-      setLocationsByTrip((current) => ({
-        ...current,
+      const tripId = location.tripId;
 
-        [location.tripId!]: location,
-      }));
+      setRealtimeLocationsByTrip((current) => {
+        const existing = current[tripId];
+
+        if (
+          existing &&
+          existing.recordedAtEpochMs >= location.recordedAtEpochMs
+        ) {
+          return current;
+        }
+
+        return {
+          ...current,
+
+          [tripId]: location,
+        };
+      });
+
+      setRealtimeTrailsByTrip((current) => {
+        const previous = current[tripId] ?? [];
+
+        const last = previous[previous.length - 1];
+
+        const moved =
+          !last ||
+          Math.abs(last.latitude - location.latitude) > 0.000001 ||
+          Math.abs(last.longitude - location.longitude) > 0.000001;
+
+        if (!moved) {
+          return current;
+        }
+
+        return {
+          ...current,
+
+          [tripId]: [
+            ...previous,
+
+            {
+              latitude: location.latitude,
+
+              longitude: location.longitude,
+
+              recordedAtEpochMs: location.recordedAtEpochMs,
+            },
+          ].slice(-40),
+        };
+      });
     });
 
     socket.connect();
@@ -475,13 +705,61 @@ export function GuardianTrackingPanel({
         </Alert>
       ) : null}
 
+      {effectiveSelectedTripId && selectedLocation ? (
+        <Box
+          sx={{
+            mb: 1.5,
+
+            display: "flex",
+
+            justifyContent: "flex-end",
+          }}
+        >
+          {/* Guardian Follow Bus camera control */}
+          <Button
+            size="small"
+            variant={
+              followTripId === effectiveSelectedTripId
+                ? "contained"
+                : "outlined"
+            }
+            startIcon={<CenterFocusStrongRounded />}
+            onClick={() => {
+              setFollowTripId((current) =>
+                current === effectiveSelectedTripId
+                  ? null
+                  : effectiveSelectedTripId,
+              );
+            }}
+          >
+            {followTripId === effectiveSelectedTripId
+              ? "Stop Following"
+              : "Follow Bus"}
+          </Button>
+        </Box>
+      ) : null}
+
       {allGuardianMapMarkers.length > 0 ? (
         <Box
           sx={{
             mb: 2.5,
           }}
         >
-          <LiveTrackingMap markers={allGuardianMapMarkers} height={360} />
+          <LiveTrackingMap
+            markers={allGuardianMapMarkers}
+            plannedRoute={selectedPlannedRoute}
+            remainingRoute={selectedRemainingRoute}
+            trails={guardianTrails}
+            selectedMarkerKey={effectiveSelectedTripId}
+            focusMarkerKey={selectedTripId}
+            followMarkerKey={followTripId}
+            onMarkerClick={(markerKey) => {
+              if (activeTripIds.includes(markerKey)) {
+                selectTrip(markerKey);
+              }
+            }}
+            height={360}
+          />
         </Box>
       ) : null}
 
@@ -563,12 +841,31 @@ export function GuardianTrackingPanel({
             <Paper
               key={tripId}
               elevation={0}
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                selectTrip(tripId);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+
+                  selectTrip(tripId);
+                }
+              }}
               sx={{
                 p: 2.5,
 
                 border: "1px solid",
 
-                borderColor: "divider",
+                borderColor:
+                  effectiveSelectedTripId === tripId
+                    ? "primary.main"
+                    : "divider",
+
+                cursor: "pointer",
+
+                transition: "border-color 120ms ease",
               }}
             >
               <Box

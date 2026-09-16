@@ -25,17 +25,17 @@ console.log("Guardian Tracking frontend checkpoint");
 
 console.log("-------------------------------------");
 
-check(api.includes("'/me/children'"), "guardian children API wired");
+check(/["']\/me\/children["']/.test(api), "guardian children API wired");
 
 check(api.includes("/active-trip"), "child active-trip API wired");
 
 check(
-  realtime.includes("'trip.subscribe'"),
+  /["']trip\.subscribe["']/.test(realtime),
   "guardian realtime trip subscription wired",
 );
 
 check(
-  realtime.includes("'trip.unsubscribe'"),
+  /["']trip\.unsubscribe["']/.test(realtime),
   "guardian trip unsubscribe wired",
 );
 
