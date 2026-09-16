@@ -100,6 +100,16 @@ interface LiveTrackingMapProps {
 
   selectedMarkerKey?: string | null;
 
+  /**
+   * Explicit operator-selected marker that should receive a
+   * one-time camera focus.
+   *
+   * This is intentionally separate from selectedMarkerKey so
+   * the initial derived/default vehicle does not prevent the
+   * operational map from first fitting the whole fleet.
+   */
+  focusMarkerKey?: string | null;
+
   followMarkerKey?: string | null;
 
   onMarkerClick?: (markerKey: string) => void;
@@ -502,6 +512,7 @@ export function LiveTrackingMap({
   trails = [],
   connections = [],
   selectedMarkerKey = null,
+  focusMarkerKey = null,
   followMarkerKey = null,
   onMarkerClick,
   height = 420,
@@ -521,6 +532,15 @@ export function LiveTrackingMap({
   }, [onMarkerClick]);
 
   const lastMarkerKeySignatureRef = useRef("");
+
+  /**
+   * Prevent ordinary GPS position updates from repeatedly
+   * re-focusing the selected vehicle.
+   *
+   * Selection focuses once. Follow Bus is the mode that keeps
+   * recentering continuously.
+   */
+  const lastFocusedMarkerKeyRef = useRef<string | null>(null);
 
   const [mapReady, setMapReady] = useState(false);
 
@@ -1054,14 +1074,52 @@ export function LiveTrackingMap({
       const followedMarker = markerRefs.current.get(followMarkerKey);
 
       if (followedMarker) {
+        if (focusMarkerKey === followMarkerKey) {
+          lastFocusedMarkerKeyRef.current = focusMarkerKey;
+        }
+
         map.easeTo({
           center: followedMarker.getLngLat(),
+
+          zoom: Math.max(map.getZoom(), 15),
 
           duration: 500,
         });
 
         return;
       }
+    }
+
+    // --------------------------------------------------------
+    // ONE-TIME SELECTED BUS FOCUS
+    //
+    // Clicking a bus or selecting its operational card should
+    // centre and zoom to that bus once.
+    //
+    // Realtime GPS movement alone must not keep moving the
+    // camera unless Follow Bus is explicitly enabled.
+    // --------------------------------------------------------
+
+    if (focusMarkerKey && focusMarkerKey !== lastFocusedMarkerKeyRef.current) {
+      const focusedMarker = markerRefs.current.get(focusMarkerKey);
+
+      if (focusedMarker) {
+        lastFocusedMarkerKeyRef.current = focusMarkerKey;
+
+        map.easeTo({
+          center: focusedMarker.getLngLat(),
+
+          zoom: Math.max(map.getZoom(), 15),
+
+          duration: 700,
+        });
+
+        return;
+      }
+    }
+
+    if (!focusMarkerKey) {
+      lastFocusedMarkerKeyRef.current = null;
     }
 
     // --------------------------------------------------------
@@ -1115,7 +1173,7 @@ export function LiveTrackingMap({
         duration: 700,
       },
     );
-  }, [markers, mapReady, selectedMarkerKey, followMarkerKey]);
+  }, [markers, mapReady, selectedMarkerKey, focusMarkerKey, followMarkerKey]);
 
   if (markers.length === 0) {
     return (

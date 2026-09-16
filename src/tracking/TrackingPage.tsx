@@ -245,6 +245,19 @@ export function TrackingPage() {
 
   const [followVehicleId, setFollowVehicleId] = useState<string | null>(null);
 
+  /**
+   * Select a vehicle for the operational detail/map view.
+   *
+   * If Follow Bus is already enabled, selecting another bus
+   * transfers follow mode to the new selection instead of
+   * leaving the camera attached to the previous vehicle.
+   */
+  function selectTrackedVehicle(vehicleId: string): void {
+    setSelectedVehicleId(vehicleId);
+
+    setFollowVehicleId((current) => (current === null ? null : vehicleId));
+  }
+
   const vehiclesQuery = useQuery({
     queryKey: ["vehicles", tenantId, "tracking-labels"],
 
@@ -953,11 +966,13 @@ export function TrackingPage() {
 
             selectedMarkerKey={effectiveSelectedVehicleId}
 
+            focusMarkerKey={selectedVehicleId}
+
             followMarkerKey={followVehicleId}
 
             onMarkerClick={(markerKey) => {
               if (vehicleById.has(markerKey)) {
-                setSelectedVehicleId(markerKey);
+                selectTrackedVehicle(markerKey);
               }
             }}
           />
@@ -1314,13 +1329,13 @@ export function TrackingPage() {
               role="button"
               tabIndex={0}
               onClick={() => {
-                setSelectedVehicleId(vehicle.id);
+                selectTrackedVehicle(vehicle.id);
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
 
-                  setSelectedVehicleId(vehicle.id);
+                  selectTrackedVehicle(vehicle.id);
                 }
               }}
               sx={{

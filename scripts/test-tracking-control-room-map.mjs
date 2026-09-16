@@ -4,6 +4,8 @@ const map = readFileSync("src/tracking/LiveTrackingMap.tsx", "utf8");
 
 const page = readFileSync("src/tracking/TrackingPage.tsx", "utf8");
 
+const trackingState = readFileSync("src/tracking/tracking-state.ts", "utf8");
+
 function check(condition, message) {
   if (!condition) {
     throw new Error(`✗ ${message}`);
@@ -28,7 +30,10 @@ check(map.includes("followMarkerKey"), "map supports Follow Bus mode");
 
 check(map.includes("onMarkerClickRef.current"), "bus markers are selectable");
 
-check(/\.slice\(\s*-40\s*\)/s.test(page), "GPS breadcrumb history is bounded");
+check(
+  /\.slice\(\s*-40\s*\)/s.test(trackingState),
+  "GPS breadcrumb history is bounded",
+);
 
 check(
   page.includes("operationalTrails"),

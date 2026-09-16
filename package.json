@@ -43,7 +43,8 @@
     "test:tracking-bus-speed-marker": "node scripts/test-tracking-bus-speed-marker.mjs",
     "test:route-distance-ui": "node scripts/test-route-distance-ui.mjs",
     "test:remaining-route-highlight": "node scripts/test-remaining-route-highlight.mjs",
-    "test:tracking-snapshot-frontend": "node scripts/test-tracking-snapshot-frontend.mjs"
+    "test:tracking-snapshot-frontend": "node scripts/test-tracking-snapshot-frontend.mjs",
+    "test:tracking-bus-focus": "node scripts/test-tracking-bus-focus.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
