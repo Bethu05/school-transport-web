@@ -1,707 +1,466 @@
-import {
-    useState,
-    type FormEvent,
-} from 'react';
+import { useState, type FormEvent } from "react";
 
 import {
-    Alert,
-    Box,
-    Button,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    MenuItem,
-    TextField,
-    Typography,
-} from '@mui/material';
+  Alert,
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  MenuItem,
+  TextField,
+  Typography,
+} from "@mui/material";
 
-import type {
-    School,
-} from '../schools/schools.api';
+import type { School } from "../schools/schools.api";
 
-import type {
-    CreateStopInput,
-    Stop,
-    UpdateStopInput,
-} from './stops.api';
+import type { CreateStopInput, Stop, UpdateStopInput } from "./stops.api";
 
 interface StopFormDialogProps {
-    open: boolean;
+  open: boolean;
 
-    stop:
-    | Stop
-    | null;
+  stop: Stop | null;
 
-    stopSchoolName: string;
+  stopSchoolName: string;
 
-    schools:
-    School[];
+  schools: School[];
 
-    saving: boolean;
+  saving: boolean;
 
-    error:
-    | string
-    | null;
+  error: string | null;
 
-    onClose: () => void;
+  onClose: () => void;
 
-    onSubmit: (
-        input:
-            | CreateStopInput
-            | UpdateStopInput,
-    ) => Promise<void>;
+  onSubmit: (input: CreateStopInput | UpdateStopInput) => Promise<void>;
 }
 
 interface StopFormState {
-    schoolId: string;
+  schoolId: string;
 
-    name: string;
+  name: string;
 
-    code: string;
+  code: string;
 
-    address: string;
+  address: string;
 
-    latitude: string;
+  latitude: string;
 
-    longitude: string;
+  longitude: string;
 
-    geofenceRadiusMeters:
-    string;
+  geofenceRadiusMeters: string;
 }
 
-function createFormState(
-    stop:
-        | Stop
-        | null,
-): StopFormState {
-    if (!stop) {
-        return {
-            schoolId: '',
-            name: '',
-            code: '',
-            address: '',
-            latitude: '',
-            longitude: '',
-            geofenceRadiusMeters:
-                '75',
-        };
-    }
-
+function createFormState(stop: Stop | null): StopFormState {
+  if (!stop) {
     return {
-        schoolId:
-            stop.schoolId ??
-            '',
-
-        name:
-            stop.name,
-
-        code:
-            stop.code ??
-            '',
-
-        address:
-            stop.address ??
-            '',
-
-        latitude:
-            String(
-                stop.latitude,
-            ),
-
-        longitude:
-            String(
-                stop.longitude,
-            ),
-
-        geofenceRadiusMeters:
-            String(
-                stop.geofenceRadiusMeters,
-            ),
+      schoolId: "",
+      name: "",
+      code: "",
+      address: "",
+      latitude: "",
+      longitude: "",
+      geofenceRadiusMeters: "75",
     };
+  }
+
+  return {
+    schoolId: stop.schoolId ?? "",
+
+    name: stop.name,
+
+    code: stop.code ?? "",
+
+    address: stop.address ?? "",
+
+    latitude: String(stop.latitude),
+
+    longitude: String(stop.longitude),
+
+    geofenceRadiusMeters: String(stop.geofenceRadiusMeters),
+  };
 }
 
-function optionalText(
-    value: string,
-): string | undefined {
-    const trimmed =
-        value.trim();
+function optionalText(value: string): string | undefined {
+  const trimmed = value.trim();
 
-    return trimmed ||
-        undefined;
+  return trimmed || undefined;
 }
 
 function parseCoordinate(
-    value: string,
-    minimum: number,
-    maximum: number,
+  value: string,
+  minimum: number,
+  maximum: number,
 ): number | null {
-    if (
-        !value.trim()
-    ) {
-        return null;
-    }
+  if (!value.trim()) {
+    return null;
+  }
 
-    const number =
-        Number(value);
+  const number = Number(value);
 
-    if (
-        !Number.isFinite(
-            number,
-        ) ||
-        number < minimum ||
-        number > maximum
-    ) {
-        return null;
-    }
+  if (!Number.isFinite(number) || number < minimum || number > maximum) {
+    return null;
+  }
 
-    return number;
+  return number;
 }
 
 export function StopFormDialog({
-    open,
-    stop,
-    stopSchoolName,
-    schools,
-    saving,
-    error,
-    onClose,
-    onSubmit,
+  open,
+  stop,
+  stopSchoolName,
+  schools,
+  saving,
+  error,
+  onClose,
+  onSubmit,
 }: StopFormDialogProps) {
-    const [
-        form,
-        setForm,
-    ] =
-        useState<StopFormState>(
-            () =>
-                createFormState(
-                    stop,
-                ),
-        );
+  const [form, setForm] = useState<StopFormState>(() => createFormState(stop));
 
-    const [
-        validationError,
-        setValidationError,
-    ] =
-        useState<
-            string | null
-        >(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
-    const editing =
-        stop !== null;
+  const editing = stop !== null;
 
-    function updateField<
-        K extends keyof StopFormState,
-    >(
-        key: K,
-        value:
-            StopFormState[K],
-    ): void {
-        setForm(
-            (current) => ({
-                ...current,
+  function updateField<K extends keyof StopFormState>(
+    key: K,
+    value: StopFormState[K],
+  ): void {
+    setForm((current) => ({
+      ...current,
 
-                [key]:
-                    value,
-            }),
-        );
+      [key]: value,
+    }));
+  }
+
+  async function handleSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ): Promise<void> {
+    event.preventDefault();
+
+    setValidationError(null);
+
+    const name = form.name.trim();
+
+    if (!name) {
+      setValidationError("Stop name is required.");
+
+      return;
     }
 
-    async function handleSubmit(
-        event:
-            FormEvent<HTMLFormElement>,
-    ): Promise<void> {
-        event.preventDefault();
+    const latitude = parseCoordinate(form.latitude, -90, 90);
 
-        setValidationError(
-            null,
-        );
+    if (latitude === null) {
+      setValidationError("Latitude must be a number between -90 and 90.");
 
-        const name =
-            form.name.trim();
-
-        if (!name) {
-            setValidationError(
-                'Stop name is required.',
-            );
-
-            return;
-        }
-
-        const latitude =
-            parseCoordinate(
-                form.latitude,
-                -90,
-                90,
-            );
-
-        if (
-            latitude ===
-            null
-        ) {
-            setValidationError(
-                'Latitude must be a number between -90 and 90.',
-            );
-
-            return;
-        }
-
-        const longitude =
-            parseCoordinate(
-                form.longitude,
-                -180,
-                180,
-            );
-
-        if (
-            longitude ===
-            null
-        ) {
-            setValidationError(
-                'Longitude must be a number between -180 and 180.',
-            );
-
-            return;
-        }
-
-        const geofenceRadius =
-            Number(
-                form.geofenceRadiusMeters,
-            );
-
-        if (
-            !Number.isInteger(
-                geofenceRadius,
-            ) ||
-            geofenceRadius <
-            1
-        ) {
-            setValidationError(
-                'Geofence radius must be a whole number of at least 1 metre.',
-            );
-
-            return;
-        }
-
-        if (editing) {
-            const input:
-                UpdateStopInput = {
-                name,
-
-                code:
-                    optionalText(
-                        form.code,
-                    ),
-
-                address:
-                    optionalText(
-                        form.address,
-                    ),
-
-                latitude,
-
-                longitude,
-
-                geofenceRadiusMeters:
-                    geofenceRadius,
-            };
-
-            await onSubmit(
-                input,
-            );
-
-            return;
-        }
-
-        const input:
-            CreateStopInput = {
-            schoolId:
-                form.schoolId ||
-                undefined,
-
-            name,
-
-            code:
-                optionalText(
-                    form.code,
-                ),
-
-            address:
-                optionalText(
-                    form.address,
-                ),
-
-            latitude,
-
-            longitude,
-
-            geofenceRadiusMeters:
-                geofenceRadius,
-        };
-
-        await onSubmit(
-            input,
-        );
+      return;
     }
 
-    return (
-        <Dialog
-            open={open}
+    const longitude = parseCoordinate(form.longitude, -180, 180);
 
-            onClose={
-                saving
-                    ? undefined
-                    : onClose
-            }
+    if (longitude === null) {
+      setValidationError("Longitude must be a number between -180 and 180.");
 
-            fullWidth
+      return;
+    }
 
-            maxWidth="md"
+    const geofenceRadius = Number(form.geofenceRadiusMeters);
+
+    if (!Number.isInteger(geofenceRadius) || geofenceRadius < 1) {
+      setValidationError(
+        "Geofence radius must be a whole number of at least 1 metre.",
+      );
+
+      return;
+    }
+
+    if (editing) {
+      const input: UpdateStopInput = {
+        name,
+
+        code: optionalText(form.code),
+
+        address: optionalText(form.address),
+
+        latitude,
+
+        longitude,
+
+        geofenceRadiusMeters: geofenceRadius,
+      };
+
+      await onSubmit(input);
+
+      return;
+    }
+
+    const input: CreateStopInput = {
+      schoolId: form.schoolId || undefined,
+
+      name,
+
+      code: optionalText(form.code),
+
+      address: optionalText(form.address),
+
+      latitude,
+
+      longitude,
+
+      geofenceRadiusMeters: geofenceRadius,
+    };
+
+    await onSubmit(input);
+  }
+
+  return (
+    <Dialog
+      open={open}
+
+      onClose={saving ? undefined : onClose}
+
+      fullWidth
+
+      maxWidth="md"
+    >
+      <Box
+        component="form"
+
+        onSubmit={handleSubmit}
+      >
+        <DialogTitle
+          sx={{
+            pb: 1,
+
+            fontWeight: 850,
+          }}
         >
-            <Box
-                component="form"
+          {editing ? "Edit stop" : "Add stop"}
+        </DialogTitle>
 
-                onSubmit={
-                    handleSubmit
-                }
+        <DialogContent>
+          <Typography
+            sx={{
+              mb: 2.5,
+
+              color: "text.secondary",
+
+              fontSize: 12.5,
+
+              lineHeight: 1.6,
+            }}
+          >
+            {editing
+              ? "Update the stop details, map coordinates and geofence radius."
+              : "Create a shared or school-specific transport stop."}
+          </Typography>
+
+          {validationError ? (
+            <Alert
+              severity="error"
+
+              sx={{
+                mb: 2,
+              }}
             >
-                <DialogTitle
-                    sx={{
-                        pb: 1,
+              {validationError}
+            </Alert>
+          ) : null}
 
-                        fontWeight:
-                            850,
-                    }}
-                >
-                    {editing
-                        ? 'Edit stop'
-                        : 'Add stop'}
-                </DialogTitle>
+          {error ? (
+            <Alert
+              severity="error"
 
-                <DialogContent>
-                    <Typography
-                        sx={{
-                            mb: 2.5,
+              sx={{
+                mb: 2,
+              }}
+            >
+              {error}
+            </Alert>
+          ) : null}
 
-                            color:
-                                'text.secondary',
+          <Box
+            sx={{
+              display: "grid",
 
-                            fontSize:
-                                12.5,
+              gridTemplateColumns: {
+                xs: "1fr",
 
-                            lineHeight:
-                                1.6,
-                        }}
-                    >
-                        {editing
-                            ? 'Update the stop details, map coordinates and geofence radius.'
-                            : 'Create a shared or school-specific transport stop.'}
-                    </Typography>
+                sm: "repeat(2, minmax(0, 1fr))",
+              },
 
-                    {validationError ? (
-                        <Alert
-                            severity="error"
+              gap: 2,
+            }}
+          >
+            {editing ? (
+              <TextField
+                label="School scope"
 
-                            sx={{
-                                mb: 2,
-                            }}
-                        >
-                            {validationError}
-                        </Alert>
-                    ) : null}
+                value={stopSchoolName}
 
-                    {error ? (
-                        <Alert
-                            severity="error"
+                disabled
 
-                            sx={{
-                                mb: 2,
-                            }}
-                        >
-                            {error}
-                        </Alert>
-                    ) : null}
+                helperText="School scope is fixed after creation to protect existing route relationships."
+              />
+            ) : (
+              <TextField
+                select
 
-                    <Box
-                        sx={{
-                            display:
-                                'grid',
+                label="School scope"
 
-                            gridTemplateColumns: {
-                                xs:
-                                    '1fr',
+                value={form.schoolId}
 
-                                sm:
-                                    'repeat(2, minmax(0, 1fr))',
-                            },
+                onChange={(event) =>
+                  updateField("schoolId", event.target.value)
+                }
 
-                            gap: 2,
-                        }}
-                    >
-                        {editing ? (
-                            <TextField
-                                label="School scope"
+                helperText="Choose Shared stop when the stop may be reused across schools."
+              >
+                <MenuItem value="">Shared stop</MenuItem>
 
-                                value={
-                                    stopSchoolName
-                                }
+                {schools.map((school) => (
+                  <MenuItem
+                    key={school.id}
 
-                                disabled
+                    value={school.id}
+                  >
+                    {school.name}
+                    {school.code ? ` (${school.code})` : ""}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
 
-                                helperText="School scope is fixed after creation to protect existing route relationships."
-                            />
-                        ) : (
-                            <TextField
-                                select
+            <TextField
+              label="Stop name"
 
-                                label="School scope"
+              required
 
-                                value={
-                                    form.schoolId
-                                }
+              value={form.name}
 
-                                onChange={(
-                                    event,
-                                ) =>
-                                    updateField(
-                                        'schoolId',
-                                        event.target
-                                            .value,
-                                    )
-                                }
+              onChange={(event) => updateField("name", event.target.value)}
 
-                                helperText="Choose Shared stop when the stop may be reused across schools."
-                            >
-                                <MenuItem
-                                    value=""
-                                >
-                                    Shared stop
-                                </MenuItem>
+              slotProps={{
+                htmlInput: {
+                  maxLength: 150,
+                },
+              }}
+            />
 
-                                {schools.map(
-                                    (school) => (
-                                        <MenuItem
-                                            key={
-                                                school.id
-                                            }
+            <TextField
+              label="Code"
 
-                                            value={
-                                                school.id
-                                            }
-                                        >
-                                            {school.name}
-                                            {school.code
-                                                ? ` (${school.code})`
-                                                : ''}
-                                        </MenuItem>
-                                    ),
-                                )}
-                            </TextField>
-                        )}
+              value={form.code}
 
-                        <TextField
-                            label="Stop name"
+              onChange={(event) => updateField("code", event.target.value)}
 
-                            required
+              placeholder="e.g. WEST-001"
 
-                            value={
-                                form.name
-                            }
+              slotProps={{
+                htmlInput: {
+                  maxLength: 50,
+                },
+              }}
+            />
 
-                            onChange={(
-                                event,
-                            ) =>
-                                updateField(
-                                    'name',
-                                    event.target
-                                        .value,
-                                )
-                            }
+            <TextField
+              label="Address"
 
-                            slotProps={{
-                                htmlInput: {
-                                    maxLength:
-                                        150,
-                                },
-                            }}
-                        />
+              value={form.address}
 
-                        <TextField
-                            label="Code"
+              onChange={(event) => updateField("address", event.target.value)}
 
-                            value={
-                                form.code
-                            }
+              placeholder="Street, estate or landmark"
+            />
 
-                            onChange={(
-                                event,
-                            ) =>
-                                updateField(
-                                    'code',
-                                    event.target
-                                        .value,
-                                )
-                            }
+            <TextField
+              label="Latitude"
 
-                            placeholder="e.g. WEST-001"
+              required
 
-                            slotProps={{
-                                htmlInput: {
-                                    maxLength:
-                                        50,
-                                },
-                            }}
-                        />
+              type="number"
 
-                        <TextField
-                            label="Address"
+              value={form.latitude}
 
-                            value={
-                                form.address
-                            }
+              onChange={(event) => updateField("latitude", event.target.value)}
 
-                            onChange={(
-                                event,
-                            ) =>
-                                updateField(
-                                    'address',
-                                    event.target
-                                        .value,
-                                )
-                            }
+              slotProps={{
+                htmlInput: {
+                  min: -90,
+                  max: 90,
+                  step: "any",
+                },
+              }}
+            />
 
-                            placeholder="Street, estate or landmark"
-                        />
+            <TextField
+              label="Longitude"
 
-                        <TextField
-                            label="Latitude"
+              required
 
-                            required
+              type="number"
 
-                            type="number"
+              value={form.longitude}
 
-                            value={
-                                form.latitude
-                            }
+              onChange={(event) => updateField("longitude", event.target.value)}
 
-                            onChange={(
-                                event,
-                            ) =>
-                                updateField(
-                                    'latitude',
-                                    event.target
-                                        .value,
-                                )
-                            }
+              slotProps={{
+                htmlInput: {
+                  min: -180,
+                  max: 180,
+                  step: "any",
+                },
+              }}
+            />
 
-                            slotProps={{
-                                htmlInput: {
-                                    min: -90,
-                                    max: 90,
-                                    step:
-                                        'any',
-                                },
-                            }}
-                        />
+            <TextField
+              label="Geofence radius (metres)"
 
-                        <TextField
-                            label="Longitude"
+              required
 
-                            required
+              type="number"
 
-                            type="number"
+              value={form.geofenceRadiusMeters}
 
-                            value={
-                                form.longitude
-                            }
+              onChange={(event) =>
+                updateField("geofenceRadiusMeters", event.target.value)
+              }
 
-                            onChange={(
-                                event,
-                            ) =>
-                                updateField(
-                                    'longitude',
-                                    event.target
-                                        .value,
-                                )
-                            }
+              slotProps={{
+                htmlInput: {
+                  min: 1,
+                  step: 1,
+                },
+              }}
+            />
+          </Box>
+        </DialogContent>
 
-                            slotProps={{
-                                htmlInput: {
-                                    min: -180,
-                                    max: 180,
-                                    step:
-                                        'any',
-                                },
-                            }}
-                        />
+        <DialogActions
+          sx={{
+            px: 3,
 
-                        <TextField
-                            label="Geofence radius (metres)"
+            pb: 3,
+          }}
+        >
+          <Button
+            onClick={onClose}
 
-                            required
+            disabled={saving}
+          >
+            Cancel
+          </Button>
 
-                            type="number"
+          <Button
+            type="submit"
 
-                            value={
-                                form.geofenceRadiusMeters
-                            }
+            variant="contained"
 
-                            onChange={(
-                                event,
-                            ) =>
-                                updateField(
-                                    'geofenceRadiusMeters',
-                                    event.target
-                                        .value,
-                                )
-                            }
-
-                            slotProps={{
-                                htmlInput: {
-                                    min: 1,
-                                    step: 1,
-                                },
-                            }}
-                        />
-                    </Box>
-                </DialogContent>
-
-                <DialogActions
-                    sx={{
-                        px: 3,
-
-                        pb: 3,
-                    }}
-                >
-                    <Button
-                        onClick={
-                            onClose
-                        }
-
-                        disabled={
-                            saving
-                        }
-                    >
-                        Cancel
-                    </Button>
-
-                    <Button
-                        type="submit"
-
-                        variant="contained"
-
-                        disabled={
-                            saving
-                        }
-                    >
-                        {saving
-                            ? 'Saving...'
-                            : editing
-                                ? 'Save changes'
-                                : 'Add stop'}
-                    </Button>
-                </DialogActions>
-            </Box>
-        </Dialog>
-    );
+            disabled={saving}
+          >
+            {saving ? "Saving..." : editing ? "Save changes" : "Add stop"}
+          </Button>
+        </DialogActions>
+      </Box>
+    </Dialog>
+  );
 }

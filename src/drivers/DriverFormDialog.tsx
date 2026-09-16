@@ -1,7 +1,4 @@
-import {
-  useState,
-  type FormEvent,
-} from 'react';
+import { useState, type FormEvent } from "react";
 
 import {
   Alert,
@@ -14,38 +11,29 @@ import {
   MenuItem,
   TextField,
   Typography,
-} from '@mui/material';
+} from "@mui/material";
 
 import type {
   CreateDriverInput,
   Driver,
   DriverStatus,
   UpdateDriverInput,
-} from './drivers.api';
+} from "./drivers.api";
 
-const BUSINESS_TIME_ZONE =
-  'Africa/Nairobi';
+const BUSINESS_TIME_ZONE = "Africa/Nairobi";
 
 interface DriverFormDialogProps {
   open: boolean;
 
-  driver:
-  | Driver
-  | null;
+  driver: Driver | null;
 
   saving: boolean;
 
-  error:
-  | string
-  | null;
+  error: string | null;
 
   onClose: () => void;
 
-  onSubmit: (
-    input:
-      | CreateDriverInput
-      | UpdateDriverInput,
-  ) => Promise<void>;
+  onSubmit: (input: CreateDriverInput | UpdateDriverInput) => Promise<void>;
 }
 
 interface DriverFormState {
@@ -63,34 +51,28 @@ interface DriverFormState {
 
   licenseExpiryDate: string;
 
-  status:
-  DriverStatus;
+  status: DriverStatus;
 }
 
-const EMPTY_FORM:
-  DriverFormState = {
-  firstName: '',
+const EMPTY_FORM: DriverFormState = {
+  firstName: "",
 
-  lastName: '',
+  lastName: "",
 
-  phone: '',
+  phone: "",
 
-  email: '',
+  email: "",
 
-  licenseNumber: '',
+  licenseNumber: "",
 
-  licenseClass: '',
+  licenseClass: "",
 
-  licenseExpiryDate: '',
+  licenseExpiryDate: "",
 
-  status: 'active',
+  status: "active",
 };
 
-function createDriverFormState(
-  driver:
-    | Driver
-    | null,
-): DriverFormState {
+function createDriverFormState(driver: Driver | null): DriverFormState {
   if (!driver) {
     return {
       ...EMPTY_FORM,
@@ -98,34 +80,21 @@ function createDriverFormState(
   }
 
   return {
-    firstName:
-      driver.firstName,
+    firstName: driver.firstName,
 
-    lastName:
-      driver.lastName,
+    lastName: driver.lastName,
 
-    phone:
-      driver.phone ??
-      '',
+    phone: driver.phone ?? "",
 
-    email:
-      driver.email ??
-      '',
+    email: driver.email ?? "",
 
-    licenseNumber:
-      driver.licenseNumber,
+    licenseNumber: driver.licenseNumber,
 
-    licenseClass:
-      driver.licenseClass ??
-      '',
+    licenseClass: driver.licenseClass ?? "",
 
-    licenseExpiryDate:
-      dateInputValue(
-        driver.licenseExpiryDate,
-      ),
+    licenseExpiryDate: dateInputValue(driver.licenseExpiryDate),
 
-    status:
-      driver.status,
+    status: driver.status,
   };
 }
 
@@ -136,94 +105,48 @@ function createDriverFormState(
  * timestamp. Convert the value back to the Nairobi calendar
  * date before putting it into an HTML date input.
  */
-function dateInputValue(
-  value:
-    | string
-    | null,
-): string {
+function dateInputValue(value: string | null): string {
   if (!value) {
-    return '';
+    return "";
   }
 
-  if (
-    /^\d{4}-\d{2}-\d{2}$/.test(
-      value,
-    )
-  ) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return value;
   }
 
-  const date =
-    new Date(value);
+  const date = new Date(value);
 
-  if (
-    Number.isNaN(
-      date.getTime(),
-    )
-  ) {
-    return '';
+  if (Number.isNaN(date.getTime())) {
+    return "";
   }
 
-  const parts =
-    new Intl.DateTimeFormat(
-      'en-GB',
-      {
-        timeZone:
-          BUSINESS_TIME_ZONE,
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: BUSINESS_TIME_ZONE,
 
-        year:
-          'numeric',
+    year: "numeric",
 
-        month:
-          '2-digit',
+    month: "2-digit",
 
-        day:
-          '2-digit',
-      },
-    ).formatToParts(
-      date,
-    );
+    day: "2-digit",
+  }).formatToParts(date);
 
-  const year =
-    parts.find(
-      (part) =>
-        part.type ===
-        'year',
-    )?.value;
+  const year = parts.find((part) => part.type === "year")?.value;
 
-  const month =
-    parts.find(
-      (part) =>
-        part.type ===
-        'month',
-    )?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
 
-  const day =
-    parts.find(
-      (part) =>
-        part.type ===
-        'day',
-    )?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
 
-  if (
-    !year ||
-    !month ||
-    !day
-  ) {
-    return '';
+  if (!year || !month || !day) {
+    return "";
   }
 
   return `${year}-${month}-${day}`;
 }
 
-function optionalValue(
-  value: string,
-): string | undefined {
-  const trimmed =
-    value.trim();
+function optionalValue(value: string): string | undefined {
+  const trimmed = value.trim();
 
-  return trimmed ||
-    undefined;
+  return trimmed || undefined;
 }
 
 export function DriverFormDialog({
@@ -234,193 +157,121 @@ export function DriverFormDialog({
   onClose,
   onSubmit,
 }: DriverFormDialogProps) {
-  const [
-    form,
-    setForm,
-  ] =
-    useState<DriverFormState>(
-      () =>
-        createDriverFormState(
-          driver,
-        ),
-    );
+  const [form, setForm] = useState<DriverFormState>(() =>
+    createDriverFormState(driver),
+  );
 
-  const [
-    validationError,
-    setValidationError,
-  ] =
-    useState<
-      string | null
-    >(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
-  const editing =
-    driver !== null;
+  const editing = driver !== null;
 
-  function updateField<
-    K extends keyof DriverFormState,
-  >(
+  function updateField<K extends keyof DriverFormState>(
     key: K,
-    value:
-      DriverFormState[K],
+    value: DriverFormState[K],
   ): void {
-    setForm(
-      (current) => ({
-        ...current,
+    setForm((current) => ({
+      ...current,
 
-        [key]:
-          value,
-      }),
-    );
+      [key]: value,
+    }));
   }
 
   async function handleSubmit(
-    event:
-      FormEvent<HTMLFormElement>,
+    event: FormEvent<HTMLFormElement>,
   ): Promise<void> {
     event.preventDefault();
 
-    setValidationError(
-      null,
-    );
+    setValidationError(null);
 
-    const firstName =
-      form.firstName.trim();
+    const firstName = form.firstName.trim();
 
-    const lastName =
-      form.lastName.trim();
+    const lastName = form.lastName.trim();
 
-    const licenseNumber =
-      form.licenseNumber.trim();
+    const licenseNumber = form.licenseNumber.trim();
 
     if (!firstName) {
-      setValidationError(
-        'First name is required.',
-      );
+      setValidationError("First name is required.");
 
       return;
     }
 
     if (!lastName) {
-      setValidationError(
-        'Last name is required.',
-      );
+      setValidationError("Last name is required.");
 
       return;
     }
 
     if (!licenseNumber) {
-      setValidationError(
-        'Licence number is required.',
-      );
+      setValidationError("Licence number is required.");
 
       return;
     }
 
-    if (
-      !form.licenseExpiryDate
-    ) {
-      setValidationError(
-        'Licence expiry date is required.',
-      );
+    if (!form.licenseExpiryDate) {
+      setValidationError("Licence expiry date is required.");
 
       return;
     }
 
     if (
       form.email.trim() &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-        form.email.trim(),
-      )
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
     ) {
-      setValidationError(
-        'Enter a valid email address.',
-      );
+      setValidationError("Enter a valid email address.");
 
       return;
     }
 
     if (editing) {
-      const input:
-        UpdateDriverInput = {
+      const input: UpdateDriverInput = {
         firstName,
 
         lastName,
 
-        phone:
-          optionalValue(
-            form.phone,
-          ),
+        phone: optionalValue(form.phone),
 
-        email:
-          optionalValue(
-            form.email,
-          ),
+        email: optionalValue(form.email),
 
         licenseNumber,
 
-        licenseClass:
-          optionalValue(
-            form.licenseClass,
-          ),
+        licenseClass: optionalValue(form.licenseClass),
 
-        licenseExpiryDate:
-          form.licenseExpiryDate,
+        licenseExpiryDate: form.licenseExpiryDate,
 
-        status:
-          form.status,
+        status: form.status,
       };
 
-      await onSubmit(
-        input,
-      );
+      await onSubmit(input);
 
       return;
     }
 
-    const input:
-      CreateDriverInput = {
+    const input: CreateDriverInput = {
       firstName,
 
       lastName,
 
-      phone:
-        optionalValue(
-          form.phone,
-        ),
+      phone: optionalValue(form.phone),
 
-      email:
-        optionalValue(
-          form.email,
-        ),
+      email: optionalValue(form.email),
 
       licenseNumber,
 
-      licenseClass:
-        optionalValue(
-          form.licenseClass,
-        ),
+      licenseClass: optionalValue(form.licenseClass),
 
-      licenseExpiryDate:
-        form.licenseExpiryDate,
+      licenseExpiryDate: form.licenseExpiryDate,
 
-      status:
-        form.status,
+      status: form.status,
     };
 
-    await onSubmit(
-      input,
-    );
+    await onSubmit(input);
   }
 
   return (
     <Dialog
       open={open}
 
-      onClose={
-        saving
-          ? undefined
-          : onClose
-      }
+      onClose={saving ? undefined : onClose}
 
       fullWidth
 
@@ -429,21 +280,16 @@ export function DriverFormDialog({
       <Box
         component="form"
 
-        onSubmit={
-          handleSubmit
-        }
+        onSubmit={handleSubmit}
       >
         <DialogTitle
           sx={{
             pb: 1,
 
-            fontWeight:
-              850,
+            fontWeight: 850,
           }}
         >
-          {editing
-            ? 'Edit driver'
-            : 'Add driver'}
+          {editing ? "Edit driver" : "Add driver"}
         </DialogTitle>
 
         <DialogContent>
@@ -451,19 +297,16 @@ export function DriverFormDialog({
             sx={{
               mb: 2.5,
 
-              color:
-                'text.secondary',
+              color: "text.secondary",
 
-              fontSize:
-                12.5,
+              fontSize: 12.5,
 
-              lineHeight:
-                1.6,
+              lineHeight: 1.6,
             }}
           >
             {editing
-              ? 'Update the driver profile, contact details and licence information.'
-              : 'Create a driver profile with the information required for transport operations.'}
+              ? "Update the driver profile, contact details and licence information."
+              : "Create a driver profile with the information required for transport operations."}
           </Typography>
 
           {validationError ? (
@@ -492,15 +335,12 @@ export function DriverFormDialog({
 
           <Box
             sx={{
-              display:
-                'grid',
+              display: "grid",
 
               gridTemplateColumns: {
-                xs:
-                  '1fr',
+                xs: "1fr",
 
-                sm:
-                  'repeat(2, minmax(0, 1fr))',
+                sm: "repeat(2, minmax(0, 1fr))",
               },
 
               gap: 2,
@@ -511,19 +351,9 @@ export function DriverFormDialog({
 
               required
 
-              value={
-                form.firstName
-              }
+              value={form.firstName}
 
-              onChange={(
-                event,
-              ) =>
-                updateField(
-                  'firstName',
-                  event.target
-                    .value,
-                )
-              }
+              onChange={(event) => updateField("firstName", event.target.value)}
             />
 
             <TextField
@@ -531,37 +361,17 @@ export function DriverFormDialog({
 
               required
 
-              value={
-                form.lastName
-              }
+              value={form.lastName}
 
-              onChange={(
-                event,
-              ) =>
-                updateField(
-                  'lastName',
-                  event.target
-                    .value,
-                )
-              }
+              onChange={(event) => updateField("lastName", event.target.value)}
             />
 
             <TextField
               label="Phone"
 
-              value={
-                form.phone
-              }
+              value={form.phone}
 
-              onChange={(
-                event,
-              ) =>
-                updateField(
-                  'phone',
-                  event.target
-                    .value,
-                )
-              }
+              onChange={(event) => updateField("phone", event.target.value)}
 
               placeholder="+254..."
             />
@@ -571,19 +381,9 @@ export function DriverFormDialog({
 
               type="email"
 
-              value={
-                form.email
-              }
+              value={form.email}
 
-              onChange={(
-                event,
-              ) =>
-                updateField(
-                  'email',
-                  event.target
-                    .value,
-                )
-              }
+              onChange={(event) => updateField("email", event.target.value)}
 
               placeholder="driver@example.com"
             />
@@ -593,36 +393,20 @@ export function DriverFormDialog({
 
               required
 
-              value={
-                form.licenseNumber
-              }
+              value={form.licenseNumber}
 
-              onChange={(
-                event,
-              ) =>
-                updateField(
-                  'licenseNumber',
-                  event.target
-                    .value,
-                )
+              onChange={(event) =>
+                updateField("licenseNumber", event.target.value)
               }
             />
 
             <TextField
               label="Licence class"
 
-              value={
-                form.licenseClass
-              }
+              value={form.licenseClass}
 
-              onChange={(
-                event,
-              ) =>
-                updateField(
-                  'licenseClass',
-                  event.target
-                    .value,
-                )
+              onChange={(event) =>
+                updateField("licenseClass", event.target.value)
               }
 
               placeholder="e.g. D"
@@ -635,18 +419,10 @@ export function DriverFormDialog({
 
               required
 
-              value={
-                form.licenseExpiryDate
-              }
+              value={form.licenseExpiryDate}
 
-              onChange={(
-                event,
-              ) =>
-                updateField(
-                  'licenseExpiryDate',
-                  event.target
-                    .value,
-                )
+              onChange={(event) =>
+                updateField("licenseExpiryDate", event.target.value)
               }
 
               slotProps={{
@@ -661,37 +437,17 @@ export function DriverFormDialog({
 
               label="Status"
 
-              value={
-                form.status
-              }
+              value={form.status}
 
-              onChange={(
-                event,
-              ) =>
-                updateField(
-                  'status',
-                  event.target
-                    .value as DriverStatus,
-                )
+              onChange={(event) =>
+                updateField("status", event.target.value as DriverStatus)
               }
             >
-              <MenuItem
-                value="active"
-              >
-                Active
-              </MenuItem>
+              <MenuItem value="active">Active</MenuItem>
 
-              <MenuItem
-                value="inactive"
-              >
-                Inactive
-              </MenuItem>
+              <MenuItem value="inactive">Inactive</MenuItem>
 
-              <MenuItem
-                value="suspended"
-              >
-                Suspended
-              </MenuItem>
+              <MenuItem value="suspended">Suspended</MenuItem>
             </TextField>
           </Box>
         </DialogContent>
@@ -704,13 +460,9 @@ export function DriverFormDialog({
           }}
         >
           <Button
-            onClick={
-              onClose
-            }
+            onClick={onClose}
 
-            disabled={
-              saving
-            }
+            disabled={saving}
           >
             Cancel
           </Button>
@@ -720,15 +472,9 @@ export function DriverFormDialog({
 
             variant="contained"
 
-            disabled={
-              saving
-            }
+            disabled={saving}
           >
-            {saving
-              ? 'Saving...'
-              : editing
-                ? 'Save changes'
-                : 'Add driver'}
+            {saving ? "Saving..." : editing ? "Save changes" : "Add driver"}
           </Button>
         </DialogActions>
       </Box>

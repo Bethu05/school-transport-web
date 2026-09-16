@@ -1,7 +1,4 @@
-import {
-  useEffect,
-  useState,
-} from 'react';
+import { useEffect, useState } from "react";
 
 import {
   Box,
@@ -11,7 +8,7 @@ import {
   LinearProgress,
   Paper,
   Typography,
-} from '@mui/material';
+} from "@mui/material";
 
 import {
   CheckCircleRounded,
@@ -21,20 +18,13 @@ import {
   SkipNextRounded,
   WifiOffRounded,
   WifiRounded,
-} from '@mui/icons-material';
+} from "@mui/icons-material";
 
-import {
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import {
-  LiveTrackingMap,
-} from '../../tracking/LiveTrackingMap';
+import { LiveTrackingMap } from "../../tracking/LiveTrackingMap";
 
-import {
-  TrackingProgressPanel,
-} from '../../tracking/TrackingProgressPanel';
+import { TrackingProgressPanel } from "../../tracking/TrackingProgressPanel";
 
 import {
   createTrackingSocket,
@@ -44,173 +34,90 @@ import {
   type TrackingConnectionReady,
   type TripStopEvent,
   type VehicleLocationUpdate,
-} from '../../tracking/tracking.realtime';
+} from "../../tracking/tracking.realtime";
 
 import {
   getMyJourneyProgress,
   type DriverJourneyStop,
   type DriverJourneyStopStatus,
-} from './driver-me.api';
-
+} from "./driver-me.api";
 
 type DriverRealtimeStatus =
-  | 'connecting'
-  | 'connected'
-  | 'disconnected'
-  | 'denied'
-  | 'error';
-
+  "connecting" | "connected" | "disconnected" | "denied" | "error";
 
 interface DriverJourneyProgressCardProps {
-  tenantId:
-    string | undefined;
+  tenantId: string | undefined;
 
-  enabled:
-    boolean;
+  enabled: boolean;
 }
 
-
-function formatTime(
-  value:
-    string | null,
-): string {
+function formatTime(value: string | null): string {
   if (!value) {
-    return '—';
+    return "—";
   }
 
-  const date =
-    new Date(
-      value,
-    );
+  const date = new Date(value);
 
-  if (
-    Number.isNaN(
-      date.getTime(),
-    )
-  ) {
+  if (Number.isNaN(date.getTime())) {
     return value;
   }
 
-  return new Intl.DateTimeFormat(
-    'en-GB',
-    {
-      hour:
-        '2-digit',
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
 
-      minute:
-        '2-digit',
+    minute: "2-digit",
 
-      timeZone:
-        'Africa/Nairobi',
-    },
-  ).format(
-    date,
-  );
+    timeZone: "Africa/Nairobi",
+  }).format(date);
 }
 
+function statusLabel(status: DriverJourneyStopStatus): string {
+  switch (status) {
+    case "pending":
+      return "Upcoming";
 
-function statusLabel(
-  status:
-    DriverJourneyStopStatus,
-): string {
-  switch (
-    status
-  ) {
-    case 'pending':
-      return 'Upcoming';
+    case "arrived":
+      return "Current";
 
-    case 'arrived':
-      return 'Current';
+    case "departed":
+      return "Completed";
 
-    case 'departed':
-      return 'Completed';
-
-    case 'skipped':
-      return 'Skipped';
+    case "skipped":
+      return "Skipped";
   }
 }
 
+function stopIcon(status: DriverJourneyStopStatus) {
+  switch (status) {
+    case "departed":
+      return <CheckCircleRounded color="success" />;
 
-function stopIcon(
-  status:
-    DriverJourneyStopStatus,
-) {
-  switch (
-    status
-  ) {
-    case 'departed':
-      return (
-        <CheckCircleRounded
-          color="success"
-        />
-      );
+    case "arrived":
+      return <LocationOnRounded color="primary" />;
 
-    case 'arrived':
-      return (
-        <LocationOnRounded
-          color="primary"
-        />
-      );
+    case "skipped":
+      return <SkipNextRounded color="disabled" />;
 
-    case 'skipped':
-      return (
-        <SkipNextRounded
-          color="disabled"
-        />
-      );
-
-    case 'pending':
-      return (
-        <RadioButtonUncheckedRounded
-          color="disabled"
-        />
-      );
+    case "pending":
+      return <RadioButtonUncheckedRounded color="disabled" />;
   }
 }
 
-
-function stopTime(
-  stop:
-    DriverJourneyStop,
-): string {
-  if (
-    stop.status ===
-      'departed' &&
-    stop.actualDepartureAt
-  ) {
-    return (
-      `Departed ${formatTime(
-        stop.actualDepartureAt,
-      )}`
-    );
+function stopTime(stop: DriverJourneyStop): string {
+  if (stop.status === "departed" && stop.actualDepartureAt) {
+    return `Departed ${formatTime(stop.actualDepartureAt)}`;
   }
 
-  if (
-    stop.status ===
-      'arrived' &&
-    stop.actualArrivalAt
-  ) {
-    return (
-      `Arrived ${formatTime(
-        stop.actualArrivalAt,
-      )}`
-    );
+  if (stop.status === "arrived" && stop.actualArrivalAt) {
+    return `Arrived ${formatTime(stop.actualArrivalAt)}`;
   }
 
-  if (
-    stop.status ===
-    'skipped'
-  ) {
-    return 'Skipped';
+  if (stop.status === "skipped") {
+    return "Skipped";
   }
 
-  return (
-    `Scheduled ${formatTime(
-      stop.scheduledArrivalAt,
-    )}`
-  );
+  return `Scheduled ${formatTime(stop.scheduledArrivalAt)}`;
 }
-
 
 /**
  * Driver-facing stop progress.
@@ -224,86 +131,39 @@ export function DriverJourneyProgressCard({
   tenantId,
   enabled,
 }: DriverJourneyProgressCardProps) {
-  const queryClient =
-    useQueryClient();
+  const queryClient = useQueryClient();
 
+  const [driverRealtimeStatus, setDriverRealtimeStatus] =
+    useState<DriverRealtimeStatus>("connecting");
 
-  const [
-    driverRealtimeStatus,
-    setDriverRealtimeStatus,
-  ] =
-    useState<DriverRealtimeStatus>(
-      'connecting',
-    );
+  const [realtimeError, setRealtimeError] = useState<string | null>(null);
 
+  const [liveVehicleLocation, setLiveVehicleLocation] =
+    useState<VehicleLocationUpdate | null>(null);
 
-  const [
-    realtimeError,
-    setRealtimeError,
-  ] =
-    useState<
-      string | null
-    >(
-      null,
-    );
+  const progressQuery = useQuery({
+    queryKey: ["my-driver-journey-progress", tenantId],
 
+    enabled: Boolean(tenantId && enabled),
 
-  const [
-    liveVehicleLocation,
-    setLiveVehicleLocation,
-  ] =
-    useState<
-      VehicleLocationUpdate | null
-    >(
-      null,
-    );
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
+      return getMyJourneyProgress(tenantId);
+    },
 
-  const progressQuery =
-    useQuery({
-      queryKey: [
-        'my-driver-journey-progress',
-        tenantId,
-      ],
+    /**
+     * Temporary resilient fallback.
+     *
+     * The next checkpoint will also invalidate this query
+     * from realtime stop arrival/departure events.
+     */
+    refetchInterval: enabled ? 15_000 : false,
+  });
 
-      enabled:
-        Boolean(
-          tenantId &&
-          enabled,
-        ),
-
-      queryFn:
-        async () => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
-
-          return getMyJourneyProgress(
-            tenantId,
-          );
-        },
-
-      /**
-       * Temporary resilient fallback.
-       *
-       * The next checkpoint will also invalidate this query
-       * from realtime stop arrival/departure events.
-       */
-      refetchInterval:
-        enabled
-          ? 15_000
-          : false,
-    });
-
-
-
-  const assignedTripId =
-    progressQuery.data
-      ?.tripId ??
-    null;
-
+  const assignedTripId = progressQuery.data?.tripId ?? null;
 
   // ==========================================================
   // DRIVER JOURNEY REALTIME SUBSCRIPTION
@@ -328,367 +188,195 @@ export function DriverJourneyProgressCard({
   // because vehicle telemetry may arrive very frequently.
   // ==========================================================
 
-  useEffect(
-    () => {
-      if (
-        !enabled ||
-        !tenantId ||
-        !assignedTripId
-      ) {
+  useEffect(() => {
+    if (!enabled || !tenantId || !assignedTripId) {
+      return;
+    }
+
+    let socket;
+
+    try {
+      socket = createTrackingSocket(tenantId);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Realtime connection could not be created.";
+
+      queueMicrotask(() => {
+        setDriverRealtimeStatus("error");
+
+        setRealtimeError(message);
+      });
+
+      return;
+    }
+
+    /**
+     * Socket.IO emits `connect` after the transport is
+     * established.
+     *
+     * Connection state therefore follows the external socket
+     * system rather than being synchronously changed by the
+     * React effect itself.
+     */
+    socket.on("connect", () => {
+      setDriverRealtimeStatus("connecting");
+
+      setRealtimeError(null);
+    });
+
+    socket.on("connection.ready", async (ready: TrackingConnectionReady) => {
+      if (ready.tenantId !== tenantId) {
         return;
       }
-
-
-      let socket;
 
       try {
-        socket =
-          createTrackingSocket(
-            tenantId,
+        const result = await subscribeToTrip(socket, assignedTripId);
+
+        if (!result.ok) {
+          throw new Error(
+            result.message ?? "Driver trip subscription was denied",
           );
-      } catch (
-        error
-      ) {
-        const message =
+        }
+
+        setDriverRealtimeStatus("connected");
+
+        setRealtimeError(null);
+      } catch (error) {
+        setDriverRealtimeStatus("denied");
+
+        setRealtimeError(
           error instanceof Error
             ? error.message
-            : 'Realtime connection could not be created.';
-
-        queueMicrotask(
-          () => {
-            setDriverRealtimeStatus(
-              'error',
-            );
-
-            setRealtimeError(
-              message,
-            );
-          },
+            : "Driver trip subscription was denied",
         );
+      }
+    });
 
+    socket.on("connection.denied", (denied: TrackingConnectionDenied) => {
+      setDriverRealtimeStatus("denied");
+
+      setRealtimeError(denied.message);
+    });
+
+    socket.on("connect_error", (error: Error) => {
+      setDriverRealtimeStatus("error");
+
+      setRealtimeError(error.message);
+    });
+
+    socket.on("disconnect", () => {
+      setDriverRealtimeStatus("disconnected");
+    });
+
+    function handleVehicleLocation(location: VehicleLocationUpdate): void {
+      if (
+        location.tenantId !== tenantId ||
+        location.tripId !== assignedTripId
+      ) {
         return;
       }
 
+      /**
+       * GPS telemetry can arrive frequently.
+       *
+       * Keep the latest packet in local React state for
+       * map / ETA rendering instead of invalidating the
+       * Journey Progress HTTP query for every GPS update.
+       */
+      setLiveVehicleLocation(location);
+    }
+
+    function handleStopEvent(event: TripStopEvent): void {
+      if (event.tenantId !== tenantId || event.tripId !== assignedTripId) {
+        return;
+      }
 
       /**
-       * Socket.IO emits `connect` after the transport is
-       * established.
-       *
-       * Connection state therefore follows the external socket
-       * system rather than being synchronously changed by the
-       * React effect itself.
+       * Arrival/departure changes the authoritative
+       * trip_stops snapshot, so immediately reload it.
        */
-      socket.on(
-        'connect',
-        () => {
-          setDriverRealtimeStatus(
-            'connecting',
-          );
+      void queryClient.invalidateQueries({
+        queryKey: ["my-driver-journey-progress", tenantId],
+      });
+    }
 
-          setRealtimeError(
-            null,
-          );
-        },
-      );
+    socket.on("vehicle.location.updated", handleVehicleLocation);
 
+    socket.on("trip.stop.arrived", handleStopEvent);
 
-      socket.on(
-        'connection.ready',
-        async (
-          ready:
-            TrackingConnectionReady,
-        ) => {
-          if (
-            ready.tenantId !==
-            tenantId
-          ) {
-            return;
-          }
+    socket.on("trip.stop.departed", handleStopEvent);
 
+    socket.connect();
 
-          try {
-            const result =
-              await subscribeToTrip(
-                socket,
-                assignedTripId,
-              );
+    return () => {
+      void unsubscribeFromTrip(socket, assignedTripId).catch(() => undefined);
 
+      socket.off("connect");
 
-            if (!result.ok) {
-              throw new Error(
-                result.message ??
-                'Driver trip subscription was denied',
-              );
-            }
+      socket.off("connection.ready");
 
+      socket.off("connection.denied");
 
-            setDriverRealtimeStatus(
-              'connected',
-            );
+      socket.off("connect_error");
 
-            setRealtimeError(
-              null,
-            );
-          } catch (
-            error
-          ) {
-            setDriverRealtimeStatus(
-              'denied',
-            );
+      socket.off("disconnect");
 
-            setRealtimeError(
-              error instanceof Error
-                ? error.message
-                : 'Driver trip subscription was denied',
-            );
-          }
-        },
-      );
+      socket.off("vehicle.location.updated", handleVehicleLocation);
 
+      socket.off("trip.stop.arrived", handleStopEvent);
 
-      socket.on(
-        'connection.denied',
-        (
-          denied:
-            TrackingConnectionDenied,
-        ) => {
-          setDriverRealtimeStatus(
-            'denied',
-          );
+      socket.off("trip.stop.departed", handleStopEvent);
 
-          setRealtimeError(
-            denied.message,
-          );
-        },
-      );
-
-
-      socket.on(
-        'connect_error',
-        (
-          error:
-            Error,
-        ) => {
-          setDriverRealtimeStatus(
-            'error',
-          );
-
-          setRealtimeError(
-            error.message,
-          );
-        },
-      );
-
-
-      socket.on(
-        'disconnect',
-        () => {
-          setDriverRealtimeStatus(
-            'disconnected',
-          );
-        },
-      );
-
-
-      function handleVehicleLocation(
-        location:
-          VehicleLocationUpdate,
-      ): void {
-        if (
-          location.tenantId !==
-            tenantId ||
-          location.tripId !==
-            assignedTripId
-        ) {
-          return;
-        }
-
-
-        /**
-         * GPS telemetry can arrive frequently.
-         *
-         * Keep the latest packet in local React state for
-         * map / ETA rendering instead of invalidating the
-         * Journey Progress HTTP query for every GPS update.
-         */
-        setLiveVehicleLocation(
-          location,
-        );
-      }
-
-
-      function handleStopEvent(
-        event:
-          TripStopEvent,
-      ): void {
-        if (
-          event.tenantId !==
-            tenantId ||
-          event.tripId !==
-            assignedTripId
-        ) {
-          return;
-        }
-
-
-        /**
-         * Arrival/departure changes the authoritative
-         * trip_stops snapshot, so immediately reload it.
-         */
-        void queryClient.invalidateQueries({
-          queryKey: [
-            'my-driver-journey-progress',
-            tenantId,
-          ],
-        });
-      }
-
-
-      socket.on(
-        'vehicle.location.updated',
-        handleVehicleLocation,
-      );
-
-
-      socket.on(
-        'trip.stop.arrived',
-        handleStopEvent,
-      );
-
-      socket.on(
-        'trip.stop.departed',
-        handleStopEvent,
-      );
-
-
-      socket.connect();
-
-
-      return () => {
-        void unsubscribeFromTrip(
-          socket,
-          assignedTripId,
-        ).catch(
-          () =>
-            undefined,
-        );
-
-        socket.off(
-          'connect',
-        );
-
-        socket.off(
-          'connection.ready',
-        );
-
-        socket.off(
-          'connection.denied',
-        );
-
-        socket.off(
-          'connect_error',
-        );
-
-        socket.off(
-          'disconnect',
-        );
-
-        socket.off(
-          'vehicle.location.updated',
-          handleVehicleLocation,
-        );
-
-        socket.off(
-          'trip.stop.arrived',
-          handleStopEvent,
-        );
-
-        socket.off(
-          'trip.stop.departed',
-          handleStopEvent,
-        );
-
-        socket.disconnect();
-      };
-    },
-    [
-      tenantId,
-      enabled,
-      assignedTripId,
-      queryClient,
-    ],
-  );
-
+      socket.disconnect();
+    };
+  }, [tenantId, enabled, assignedTripId, queryClient]);
 
   if (!enabled) {
     return null;
   }
 
-
-  if (
-    progressQuery.isLoading
-  ) {
+  if (progressQuery.isLoading) {
     return (
       <Paper
-        elevation={
-          0
-        }
+        elevation={0}
         sx={{
-          mt:
-            2.5,
+          mt: 2.5,
 
-          p:
-            4,
+          p: 4,
 
-          display:
-            'grid',
+          display: "grid",
 
-          placeItems:
-            'center',
+          placeItems: "center",
 
-          border:
-            '1px solid',
+          border: "1px solid",
 
-          borderColor:
-            'divider',
+          borderColor: "divider",
         }}
       >
-        <CircularProgress
-          size={
-            26
-          }
-        />
+        <CircularProgress size={26} />
       </Paper>
     );
   }
 
-
-  if (
-    progressQuery.isError
-  ) {
+  if (progressQuery.isError) {
     return (
       <Paper
-        elevation={
-          0
-        }
+        elevation={0}
         sx={{
-          mt:
-            2.5,
+          mt: 2.5,
 
-          p:
-            3,
+          p: 3,
 
-          border:
-            '1px solid',
+          border: "1px solid",
 
-          borderColor:
-            'divider',
+          borderColor: "divider",
         }}
       >
         <Typography
           sx={{
-            fontWeight:
-              800,
+            fontWeight: 800,
           }}
         >
           Journey progress unavailable
@@ -696,14 +384,11 @@ export function DriverJourneyProgressCard({
 
         <Typography
           sx={{
-            mt:
-              0.5,
+            mt: 0.5,
 
-            color:
-              'text.secondary',
+            color: "text.secondary",
 
-            fontSize:
-              13,
+            fontSize: 13,
           }}
         >
           The stop information could not be loaded.
@@ -712,161 +397,106 @@ export function DriverJourneyProgressCard({
     );
   }
 
-
-  const progress =
-    progressQuery.data;
-
+  const progress = progressQuery.data;
 
   /**
    * Do not display a stale GPS packet if the Driver assignment
    * changes before a new telemetry packet arrives.
    */
   const activeLiveLocation =
-    liveVehicleLocation
-      ?.tenantId ===
-        tenantId &&
-    liveVehicleLocation
-      ?.tripId ===
-        assignedTripId
+    liveVehicleLocation?.tenantId === tenantId &&
+    liveVehicleLocation?.tripId === assignedTripId
       ? liveVehicleLocation
       : null;
 
+  const liveMapMarkers = activeLiveLocation
+    ? [
+        {
+          key: "driver-live-vehicle",
 
-  const liveMapMarkers =
-    activeLiveLocation
-      ? [
-          {
-            key:
-              'driver-live-vehicle',
+          label: "Your vehicle",
 
-            label:
-              'Your vehicle',
+          subtitle: "Live journey position",
 
-            subtitle:
-              'Live journey position',
+          latitude: activeLiveLocation.latitude,
 
-            latitude:
-              activeLiveLocation
-                .latitude,
+          longitude: activeLiveLocation.longitude,
 
-            longitude:
-              activeLiveLocation
-                .longitude,
+          speedKph: activeLiveLocation.speedKph,
 
-            speedKph:
-              activeLiveLocation
-                .speedKph,
+          heading: activeLiveLocation.heading,
 
-            heading:
-              activeLiveLocation
-                .heading,
+          accuracyMeters: activeLiveLocation.accuracyMeters,
+        },
 
-            accuracyMeters:
-              activeLiveLocation
-                .accuracyMeters,
-          },
+        ...(activeLiveLocation.nextStop
+          ? [
+              {
+                key: "driver-next-stop",
 
-          ...(
-            activeLiveLocation
-              .nextStop
-              ? [
-                  {
-                    key:
-                      'driver-next-stop',
+                kind: "stop" as const,
 
-                    kind:
-                      'stop' as const,
+                label: activeLiveLocation.nextStop.stopName,
 
-                    label:
-                      activeLiveLocation
-                        .nextStop
-                        .stopName,
+                subtitle: "Next stop",
 
-                    subtitle:
-                      'Next stop',
+                latitude: activeLiveLocation.nextStop.latitude,
 
-                    latitude:
-                      activeLiveLocation
-                        .nextStop
-                        .latitude,
-
-                    longitude:
-                      activeLiveLocation
-                        .nextStop
-                        .longitude,
-                  },
-                ]
-              : []
-          ),
-        ]
-      : [];
-
+                longitude: activeLiveLocation.nextStop.longitude,
+              },
+            ]
+          : []),
+      ]
+    : [];
 
   if (!progress) {
     return null;
   }
 
-
   return (
     <Paper
-      elevation={
-        0
-      }
+      elevation={0}
       sx={{
-        mt:
-          2.5,
+        mt: 2.5,
 
         p: {
-          xs:
-            3,
+          xs: 3,
 
-          md:
-            3.5,
+          md: 3.5,
         },
 
-        border:
-          '1px solid',
+        border: "1px solid",
 
-        borderColor:
-          'divider',
+        borderColor: "divider",
       }}
     >
       <Box
         sx={{
-          display:
-            'flex',
+          display: "flex",
 
-          justifyContent:
-            'space-between',
+          justifyContent: "space-between",
 
           alignItems: {
-            xs:
-              'flex-start',
+            xs: "flex-start",
 
-            sm:
-              'center',
+            sm: "center",
           },
 
           flexDirection: {
-            xs:
-              'column',
+            xs: "column",
 
-            sm:
-              'row',
+            sm: "row",
           },
 
-          gap:
-            2,
+          gap: 2,
         }}
       >
         <Box>
           <Typography
             sx={{
-              fontSize:
-                20,
+              fontSize: 20,
 
-              fontWeight:
-                900,
+              fontWeight: 900,
             }}
           >
             Journey progress
@@ -874,247 +504,185 @@ export function DriverJourneyProgressCard({
 
           <Typography
             sx={{
-              mt:
-                0.5,
+              mt: 0.5,
 
-              color:
-                'text.secondary',
+              color: "text.secondary",
 
-              fontSize:
-                13,
+              fontSize: 13,
             }}
           >
             {progress.completedStops}
-            {' of '}
+            {" of "}
             {progress.totalStops}
-            {' stops completed'}
+            {" stops completed"}
           </Typography>
         </Box>
 
         <Box
           sx={{
-            display:
-              'flex',
+            display: "flex",
 
-            gap:
-              1,
+            gap: 1,
 
-            flexWrap:
-              'wrap',
+            flexWrap: "wrap",
 
-            alignItems:
-              'center',
+            alignItems: "center",
           }}
         >
           <Chip
             icon={
-              driverRealtimeStatus ===
-              'connected'
-                ? <WifiRounded />
-                : <WifiOffRounded />
+              driverRealtimeStatus === "connected" ? (
+                <WifiRounded />
+              ) : (
+                <WifiOffRounded />
+              )
             }
 
             label={
-              driverRealtimeStatus ===
-              'connected'
-                ? 'Live updates'
-                : driverRealtimeStatus ===
-                  'connecting'
-                  ? 'Connecting'
-                  : driverRealtimeStatus ===
-                    'denied'
-                    ? 'Realtime denied'
-                    : driverRealtimeStatus ===
-                      'error'
-                      ? 'Realtime error'
-                      : 'Disconnected'
+              driverRealtimeStatus === "connected"
+                ? "Live updates"
+                : driverRealtimeStatus === "connecting"
+                  ? "Connecting"
+                  : driverRealtimeStatus === "denied"
+                    ? "Realtime denied"
+                    : driverRealtimeStatus === "error"
+                      ? "Realtime error"
+                      : "Disconnected"
             }
 
             color={
-              driverRealtimeStatus ===
-              'connected'
-                ? 'success'
-                : driverRealtimeStatus ===
-                    'denied' ||
-                  driverRealtimeStatus ===
-                    'error'
-                  ? 'error'
-                  : 'default'
+              driverRealtimeStatus === "connected"
+                ? "success"
+                : driverRealtimeStatus === "denied" ||
+                    driverRealtimeStatus === "error"
+                  ? "error"
+                  : "default"
             }
 
             variant="outlined"
           />
 
           <Chip
-            label={
-              `${progress.progressPercent}% complete`
-            }
+            label={`${progress.progressPercent}% complete`}
 
             variant="outlined"
           />
         </Box>
       </Box>
 
-
       {realtimeError ? (
         <Typography
           sx={{
-            mt:
-              1.5,
+            mt: 1.5,
 
-            color:
-              'text.secondary',
+            color: "text.secondary",
 
-            fontSize:
-              11.5,
+            fontSize: 11.5,
           }}
         >
-          Live updates unavailable. Journey progress will
-          continue refreshing automatically.
+          Live updates unavailable. Journey progress will continue refreshing
+          automatically.
         </Typography>
       ) : null}
-
 
       <LinearProgress
         variant="determinate"
 
-        value={
-          progress.progressPercent
-        }
+        value={progress.progressPercent}
 
         sx={{
-          mt:
-            2.5,
+          mt: 2.5,
 
-          height:
-            8,
+          height: 8,
 
-          borderRadius:
-            8,
+          borderRadius: 8,
         }}
       />
-
 
       {activeLiveLocation ? (
         <Box
           sx={{
-            mt:
-              3,
+            mt: 3,
           }}
         >
           <Typography
             sx={{
-              mb:
-                1.25,
+              mb: 1.25,
 
-              fontSize:
-                12,
+              fontSize: 12,
 
-              fontWeight:
-                800,
+              fontWeight: 800,
 
-              textTransform:
-                'uppercase',
+              textTransform: "uppercase",
 
-              letterSpacing:
-                '0.07em',
+              letterSpacing: "0.07em",
 
-              color:
-                'text.secondary',
+              color: "text.secondary",
             }}
           >
             Live vehicle &amp; ETA
           </Typography>
 
-
           {activeLiveLocation.nextStop ? (
             <Box
               sx={{
-                mb:
-                  1.5,
+                mb: 1.5,
               }}
             >
               <TrackingProgressPanel
                 label="Your journey"
 
-                nextStop={
-                  activeLiveLocation
-                    .nextStop
-                }
+                nextStop={activeLiveLocation.nextStop}
               />
             </Box>
           ) : null}
 
-
-          {liveMapMarkers.length >
-          0 ? (
+          {liveMapMarkers.length > 0 ? (
             <LiveTrackingMap
-              markers={
-                liveMapMarkers
-              }
+              markers={liveMapMarkers}
 
-              height={
-                300
-              }
+              height={300}
             />
           ) : null}
         </Box>
       ) : null}
 
-
       <Box
         sx={{
-          mt:
-            3,
+          mt: 3,
 
-          display:
-            'grid',
+          display: "grid",
 
           gridTemplateColumns: {
-            xs:
-              '1fr',
+            xs: "1fr",
 
-            md:
-              '1fr 1fr',
+            md: "1fr 1fr",
           },
 
-          gap:
-            1.5,
+          gap: 1.5,
         }}
       >
         <Paper
-          elevation={
-            0
-          }
+          elevation={0}
           sx={{
-            p:
-              2,
+            p: 2,
 
-            border:
-              '1px solid',
+            border: "1px solid",
 
-            borderColor:
-              progress.currentStop
-                ? 'primary.main'
-                : 'divider',
+            borderColor: progress.currentStop ? "primary.main" : "divider",
           }}
         >
           <Typography
             sx={{
-              color:
-                'text.secondary',
+              color: "text.secondary",
 
-              fontSize:
-                10.5,
+              fontSize: 10.5,
 
-              fontWeight:
-                750,
+              fontWeight: 750,
 
-              textTransform:
-                'uppercase',
+              textTransform: "uppercase",
 
-              letterSpacing:
-                '0.08em',
+              letterSpacing: "0.08em",
             }}
           >
             Current stop
@@ -1122,76 +690,52 @@ export function DriverJourneyProgressCard({
 
           <Typography
             sx={{
-              mt:
-                0.7,
+              mt: 0.7,
 
-              fontSize:
-                18,
+              fontSize: 18,
 
-              fontWeight:
-                850,
+              fontWeight: 850,
             }}
           >
-            {progress.currentStop
-              ?.stopName ??
-              'Between stops'}
+            {progress.currentStop?.stopName ?? "Between stops"}
           </Typography>
 
           {progress.currentStop ? (
             <Typography
               sx={{
-                mt:
-                  0.5,
+                mt: 0.5,
 
-                color:
-                  'text.secondary',
+                color: "text.secondary",
 
-                fontSize:
-                  12,
+                fontSize: 12,
               }}
             >
-              Stop{' '}
-              {
-                progress
-                  .currentStop
-                  .stopOrder
-              }
+              Stop {progress.currentStop.stopOrder}
             </Typography>
           ) : null}
         </Paper>
 
-
         <Paper
-          elevation={
-            0
-          }
+          elevation={0}
           sx={{
-            p:
-              2,
+            p: 2,
 
-            border:
-              '1px solid',
+            border: "1px solid",
 
-            borderColor:
-              'divider',
+            borderColor: "divider",
           }}
         >
           <Typography
             sx={{
-              color:
-                'text.secondary',
+              color: "text.secondary",
 
-              fontSize:
-                10.5,
+              fontSize: 10.5,
 
-              fontWeight:
-                750,
+              fontWeight: 750,
 
-              textTransform:
-                'uppercase',
+              textTransform: "uppercase",
 
-              letterSpacing:
-                '0.08em',
+              letterSpacing: "0.08em",
             }}
           >
             Next stop
@@ -1199,233 +743,157 @@ export function DriverJourneyProgressCard({
 
           <Typography
             sx={{
-              mt:
-                0.7,
+              mt: 0.7,
 
-              fontSize:
-                18,
+              fontSize: 18,
 
-              fontWeight:
-                850,
+              fontWeight: 850,
             }}
           >
-            {progress.nextStop
-              ?.stopName ??
-              'No remaining stops'}
+            {progress.nextStop?.stopName ?? "No remaining stops"}
           </Typography>
 
           {progress.nextStop ? (
             <Typography
               sx={{
-                mt:
-                  0.5,
+                mt: 0.5,
 
-                display:
-                  'flex',
+                display: "flex",
 
-                alignItems:
-                  'center',
+                alignItems: "center",
 
-                gap:
-                  0.5,
+                gap: 0.5,
 
-                color:
-                  'text.secondary',
+                color: "text.secondary",
 
-                fontSize:
-                  12,
+                fontSize: 12,
               }}
             >
               <ScheduleRounded
                 sx={{
-                  fontSize:
-                    15,
+                  fontSize: 15,
                 }}
               />
 
-              {formatTime(
-                progress
-                  .nextStop
-                  .scheduledArrivalAt,
-              )}
+              {formatTime(progress.nextStop.scheduledArrivalAt)}
             </Typography>
           ) : null}
         </Paper>
       </Box>
 
-
       <Divider
         sx={{
-          my:
-            3,
+          my: 3,
         }}
       />
 
-
       <Typography
         sx={{
-          mb:
-            1.5,
+          mb: 1.5,
 
-          fontSize:
-            12,
+          fontSize: 12,
 
-          fontWeight:
-            800,
+          fontWeight: 800,
 
-          textTransform:
-            'uppercase',
+          textTransform: "uppercase",
 
-          letterSpacing:
-            '0.07em',
+          letterSpacing: "0.07em",
 
-          color:
-            'text.secondary',
+          color: "text.secondary",
         }}
       >
         Route stops
       </Typography>
 
-
-      {progress.stops.length ===
-      0 ? (
+      {progress.stops.length === 0 ? (
         <Typography
           sx={{
-            color:
-              'text.secondary',
+            color: "text.secondary",
 
-            fontSize:
-              13,
+            fontSize: 13,
           }}
         >
           No stops are configured for this journey.
         </Typography>
       ) : (
         <Box>
-          {progress.stops.map(
-            (
-              stop,
-              index,
-            ) => (
+          {progress.stops.map((stop, index) => (
+            <Box
+              key={stop.id}
+              sx={{
+                display: "grid",
+
+                gridTemplateColumns: "34px minmax(0, 1fr) auto",
+
+                gap: 1,
+
+                alignItems: "center",
+
+                py: 1.4,
+
+                borderBottom:
+                  index < progress.stops.length - 1 ? "1px solid" : "none",
+
+                borderColor: "divider",
+              }}
+            >
               <Box
-                key={
-                  stop.id
-                }
                 sx={{
-                  display:
-                    'grid',
+                  display: "grid",
 
-                  gridTemplateColumns:
-                    '34px minmax(0, 1fr) auto',
-
-                  gap:
-                    1,
-
-                  alignItems:
-                    'center',
-
-                  py:
-                    1.4,
-
-                  borderBottom:
-                    index <
-                    progress
-                      .stops
-                      .length -
-                      1
-                      ? '1px solid'
-                      : 'none',
-
-                  borderColor:
-                    'divider',
+                  placeItems: "center",
                 }}
               >
-                <Box
-                  sx={{
-                    display:
-                      'grid',
-
-                    placeItems:
-                      'center',
-                  }}
-                >
-                  {stopIcon(
-                    stop.status,
-                  )}
-                </Box>
-
-
-                <Box
-                  sx={{
-                    minWidth:
-                      0,
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      fontSize:
-                        14,
-
-                      fontWeight:
-                        stop.status ===
-                        'arrived'
-                          ? 900
-                          : 750,
-                    }}
-                  >
-                    {stop.stopOrder}
-                    {'. '}
-                    {stop.stopName}
-                  </Typography>
-
-                  <Typography
-                    sx={{
-                      mt:
-                        0.2,
-
-                      color:
-                        'text.secondary',
-
-                      fontSize:
-                        11.5,
-                    }}
-                  >
-                    {stopTime(
-                      stop,
-                    )}
-                  </Typography>
-                </Box>
-
-
-                <Chip
-                  size="small"
-
-                  label={
-                    statusLabel(
-                      stop.status,
-                    )
-                  }
-
-                  color={
-                    stop.status ===
-                    'arrived'
-                      ? 'primary'
-                      : stop.status ===
-                        'departed'
-                        ? 'success'
-                        : 'default'
-                  }
-
-                  variant={
-                    stop.status ===
-                    'pending'
-                      ? 'outlined'
-                      : 'filled'
-                  }
-                />
+                {stopIcon(stop.status)}
               </Box>
-            ),
-          )}
+
+              <Box
+                sx={{
+                  minWidth: 0,
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: 14,
+
+                    fontWeight: stop.status === "arrived" ? 900 : 750,
+                  }}
+                >
+                  {stop.stopOrder}
+                  {". "}
+                  {stop.stopName}
+                </Typography>
+
+                <Typography
+                  sx={{
+                    mt: 0.2,
+
+                    color: "text.secondary",
+
+                    fontSize: 11.5,
+                  }}
+                >
+                  {stopTime(stop)}
+                </Typography>
+              </Box>
+
+              <Chip
+                size="small"
+
+                label={statusLabel(stop.status)}
+
+                color={
+                  stop.status === "arrived"
+                    ? "primary"
+                    : stop.status === "departed"
+                      ? "success"
+                      : "default"
+                }
+
+                variant={stop.status === "pending" ? "outlined" : "filled"}
+              />
+            </Box>
+          ))}
         </Box>
       )}
     </Paper>

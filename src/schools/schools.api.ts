@@ -1,6 +1,6 @@
-import { apiRequest } from '../api/client';
+import { apiRequest } from "../api/client";
 
-export type SchoolStatus = 'active' | 'inactive';
+export type SchoolStatus = "active" | "inactive";
 
 export interface School {
   id: string;
@@ -21,7 +21,7 @@ export interface School {
  * uses this lightweight endpoint for human-readable selectors.
  */
 export function listSchools(tenantId: string): Promise<School[]> {
-  return apiRequest<School[]>('/schools', {
+  return apiRequest<School[]>("/schools", {
     tenantId,
   });
 }

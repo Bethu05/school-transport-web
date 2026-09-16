@@ -1,10 +1,6 @@
-import {
-  apiRequest,
-} from '../api/client';
+import { apiRequest } from "../api/client";
 
-export type StudentStatus =
-  | 'active'
-  | 'inactive';
+export type StudentStatus = "active" | "inactive";
 
 export interface Student {
   id: string;
@@ -13,9 +9,7 @@ export interface Student {
 
   schoolId: string;
 
-  externalRef:
-    | string
-    | null;
+  externalRef: string | null;
 
   firstName: string;
 
@@ -23,12 +17,9 @@ export interface Student {
 
   grade: string;
 
-  photoUrl:
-    | string
-    | null;
+  photoUrl: string | null;
 
-  status:
-    StudentStatus;
+  status: StudentStatus;
 
   createdAt: string;
 
@@ -96,60 +87,32 @@ export interface UpdateStudentInput {
   photoUrl?: string;
 }
 
-function buildQueryString(
-  query:
-    ListStudentsQuery,
-): string {
-  const parameters =
-    new URLSearchParams();
+function buildQueryString(query: ListStudentsQuery): string {
+  const parameters = new URLSearchParams();
 
   if (query.page) {
-    parameters.set(
-      'page',
-      String(
-        query.page,
-      ),
-    );
+    parameters.set("page", String(query.page));
   }
 
   if (query.limit) {
-    parameters.set(
-      'limit',
-      String(
-        query.limit,
-      ),
-    );
+    parameters.set("limit", String(query.limit));
   }
 
-  if (
-    query.search?.trim()
-  ) {
-    parameters.set(
-      'search',
-      query.search.trim(),
-    );
+  if (query.search?.trim()) {
+    parameters.set("search", query.search.trim());
   }
 
   if (query.schoolId) {
-    parameters.set(
-      'schoolId',
-      query.schoolId,
-    );
+    parameters.set("schoolId", query.schoolId);
   }
 
   if (query.status) {
-    parameters.set(
-      'status',
-      query.status,
-    );
+    parameters.set("status", query.status);
   }
 
-  const value =
-    parameters.toString();
+  const value = parameters.toString();
 
-  return value
-    ? `?${value}`
-    : '';
+  return value ? `?${value}` : "";
 }
 
 /**
@@ -157,60 +120,38 @@ function buildQueryString(
  */
 export function listStudentsPage(
   tenantId: string,
-  query:
-    ListStudentsQuery = {},
+  query: ListStudentsQuery = {},
 ): Promise<PaginatedStudents> {
-  return apiRequest<PaginatedStudents>(
-    `/students${buildQueryString(
-      query,
-    )}`,
-    {
-      tenantId,
-    },
-  );
+  return apiRequest<PaginatedStudents>(`/students${buildQueryString(query)}`, {
+    tenantId,
+  });
 }
 
 export function createStudent(
   tenantId: string,
-  input:
-    CreateStudentInput,
+  input: CreateStudentInput,
 ): Promise<Student> {
-  return apiRequest<Student>(
-    '/students',
-    {
-      method:
-        'POST',
+  return apiRequest<Student>("/students", {
+    method: "POST",
 
-      tenantId,
+    tenantId,
 
-      body:
-        JSON.stringify(
-          input,
-        ),
-    },
-  );
+    body: JSON.stringify(input),
+  });
 }
 
 export function updateStudent(
   tenantId: string,
   studentId: string,
-  input:
-    UpdateStudentInput,
+  input: UpdateStudentInput,
 ): Promise<Student> {
-  return apiRequest<Student>(
-    `/students/${studentId}`,
-    {
-      method:
-        'PATCH',
+  return apiRequest<Student>(`/students/${studentId}`, {
+    method: "PATCH",
 
-      tenantId,
+    tenantId,
 
-      body:
-        JSON.stringify(
-          input,
-        ),
-    },
-  );
+    body: JSON.stringify(input),
+  });
 }
 
 /**
@@ -222,13 +163,9 @@ export function deactivateStudent(
   tenantId: string,
   studentId: string,
 ): Promise<Student> {
-  return apiRequest<Student>(
-    `/students/${studentId}/deactivate`,
-    {
-      method:
-        'POST',
+  return apiRequest<Student>(`/students/${studentId}/deactivate`, {
+    method: "POST",
 
-      tenantId,
-    },
-  );
+    tenantId,
+  });
 }

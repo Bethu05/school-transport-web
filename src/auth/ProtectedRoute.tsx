@@ -1,40 +1,22 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
-import {
-  Navigate,
-} from 'react-router-dom';
+import { Navigate } from "react-router-dom";
 
-import {
-  useAuth,
-} from './AuthProvider';
+import { useAuth } from "./AuthProvider";
 
 interface ProtectedRouteProps {
   children: ReactNode;
 }
 
-export function ProtectedRoute({
-  children,
-}: ProtectedRouteProps) {
-  const {
-    authenticated,
-    loading,
-  } = useAuth();
+export function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const { authenticated, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div>
-        Loading...
-      </div>
-    );
+    return <div>Loading...</div>;
   }
 
   if (!authenticated) {
-    return (
-      <Navigate
-        to="/login"
-        replace
-      />
-    );
+    return <Navigate to="/login" replace />;
   }
 
   return children;

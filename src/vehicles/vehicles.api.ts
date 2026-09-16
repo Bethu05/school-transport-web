@@ -1,12 +1,6 @@
-import {
-  apiRequest,
-} from '../api/client';
+import { apiRequest } from "../api/client";
 
-export type VehicleStatus =
-  | 'active'
-  | 'maintenance'
-  | 'inactive'
-  | 'retired';
+export type VehicleStatus = "active" | "maintenance" | "inactive" | "retired";
 
 export interface Vehicle {
   id: string;
@@ -64,79 +58,50 @@ export interface UpdateVehicleInput {
   status?: VehicleStatus;
 }
 
-function buildQueryString(
-  query: ListVehiclesQuery,
-): string {
-  const parameters =
-    new URLSearchParams();
+function buildQueryString(query: ListVehiclesQuery): string {
+  const parameters = new URLSearchParams();
 
   if (query.page) {
-    parameters.set(
-      'page',
-      String(query.page),
-    );
+    parameters.set("page", String(query.page));
   }
 
   if (query.limit) {
-    parameters.set(
-      'limit',
-      String(query.limit),
-    );
+    parameters.set("limit", String(query.limit));
   }
 
   if (query.search?.trim()) {
-    parameters.set(
-      'search',
-      query.search.trim(),
-    );
+    parameters.set("search", query.search.trim());
   }
 
   if (query.schoolId) {
-    parameters.set(
-      'schoolId',
-      query.schoolId,
-    );
+    parameters.set("schoolId", query.schoolId);
   }
 
   if (query.status) {
-    parameters.set(
-      'status',
-      query.status,
-    );
+    parameters.set("status", query.status);
   }
 
-  const value =
-    parameters.toString();
+  const value = parameters.toString();
 
-  return value
-    ? `?${value}`
-    : '';
+  return value ? `?${value}` : "";
 }
 
 export function listVehicles(
   tenantId: string,
   query: ListVehiclesQuery = {},
 ): Promise<PaginatedVehicles> {
-  return apiRequest<PaginatedVehicles>(
-    `/vehicles${buildQueryString(
-      query,
-    )}`,
-    {
-      tenantId,
-    },
-  );
+  return apiRequest<PaginatedVehicles>(`/vehicles${buildQueryString(query)}`, {
+    tenantId,
+  });
 }
 
 export function getVehicle(
   tenantId: string,
   vehicleId: string,
 ): Promise<Vehicle> {
-  return apiRequest<Vehicle>(
-    `/vehicles/${vehicleId}`,
-    {
-      tenantId,
-    },
-  );
+  return apiRequest<Vehicle>(`/vehicles/${vehicleId}`, {
+    tenantId,
+  });
 }
 
 /**
@@ -146,19 +111,13 @@ export function createVehicle(
   tenantId: string,
   input: CreateVehicleInput,
 ): Promise<Vehicle> {
-  return apiRequest<Vehicle>(
-    '/vehicles',
-    {
-      method: 'POST',
+  return apiRequest<Vehicle>("/vehicles", {
+    method: "POST",
 
-      tenantId,
+    tenantId,
 
-      body:
-        JSON.stringify(
-          input,
-        ),
-    },
-  );
+    body: JSON.stringify(input),
+  });
 }
 
 /**
@@ -169,19 +128,13 @@ export function updateVehicle(
   vehicleId: string,
   input: UpdateVehicleInput,
 ): Promise<Vehicle> {
-  return apiRequest<Vehicle>(
-    `/vehicles/${vehicleId}`,
-    {
-      method: 'PATCH',
+  return apiRequest<Vehicle>(`/vehicles/${vehicleId}`, {
+    method: "PATCH",
 
-      tenantId,
+    tenantId,
 
-      body:
-        JSON.stringify(
-          input,
-        ),
-    },
-  );
+    body: JSON.stringify(input),
+  });
 }
 
 /**
@@ -195,12 +148,9 @@ export function retireVehicle(
   tenantId: string,
   vehicleId: string,
 ): Promise<Vehicle> {
-  return apiRequest<Vehicle>(
-    `/vehicles/${vehicleId}`,
-    {
-      method: 'DELETE',
+  return apiRequest<Vehicle>(`/vehicles/${vehicleId}`, {
+    method: "DELETE",
 
-      tenantId,
-    },
-  );
+    tenantId,
+  });
 }

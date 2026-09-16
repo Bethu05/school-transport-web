@@ -1,6 +1,4 @@
-import {
-  useState,
-} from 'react';
+import { useState } from "react";
 
 import {
   Alert,
@@ -18,7 +16,7 @@ import {
   TextField,
   Tooltip,
   Typography,
-} from '@mui/material';
+} from "@mui/material";
 
 import {
   AddRounded,
@@ -27,22 +25,16 @@ import {
   PersonAddAlt1Rounded,
   PersonOffRounded,
   SearchRounded,
-} from '@mui/icons-material';
+} from "@mui/icons-material";
 
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import {
-  useAuth,
-} from '../auth/AuthProvider';
+import { useAuth } from "../auth/AuthProvider";
 
 import {
   FRONTEND_PERMISSIONS,
   hasFrontendPermission,
-} from '../auth/frontend-permissions';
+} from "../auth/frontend-permissions";
 
 import {
   activateGuardian,
@@ -54,330 +46,175 @@ import {
   type Guardian,
   type GuardianStatus,
   type UpdateGuardianInput,
-} from './guardians.api';
+} from "./guardians.api";
 
-import {
-  GuardianFormDialog,
-} from './GuardianFormDialog';
+import { GuardianFormDialog } from "./GuardianFormDialog";
 
-const PAGE_SIZES = [
-  10,
-  25,
-  50,
-  100,
-] as const;
+const PAGE_SIZES = [10, 25, 50, 100] as const;
 
-function errorMessage(
-  error: unknown,
-): string {
-  return error instanceof
-    Error
+function errorMessage(error: unknown): string {
+  return error instanceof Error
     ? error.message
-    : 'The Guardian operation failed.';
+    : "The Guardian operation failed.";
 }
 
 export function GuardiansPage() {
-  const queryClient =
-    useQueryClient();
+  const queryClient = useQueryClient();
 
-  const {
+  const { permissions, tenant } = useAuth();
+
+  const tenantId = tenant?.tenantId;
+  const canRead = hasFrontendPermission(
     permissions,
-    tenant,
-  } = useAuth();
+    FRONTEND_PERMISSIONS.GUARDIANS_READ,
+  );
 
-  const tenantId =
-    tenant?.tenantId;
-  const canRead =
-    hasFrontendPermission(
-      permissions,
-      FRONTEND_PERMISSIONS.GUARDIANS_READ,
-    );
+  const canCreate = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.GUARDIANS_CREATE,
+  );
 
-  const canCreate =
-    hasFrontendPermission(
-      permissions,
-      FRONTEND_PERMISSIONS.GUARDIANS_CREATE,
-    );
+  const canUpdate = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.GUARDIANS_UPDATE,
+  );
 
-  const canUpdate =
-    hasFrontendPermission(
-      permissions,
-      FRONTEND_PERMISSIONS.GUARDIANS_UPDATE,
-    );
+  const canActivate = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.GUARDIANS_ACTIVATE,
+  );
 
-  const canActivate =
-    hasFrontendPermission(
-      permissions,
-      FRONTEND_PERMISSIONS.GUARDIANS_ACTIVATE,
-    );
+  const canDeactivate = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.GUARDIANS_DEACTIVATE,
+  );
 
-  const canDeactivate =
-    hasFrontendPermission(
-      permissions,
-      FRONTEND_PERMISSIONS.GUARDIANS_DEACTIVATE,
-    );
+  const [page, setPage] = useState(1);
 
-  const [
-    page,
-    setPage,
-  ] =
-    useState(
-      1,
-    );
+  const [limit, setLimit] = useState(10);
 
-  const [
-    limit,
-    setLimit,
-  ] =
-    useState(
-      10,
-    );
+  const [searchDraft, setSearchDraft] = useState("");
 
-  const [
-    searchDraft,
-    setSearchDraft,
-  ] =
-    useState('');
+  const [search, setSearch] = useState("");
 
-  const [
-    search,
-    setSearch,
-  ] =
-    useState('');
+  const [status, setStatus] = useState<GuardianStatus | "">("");
 
-  const [
-    status,
-    setStatus,
-  ] =
-    useState<
-      GuardianStatus | ''
-    >('');
+  const [formOpen, setFormOpen] = useState(false);
 
-  const [
-    formOpen,
-    setFormOpen,
-  ] =
-    useState(
-      false,
-    );
+  const [editTarget, setEditTarget] = useState<Guardian | null>(null);
 
-  const [
-    editTarget,
-    setEditTarget,
-  ] =
-    useState<
-      Guardian | null
-    >(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<Guardian | null>(
+    null,
+  );
 
-  const [
-    deactivateTarget,
-    setDeactivateTarget,
-  ] =
-    useState<
-      Guardian | null
-    >(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const [
-    successMessage,
-    setSuccessMessage,
-  ] =
-    useState<
-      string | null
-    >(null);
+  const guardiansQuery = useQuery({
+    queryKey: ["guardians", tenantId, page, limit, search, status],
 
-  const guardiansQuery =
-    useQuery({
-      queryKey: [
-        'guardians',
-        tenantId,
+    enabled: Boolean(tenantId && canRead),
+
+    queryFn: () => {
+      if (!tenantId) {
+        throw new Error("Tenant is unavailable");
+      }
+
+      return listGuardians(tenantId, {
         page,
         limit,
-        search,
-        status,
-      ],
 
-      enabled:
-        Boolean(
-          tenantId &&
-          canRead,
-        ),
+        search: search || undefined,
 
-      queryFn:
-        () => {
-          if (!tenantId) {
-            throw new Error(
-              'Tenant is unavailable',
-            );
-          }
+        status: status || undefined,
+      });
+    },
+  });
 
-          return listGuardians(
-            tenantId,
-            {
-              page,
-              limit,
+  const saveMutation = useMutation({
+    mutationFn: async (input: CreateGuardianInput | UpdateGuardianInput) => {
+      if (!tenantId) {
+        throw new Error("Tenant is unavailable");
+      }
 
-              search:
-                search ||
-                undefined,
+      if (editTarget) {
+        return updateGuardian(
+          tenantId,
+          editTarget.id,
+          input as UpdateGuardianInput,
+        );
+      }
 
-              status:
-                status ||
-                undefined,
-            },
-          );
-        },
-    });
+      return createGuardian(tenantId, input as CreateGuardianInput);
+    },
 
-  const saveMutation =
-    useMutation({
-      mutationFn:
-        async (
-          input:
-            | CreateGuardianInput
-            | UpdateGuardianInput,
-        ) => {
-          if (!tenantId) {
-            throw new Error(
-              'Tenant is unavailable',
-            );
-          }
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["guardians"],
+      });
 
-          if (editTarget) {
-            return updateGuardian(
-              tenantId,
-              editTarget.id,
-              input as
-                UpdateGuardianInput,
-            );
-          }
+      setSuccessMessage(
+        editTarget
+          ? "Guardian updated successfully."
+          : "Guardian created successfully.",
+      );
 
-          return createGuardian(
-            tenantId,
-            input as
-              CreateGuardianInput,
-          );
-        },
+      setFormOpen(false);
 
-      onSuccess:
-        async () => {
-          await queryClient.invalidateQueries(
-            {
-              queryKey: [
-                'guardians',
-              ],
-            },
-          );
+      setEditTarget(null);
+    },
+  });
 
-          setSuccessMessage(
-            editTarget
-              ? 'Guardian updated successfully.'
-              : 'Guardian created successfully.',
-          );
+  const activateMutation = useMutation({
+    mutationFn: async (guardian: Guardian) => {
+      if (!tenantId) {
+        throw new Error("Tenant is unavailable");
+      }
 
-          setFormOpen(
-            false,
-          );
+      return activateGuardian(tenantId, guardian.id);
+    },
 
-          setEditTarget(
-            null,
-          );
-        },
-    });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["guardians"],
+      });
 
-  const activateMutation =
-    useMutation({
-      mutationFn:
-        async (
-          guardian:
-            Guardian,
-        ) => {
-          if (!tenantId) {
-            throw new Error(
-              'Tenant is unavailable',
-            );
-          }
+      setSuccessMessage("Guardian reactivated successfully.");
+    },
+  });
 
-          return activateGuardian(
-            tenantId,
-            guardian.id,
-          );
-        },
+  const deactivateMutation = useMutation({
+    mutationFn: async (guardian: Guardian) => {
+      if (!tenantId) {
+        throw new Error("Tenant is unavailable");
+      }
 
-      onSuccess:
-        async () => {
-          await queryClient.invalidateQueries(
-            {
-              queryKey: [
-                'guardians',
-              ],
-            },
-          );
+      return deactivateGuardian(tenantId, guardian.id);
+    },
 
-          setSuccessMessage(
-            'Guardian reactivated successfully.',
-          );
-        },
-    });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["guardians"],
+      });
 
-  const deactivateMutation =
-    useMutation({
-      mutationFn:
-        async (
-          guardian:
-            Guardian,
-        ) => {
-          if (!tenantId) {
-            throw new Error(
-              'Tenant is unavailable',
-            );
-          }
+      setSuccessMessage("Guardian deactivated successfully.");
 
-          return deactivateGuardian(
-            tenantId,
-            guardian.id,
-          );
-        },
-
-      onSuccess:
-        async () => {
-          await queryClient.invalidateQueries(
-            {
-              queryKey: [
-                'guardians',
-              ],
-            },
-          );
-
-          setSuccessMessage(
-            'Guardian deactivated successfully.',
-          );
-
-          setDeactivateTarget(
-            null,
-          );
-        },
-    });
+      setDeactivateTarget(null);
+    },
+  });
 
   if (!canRead) {
     return (
-      <Alert
-        severity="warning"
-      >
+      <Alert severity="warning">
         You do not have permission to view Guardians for this tenant.
       </Alert>
     );
   }
 
-  const data =
-    guardiansQuery.data;
+  const data = guardiansQuery.data;
 
-  const items =
-    data?.items ??
-    [];
+  const items = data?.items ?? [];
 
-  const totalPages =
-    data?.totalPages ??
-    0;
+  const totalPages = data?.totalPages ?? 0;
 
   return (
     <Box>
@@ -385,19 +222,15 @@ export function GuardiansPage() {
         sx={{
           mb: 3,
 
-          display:
-            'flex',
+          display: "flex",
 
-          alignItems:
-            'flex-start',
+          alignItems: "flex-start",
 
-          justifyContent:
-            'space-between',
+          justifyContent: "space-between",
 
           gap: 2,
 
-          flexWrap:
-            'wrap',
+          flexWrap: "wrap",
         }}
       >
         <Box>
@@ -405,8 +238,7 @@ export function GuardiansPage() {
             variant="h4"
 
             sx={{
-              fontWeight:
-                900,
+              fontWeight: 900,
             }}
           >
             Guardians
@@ -416,8 +248,7 @@ export function GuardiansPage() {
             sx={{
               mt: 0.5,
 
-              color:
-                'text.secondary',
+              color: "text.secondary",
             }}
           >
             Manage parents and guardians connected to student transport.
@@ -426,11 +257,9 @@ export function GuardiansPage() {
 
         <Box
           sx={{
-            display:
-              'flex',
+            display: "flex",
 
-            alignItems:
-              'center',
+            alignItems: "center",
 
             gap: 1.25,
           }}
@@ -439,22 +268,14 @@ export function GuardiansPage() {
             <Button
               variant="contained"
 
-              startIcon={
-                <AddRounded />
-              }
+              startIcon={<AddRounded />}
 
               onClick={() => {
-                setEditTarget(
-                  null,
-                );
+                setEditTarget(null);
 
-                setFormOpen(
-                  true,
-                );
+                setFormOpen(true);
 
-                setSuccessMessage(
-                  null,
-                );
+                setSuccessMessage(null);
               }}
             >
               Add Guardian
@@ -467,20 +288,15 @@ export function GuardiansPage() {
 
               height: 48,
 
-              display:
-                'grid',
+              display: "grid",
 
-              placeItems:
-                'center',
+              placeItems: "center",
 
-              borderRadius:
-                3,
+              borderRadius: 3,
 
-              bgcolor:
-                'primary.main',
+              bgcolor: "primary.main",
 
-              color:
-                'primary.contrastText',
+              color: "primary.contrastText",
             }}
           >
             <FamilyRestroomRounded />
@@ -496,11 +312,7 @@ export function GuardiansPage() {
             mb: 2,
           }}
 
-          onClose={() =>
-            setSuccessMessage(
-              null,
-            )
-          }
+          onClose={() => setSuccessMessage(null)}
         >
           {successMessage}
         </Alert>
@@ -508,15 +320,12 @@ export function GuardiansPage() {
 
       <Box
         sx={{
-          display:
-            'grid',
+          display: "grid",
 
           gridTemplateColumns: {
-            xs:
-              '1fr',
+            xs: "1fr",
 
-            sm:
-              'minmax(220px, 1fr) 180px auto',
+            sm: "minmax(220px, 1fr) 180px auto",
           },
 
           gap: 1.5,
@@ -525,34 +334,17 @@ export function GuardiansPage() {
         }}
       >
         <TextField
-          value={
-            searchDraft
-          }
+          value={searchDraft}
 
           placeholder="Search name, email or phone"
 
-          onChange={(
-            event,
-          ) =>
-            setSearchDraft(
-              event.target.value,
-            )
-          }
+          onChange={(event) => setSearchDraft(event.target.value)}
 
-          onKeyDown={(
-            event,
-          ) => {
-            if (
-              event.key ===
-              'Enter'
-            ) {
-              setPage(
-                1,
-              );
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              setPage(1);
 
-              setSearch(
-                searchDraft.trim(),
-              );
+              setSearch(searchDraft.trim());
             }
           }}
         />
@@ -562,59 +354,30 @@ export function GuardiansPage() {
 
           label="Status"
 
-          value={
-            status
-          }
+          value={status}
 
-          onChange={(
-            event,
-          ) => {
-            setPage(
-              1,
-            );
+          onChange={(event) => {
+            setPage(1);
 
-            setStatus(
-              event.target
-                .value as
-                | GuardianStatus
-                | '',
-            );
+            setStatus(event.target.value as GuardianStatus | "");
           }}
         >
-          <MenuItem
-            value=""
-          >
-            All
-          </MenuItem>
+          <MenuItem value="">All</MenuItem>
 
-          <MenuItem
-            value="active"
-          >
-            Active
-          </MenuItem>
+          <MenuItem value="active">Active</MenuItem>
 
-          <MenuItem
-            value="inactive"
-          >
-            Inactive
-          </MenuItem>
+          <MenuItem value="inactive">Inactive</MenuItem>
         </TextField>
 
         <Button
           variant="contained"
 
-          startIcon={
-            <SearchRounded />
-          }
+          startIcon={<SearchRounded />}
 
           onClick={() => {
-            setPage(
-              1,
-            );
+            setPage(1);
 
-            setSearch(
-              searchDraft.trim(),
-            );
+            setSearch(searchDraft.trim());
           }}
         >
           Search
@@ -623,23 +386,18 @@ export function GuardiansPage() {
 
       <Paper
         sx={{
-          overflow:
-            'hidden',
+          overflow: "hidden",
 
-          border:
-            '1px solid',
+          border: "1px solid",
 
-          borderColor:
-            'divider',
+          borderColor: "divider",
         }}
       >
         <Box
           sx={{
-            display:
-              'grid',
+            display: "grid",
 
-            gridTemplateColumns:
-              '1.25fr 1.25fr .7fr 1fr 100px',
+            gridTemplateColumns: "1.25fr 1.25fr .7fr 1fr 100px",
 
             gap: 2,
 
@@ -647,50 +405,32 @@ export function GuardiansPage() {
 
             py: 1.5,
 
-            bgcolor:
-              'action.hover',
+            bgcolor: "action.hover",
 
-            borderBottom:
-              '1px solid',
+            borderBottom: "1px solid",
 
-            borderColor:
-              'divider',
+            borderColor: "divider",
 
-            color:
-              'text.secondary',
+            color: "text.secondary",
 
-            fontSize:
-              11,
+            fontSize: 11,
 
-            fontWeight:
-              800,
+            fontWeight: 800,
 
-            textTransform:
-              'uppercase',
+            textTransform: "uppercase",
 
-            letterSpacing:
-              '.05em',
+            letterSpacing: ".05em",
           }}
         >
-          <Box>
-            Guardian
-          </Box>
+          <Box>Guardian</Box>
 
-          <Box>
-            Contact
-          </Box>
+          <Box>Contact</Box>
 
-          <Box>
-            Status
-          </Box>
+          <Box>Status</Box>
 
-          <Box>
-            Notifications
-          </Box>
+          <Box>Notifications</Box>
 
-          <Box>
-            Actions
-          </Box>
+          <Box>Actions</Box>
         </Box>
 
         {guardiansQuery.isLoading ? (
@@ -698,11 +438,9 @@ export function GuardiansPage() {
             sx={{
               p: 4,
 
-              textAlign:
-                'center',
+              textAlign: "center",
 
-              color:
-                'text.secondary',
+              color: "text.secondary",
             }}
           >
             Loading Guardians...
@@ -717,349 +455,241 @@ export function GuardiansPage() {
               m: 2,
             }}
           >
-            {errorMessage(
-              guardiansQuery.error,
-            )}
+            {errorMessage(guardiansQuery.error)}
           </Alert>
         ) : null}
 
         {!guardiansQuery.isLoading &&
         !guardiansQuery.isError &&
-        items.length ===
-          0 ? (
+        items.length === 0 ? (
           <Box
             sx={{
               p: 4,
 
-              textAlign:
-                'center',
+              textAlign: "center",
 
-              color:
-                'text.secondary',
+              color: "text.secondary",
             }}
           >
             No Guardians found.
           </Box>
         ) : null}
 
-        {items.map(
-          (guardian) => (
+        {items.map((guardian) => (
+          <Box
+            key={guardian.id}
+
+            sx={{
+              display: "grid",
+
+              gridTemplateColumns: "1.25fr 1.25fr .7fr 1fr 100px",
+
+              gap: 2,
+
+              px: 2.5,
+
+              py: 1.6,
+
+              alignItems: "center",
+
+              borderBottom: "1px solid",
+
+              borderColor: "divider",
+
+              "&:last-of-type": {
+                borderBottom: "none",
+              },
+
+              "&:hover": {
+                bgcolor: "action.hover",
+              },
+            }}
+          >
             <Box
-              key={
-                guardian.id
-              }
-
               sx={{
-                display:
-                  'grid',
+                display: "flex",
 
-                gridTemplateColumns:
-                  '1.25fr 1.25fr .7fr 1fr 100px',
+                alignItems: "center",
 
-                gap: 2,
+                gap: 1.4,
 
-                px: 2.5,
-
-                py: 1.6,
-
-                alignItems:
-                  'center',
-
-                borderBottom:
-                  '1px solid',
-
-                borderColor:
-                  'divider',
-
-                '&:last-of-type':
-                  {
-                    borderBottom:
-                      'none',
-                  },
-
-                '&:hover':
-                  {
-                    bgcolor:
-                      'action.hover',
-                  },
+                minWidth: 0,
               }}
             >
-              <Box
+              <Avatar
                 sx={{
-                  display:
-                    'flex',
+                  width: 38,
 
-                  alignItems:
-                    'center',
+                  height: 38,
 
-                  gap: 1.4,
+                  bgcolor: "primary.main",
 
-                  minWidth:
-                    0,
+                  color: "primary.contrastText",
+
+                  fontSize: 12,
+
+                  fontWeight: 800,
                 }}
               >
-                <Avatar
-                  sx={{
-                    width: 38,
+                {guardian.firstName.slice(0, 1).toUpperCase()}
 
-                    height: 38,
+                {guardian.lastName.slice(0, 1).toUpperCase()}
+              </Avatar>
 
-                    bgcolor:
-                      'primary.main',
-
-                    color:
-                      'primary.contrastText',
-
-                    fontSize:
-                      12,
-
-                    fontWeight:
-                      800,
-                  }}
-                >
-                  {guardian.firstName
-                    .slice(
-                      0,
-                      1,
-                    )
-                    .toUpperCase()}
-
-                  {guardian.lastName
-                    .slice(
-                      0,
-                      1,
-                    )
-                    .toUpperCase()}
-                </Avatar>
-
-                <Typography
-                  sx={{
-                    fontWeight:
-                      800,
-
-                    fontSize:
-                      13,
-                  }}
-                >
-                  {guardian.firstName}{' '}
-                  {guardian.lastName}
-                </Typography>
-              </Box>
-
-              <Box>
-                <Typography
-                  sx={{
-                    fontSize:
-                      12.5,
-                  }}
-                >
-                  {guardian.email ??
-                    'No email'}
-                </Typography>
-
-                <Typography
-                  sx={{
-                    mt: 0.3,
-
-                    color:
-                      'text.secondary',
-
-                    fontSize:
-                      11.5,
-                  }}
-                >
-                  {guardian.phone ??
-                    'No phone'}
-                </Typography>
-              </Box>
-
-              <Chip
-                size="small"
-
-                label={
-                  guardian.status ===
-                  'active'
-                    ? 'Active'
-                    : 'Inactive'
-                }
-
-                color={
-                  guardian.status ===
-                  'active'
-                    ? 'success'
-                    : 'default'
-                }
-
+              <Typography
                 sx={{
-                  width:
-                    'fit-content',
-                }}
-              />
+                  fontWeight: 800,
 
-              <Box
-                sx={{
-                  display:
-                    'flex',
-
-                  flexWrap:
-                    'wrap',
-
-                  gap: 0.6,
+                  fontSize: 13,
                 }}
               >
-                {guardian.notifyBoarded ? (
-                  <Chip
-                    size="small"
-                    label="Boarded"
-                    variant="outlined"
-                  />
-                ) : null}
+                {guardian.firstName} {guardian.lastName}
+              </Typography>
+            </Box>
 
-                {guardian.notifyDroppedOff ? (
-                  <Chip
-                    size="small"
-                    label="Drop-off"
-                    variant="outlined"
-                  />
-                ) : null}
-
-                {guardian.notifyTripUpdates ? (
-                  <Chip
-                    size="small"
-                    label="Trip updates"
-                    variant="outlined"
-                  />
-                ) : null}
-              </Box>
-
-              <Box
+            <Box>
+              <Typography
                 sx={{
-                  display:
-                    'flex',
-
-                  gap: 0.5,
+                  fontSize: 12.5,
                 }}
               >
-                {canUpdate ? (
-                  <Tooltip
-                    title="Edit Guardian"
+                {guardian.email ?? "No email"}
+              </Typography>
+
+              <Typography
+                sx={{
+                  mt: 0.3,
+
+                  color: "text.secondary",
+
+                  fontSize: 11.5,
+                }}
+              >
+                {guardian.phone ?? "No phone"}
+              </Typography>
+            </Box>
+
+            <Chip
+              size="small"
+
+              label={guardian.status === "active" ? "Active" : "Inactive"}
+
+              color={guardian.status === "active" ? "success" : "default"}
+
+              sx={{
+                width: "fit-content",
+              }}
+            />
+
+            <Box
+              sx={{
+                display: "flex",
+
+                flexWrap: "wrap",
+
+                gap: 0.6,
+              }}
+            >
+              {guardian.notifyBoarded ? (
+                <Chip size="small" label="Boarded" variant="outlined" />
+              ) : null}
+
+              {guardian.notifyDroppedOff ? (
+                <Chip size="small" label="Drop-off" variant="outlined" />
+              ) : null}
+
+              {guardian.notifyTripUpdates ? (
+                <Chip size="small" label="Trip updates" variant="outlined" />
+              ) : null}
+            </Box>
+
+            <Box
+              sx={{
+                display: "flex",
+
+                gap: 0.5,
+              }}
+            >
+              {canUpdate ? (
+                <Tooltip title="Edit Guardian">
+                  <IconButton
+                    size="small"
+
+                    onClick={() => {
+                      setEditTarget(guardian);
+
+                      setFormOpen(true);
+
+                      setSuccessMessage(null);
+                    }}
                   >
+                    <EditRounded fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              ) : null}
+
+              {guardian.status === "active" ? (
+                canDeactivate ? (
+                  <Tooltip title="Deactivate Guardian">
                     <IconButton
                       size="small"
 
-                      onClick={() => {
-                        setEditTarget(
-                          guardian,
-                        );
-
-                        setFormOpen(
-                          true,
-                        );
-
-                        setSuccessMessage(
-                          null,
-                        );
-                      }}
+                      onClick={() => setDeactivateTarget(guardian)}
                     >
-                      <EditRounded
-                        fontSize="small"
-                      />
+                      <PersonOffRounded fontSize="small" />
                     </IconButton>
                   </Tooltip>
-                ) : null}
+                ) : null
+              ) : canActivate ? (
+                <Tooltip title="Reactivate Guardian">
+                  <span>
+                    <IconButton
+                      size="small"
 
-                {guardian.status ===
-                'active' ? (
-                  canDeactivate ? (
-                    <Tooltip
-                      title="Deactivate Guardian"
+                      disabled={activateMutation.isPending}
+
+                      onClick={() => activateMutation.mutate(guardian)}
                     >
-                      <IconButton
-                        size="small"
-
-                        onClick={() =>
-                          setDeactivateTarget(
-                            guardian,
-                          )
-                        }
-                      >
-                        <PersonOffRounded
-                          fontSize="small"
-                        />
-                      </IconButton>
-                    </Tooltip>
-                  ) : null
-                ) : canActivate ? (
-                  <Tooltip
-                    title="Reactivate Guardian"
-                  >
-                    <span>
-                      <IconButton
-                        size="small"
-
-                        disabled={
-                          activateMutation.isPending
-                        }
-
-                        onClick={() =>
-                          activateMutation.mutate(
-                            guardian,
-                          )
-                        }
-                      >
-                        <PersonAddAlt1Rounded
-                          fontSize="small"
-                        />
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                ) : null}
-              </Box>
+                      <PersonAddAlt1Rounded fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              ) : null}
             </Box>
-          ),
-        )}
+          </Box>
+        ))}
       </Paper>
 
       <Box
         sx={{
           mt: 2,
 
-          display:
-            'flex',
+          display: "flex",
 
-          alignItems:
-            'center',
+          alignItems: "center",
 
-          justifyContent:
-            'space-between',
+          justifyContent: "space-between",
 
           gap: 2,
 
-          flexWrap:
-            'wrap',
+          flexWrap: "wrap",
         }}
       >
         <Typography
           sx={{
-            color:
-              'text.secondary',
+            color: "text.secondary",
 
-            fontSize:
-              12,
+            fontSize: 12,
           }}
         >
-          {data
-            ? `${data.total} guardian${data.total === 1 ? '' : 's'}`
-            : ''}
+          {data ? `${data.total} guardian${data.total === 1 ? "" : "s"}` : ""}
         </Typography>
 
         <Box
           sx={{
-            display:
-              'flex',
+            display: "flex",
 
-            alignItems:
-              'center',
+            alignItems: "center",
 
             gap: 1,
           }}
@@ -1067,109 +697,60 @@ export function GuardiansPage() {
           <TextField
             select
 
-            value={
-              limit
-            }
+            value={limit}
 
-            onChange={(
-              event,
-            ) => {
-              setLimit(
-                Number(
-                  event.target.value,
-                ),
-              );
+            onChange={(event) => {
+              setLimit(Number(event.target.value));
 
-              setPage(
-                1,
-              );
+              setPage(1);
             }}
 
             sx={{
-              width:
-                90,
+              width: 90,
             }}
           >
-            {PAGE_SIZES.map(
-              (
-                size,
-              ) => (
-                <MenuItem
-                  key={
-                    size
-                  }
+            {PAGE_SIZES.map((size) => (
+              <MenuItem
+                key={size}
 
-                  value={
-                    size
-                  }
-                >
-                  {size}
-                </MenuItem>
-              ),
-            )}
+                value={size}
+              >
+                {size}
+              </MenuItem>
+            ))}
           </TextField>
 
           <Button
             variant="outlined"
 
-            disabled={
-              page <=
-              1
-            }
+            disabled={page <= 1}
 
-            onClick={() =>
-              setPage(
-                (
-                  current,
-                ) =>
-                  current -
-                  1,
-              )
-            }
+            onClick={() => setPage((current) => current - 1)}
           >
             Previous
           </Button>
 
           <Typography
             sx={{
-              minWidth:
-                80,
+              minWidth: 80,
 
-              textAlign:
-                'center',
+              textAlign: "center",
 
-              fontSize:
-                12,
+              fontSize: 12,
 
-              fontWeight:
-                700,
+              fontWeight: 700,
             }}
           >
             Page {page}
-            {totalPages
-              ? ` of ${totalPages}`
-              : ''}
+            {totalPages ? ` of ${totalPages}` : ""}
           </Typography>
 
           <Button
             variant="outlined"
 
-            disabled={
-              totalPages ===
-                0 ||
-              page >=
-                totalPages
-            }
+            disabled={totalPages === 0 || page >= totalPages}
 
-            onClick={() =>
-              setPage(
-                (
-                  current,
-                ) =>
-                  current +
-                  1,
-              )
-            }
+            onClick={() => setPage((current) => current + 1)}
           >
             Next
           </Button>
@@ -1178,68 +759,37 @@ export function GuardiansPage() {
 
       {formOpen ? (
         <GuardianFormDialog
-          key={
-            editTarget?.id ??
-            'create-guardian'
-          }
+          key={editTarget?.id ?? "create-guardian"}
 
           open
 
-          guardian={
-            editTarget
-          }
+          guardian={editTarget}
 
-          submitting={
-            saveMutation.isPending
-          }
+          submitting={saveMutation.isPending}
 
-          error={
-            saveMutation.isError
-              ? errorMessage(
-                  saveMutation.error,
-                )
-              : null
-          }
+          error={saveMutation.isError ? errorMessage(saveMutation.error) : null}
 
           onClose={() => {
-            if (
-              !saveMutation.isPending
-            ) {
-              setFormOpen(
-                false,
-              );
+            if (!saveMutation.isPending) {
+              setFormOpen(false);
 
-              setEditTarget(
-                null,
-              );
+              setEditTarget(null);
 
               saveMutation.reset();
             }
           }}
 
-          onSubmit={(
-            input,
-          ) =>
-            saveMutation.mutate(
-              input,
-            )
-          }
+          onSubmit={(input) => saveMutation.mutate(input)}
         />
       ) : null}
 
       <Dialog
-        open={
-          deactivateTarget !==
-          null
-        }
+        open={deactivateTarget !== null}
 
         onClose={
           deactivateMutation.isPending
             ? undefined
-            : () =>
-                setDeactivateTarget(
-                  null,
-                )
+            : () => setDeactivateTarget(null)
         }
 
         fullWidth
@@ -1248,8 +798,7 @@ export function GuardiansPage() {
       >
         <DialogTitle
           sx={{
-            fontWeight:
-              850,
+            fontWeight: 850,
           }}
         >
           Deactivate Guardian?
@@ -1264,27 +813,22 @@ export function GuardiansPage() {
                 mb: 2,
               }}
             >
-              {errorMessage(
-                deactivateMutation.error,
-              )}
+              {errorMessage(deactivateMutation.error)}
             </Alert>
           ) : null}
 
           <Typography
             sx={{
-              color:
-                'text.secondary',
+              color: "text.secondary",
 
-              fontSize:
-                13,
+              fontSize: 13,
 
-              lineHeight:
-                1.7,
+              lineHeight: 1.7,
             }}
           >
             {deactivateTarget
               ? `${deactivateTarget.firstName} ${deactivateTarget.lastName} will become inactive. Historical student and transport relationships are preserved.`
-              : ''}
+              : ""}
           </Typography>
         </DialogContent>
 
@@ -1296,15 +840,9 @@ export function GuardiansPage() {
           }}
         >
           <Button
-            disabled={
-              deactivateMutation.isPending
-            }
+            disabled={deactivateMutation.isPending}
 
-            onClick={() =>
-              setDeactivateTarget(
-                null,
-              )
-            }
+            onClick={() => setDeactivateTarget(null)}
           >
             Cancel
           </Button>
@@ -1314,24 +852,15 @@ export function GuardiansPage() {
 
             variant="contained"
 
-            disabled={
-              deactivateMutation.isPending ||
-              !deactivateTarget
-            }
+            disabled={deactivateMutation.isPending || !deactivateTarget}
 
             onClick={() => {
-              if (
-                deactivateTarget
-              ) {
-                deactivateMutation.mutate(
-                  deactivateTarget,
-                );
+              if (deactivateTarget) {
+                deactivateMutation.mutate(deactivateTarget);
               }
             }}
           >
-            {deactivateMutation.isPending
-              ? 'Deactivating...'
-              : 'Deactivate'}
+            {deactivateMutation.isPending ? "Deactivating..." : "Deactivate"}
           </Button>
         </DialogActions>
       </Dialog>

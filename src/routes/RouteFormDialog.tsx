@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from "react";
 
 import {
   Alert,
@@ -11,16 +11,16 @@ import {
   MenuItem,
   TextField,
   Typography,
-} from '@mui/material';
+} from "@mui/material";
 
-import type { School } from '../schools/schools.api';
+import type { School } from "../schools/schools.api";
 
 import type {
   CreateRouteInput,
   Route,
   RouteType,
   UpdateRouteInput,
-} from './routes.api';
+} from "./routes.api";
 
 interface RouteFormDialogProps {
   open: boolean;
@@ -49,17 +49,17 @@ function createFormState(
     return {
       // If a tenant has one school, select it automatically.
       // Multi-school tenants still get an explicit school choice.
-      schoolId: schools.length === 1 ? schools[0].id : '',
-      name: '',
-      code: '',
-      routeType: 'other',
+      schoolId: schools.length === 1 ? schools[0].id : "",
+      name: "",
+      code: "",
+      routeType: "other",
     };
   }
 
   return {
     schoolId: route.schoolId,
     name: route.name,
-    code: route.code ?? '',
+    code: route.code ?? "",
     routeType: route.routeType,
   };
 }
@@ -88,7 +88,7 @@ export function RouteFormDialog({
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const selectedSchool = route
-    ? schools.find((school) => school.id === route.schoolId) ?? null
+    ? (schools.find((school) => school.id === route.schoolId) ?? null)
     : null;
 
   function updateField<K extends keyof RouteFormState>(
@@ -112,12 +112,12 @@ export function RouteFormDialog({
     const code = form.code.trim();
 
     if (!editing && !schoolId) {
-      setValidationError('Please select a school.');
+      setValidationError("Please select a school.");
       return;
     }
 
     if (!name) {
-      setValidationError('Route name is required.');
+      setValidationError("Route name is required.");
       return;
     }
 
@@ -151,23 +151,23 @@ export function RouteFormDialog({
     >
       <Box component="form" onSubmit={handleSubmit}>
         <DialogTitle sx={{ fontWeight: 850 }}>
-          {editing ? 'Edit route' : 'Add route'}
+          {editing ? "Edit route" : "Add route"}
         </DialogTitle>
 
         <DialogContent>
           <Box
             sx={{
               pt: 1,
-              display: 'grid',
+              display: "grid",
               gridTemplateColumns: {
-                xs: '1fr',
-                sm: 'repeat(2, minmax(0, 1fr))',
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
               },
               gap: 2,
             }}
           >
             {validationError || error ? (
-              <Alert severity="error" sx={{ gridColumn: '1 / -1' }}>
+              <Alert severity="error" sx={{ gridColumn: "1 / -1" }}>
                 {validationError ?? error}
               </Alert>
             ) : null}
@@ -179,12 +179,12 @@ export function RouteFormDialog({
                 value={
                   selectedSchool
                     ? schoolLabel(selectedSchool)
-                    : 'Current school'
+                    : "Current school"
                 }
                 helperText="The school cannot be changed after the route is created."
                 sx={{
                   gridColumn: {
-                    sm: '1 / -1',
+                    sm: "1 / -1",
                   },
                 }}
               />
@@ -196,20 +196,20 @@ export function RouteFormDialog({
                 label="School"
                 value={form.schoolId}
                 onChange={(event) =>
-                  updateField('schoolId', event.target.value)
+                  updateField("schoolId", event.target.value)
                 }
                 helperText={
                   schoolsLoading
-                    ? 'Loading schools...'
+                    ? "Loading schools..."
                     : schoolsError
-                      ? 'Schools could not be loaded.'
+                      ? "Schools could not be loaded."
                       : schools.length === 0
-                        ? 'No active schools are available.'
-                        : 'Choose the school this route belongs to.'
+                        ? "No active schools are available."
+                        : "Choose the school this route belongs to."
                 }
                 sx={{
                   gridColumn: {
-                    sm: '1 / -1',
+                    sm: "1 / -1",
                   },
                 }}
               >
@@ -231,7 +231,7 @@ export function RouteFormDialog({
               required
               label="Route name"
               value={form.name}
-              onChange={(event) => updateField('name', event.target.value)}
+              onChange={(event) => updateField("name", event.target.value)}
               placeholder="e.g. Westlands Morning"
               slotProps={{
                 htmlInput: {
@@ -243,7 +243,7 @@ export function RouteFormDialog({
             <TextField
               label="Route code"
               value={form.code}
-              onChange={(event) => updateField('code', event.target.value)}
+              onChange={(event) => updateField("code", event.target.value)}
               placeholder="e.g. WEST-AM-01"
               slotProps={{
                 htmlInput: {
@@ -257,11 +257,11 @@ export function RouteFormDialog({
               label="Route type"
               value={form.routeType}
               onChange={(event) =>
-                updateField('routeType', event.target.value as RouteType)
+                updateField("routeType", event.target.value as RouteType)
               }
               sx={{
                 gridColumn: {
-                  sm: '1 / -1',
+                  sm: "1 / -1",
                 },
               }}
             >
@@ -272,8 +272,8 @@ export function RouteFormDialog({
 
             <Typography
               sx={{
-                gridColumn: '1 / -1',
-                color: 'text.secondary',
+                gridColumn: "1 / -1",
+                color: "text.secondary",
                 fontSize: 11.5,
                 lineHeight: 1.6,
               }}
@@ -301,10 +301,12 @@ export function RouteFormDialog({
             disabled={
               saving ||
               (!editing &&
-                (schoolsLoading || Boolean(schoolsError) || schools.length === 0))
+                (schoolsLoading ||
+                  Boolean(schoolsError) ||
+                  schools.length === 0))
             }
           >
-            {saving ? 'Saving...' : editing ? 'Save changes' : 'Add route'}
+            {saving ? "Saving..." : editing ? "Save changes" : "Add route"}
           </Button>
         </DialogActions>
       </Box>

@@ -1,8 +1,4 @@
-import {
-  useCallback,
-  useMemo,
-  useState,
-} from 'react';
+import { useCallback, useMemo, useState } from "react";
 
 import {
   Alert,
@@ -24,7 +20,7 @@ import {
   TextField,
   Tooltip,
   Typography,
-} from '@mui/material';
+} from "@mui/material";
 
 import {
   AddRounded,
@@ -36,26 +32,15 @@ import {
   SearchRounded,
   SouthRounded,
   ToggleOnRounded,
-} from '@mui/icons-material';
+} from "@mui/icons-material";
 
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import {
-  useAuth,
-} from '../auth/AuthProvider';
+import { useAuth } from "../auth/AuthProvider";
 
-import {
-  PaginationControls,
-} from '../components/PaginationControls';
+import { PaginationControls } from "../components/PaginationControls";
 
-import {
-  listSchools,
-  type School,
-} from '../schools/schools.api';
+import { listSchools, type School } from "../schools/schools.api";
 
 import {
   activateRoute,
@@ -68,669 +53,359 @@ import {
   type RouteStatus,
   type RouteType,
   type UpdateRouteInput,
-} from './routes.api';
+} from "./routes.api";
 
-import {
-  RouteFormDialog,
-} from './RouteFormDialog';
+import { RouteFormDialog } from "./RouteFormDialog";
 
-import {
-  RouteStopsDialog,
-} from './RouteStopsDialog';
+import { RouteStopsDialog } from "./RouteStopsDialog";
 
-const EMPTY_ROUTES:
-  Route[] = [];
+const EMPTY_ROUTES: Route[] = [];
 
-const EMPTY_SCHOOLS:
-  School[] = [];
+const EMPTY_SCHOOLS: School[] = [];
 
-type StatusFilter =
-  | 'all'
-  | RouteStatus;
+type StatusFilter = "all" | RouteStatus;
 
-type TypeFilter =
-  | 'all'
-  | RouteType;
+type TypeFilter = "all" | RouteType;
 
-function routeTypeLabel(
-  routeType:
-    RouteType,
-): string {
+function routeTypeLabel(routeType: RouteType): string {
   switch (routeType) {
-    case 'pickup':
-      return 'Pickup';
+    case "pickup":
+      return "Pickup";
 
-    case 'dropoff':
-      return 'Drop-off';
+    case "dropoff":
+      return "Drop-off";
 
-    case 'other':
-      return 'Other';
+    case "other":
+      return "Other";
   }
 }
 
-function routeTypeIcon(
-  routeType:
-    RouteType,
-) {
+function routeTypeIcon(routeType: RouteType) {
   switch (routeType) {
-    case 'pickup':
+    case "pickup":
       return <NorthRounded />;
 
-    case 'dropoff':
+    case "dropoff":
       return <SouthRounded />;
 
-    case 'other':
+    case "other":
       return <AltRouteRounded />;
   }
 }
 
-function statusLabel(
-  status:
-    RouteStatus,
-): string {
+function statusLabel(status: RouteStatus): string {
   switch (status) {
-    case 'active':
-      return 'Active';
+    case "active":
+      return "Active";
 
-    case 'inactive':
-      return 'Inactive';
+    case "inactive":
+      return "Inactive";
   }
 }
 
-function statusColor(
-  status:
-    RouteStatus,
-): string {
+function statusColor(status: RouteStatus): string {
   switch (status) {
-    case 'active':
-      return '#5F9471';
+    case "active":
+      return "#5F9471";
 
-    case 'inactive':
-      return '#85898F';
+    case "inactive":
+      return "#85898F";
   }
 }
 
-function errorMessage(
-  error: unknown,
-): string {
-  return error instanceof
-    Error
+function errorMessage(error: unknown): string {
+  return error instanceof Error
     ? error.message
-    : 'The operation could not be completed.';
+    : "The operation could not be completed.";
 }
 
 export function RoutesPage() {
-  const {
-    tenant,
-  } = useAuth();
+  const { tenant } = useAuth();
 
-  const queryClient =
-    useQueryClient();
+  const queryClient = useQueryClient();
 
-  const [
-    search,
-    setSearch,
-  ] =
-    useState('');
+  const [search, setSearch] = useState("");
 
-  const [
-    status,
-    setStatus,
-  ] =
-    useState<StatusFilter>(
-      'active',
-    );
+  const [status, setStatus] = useState<StatusFilter>("active");
 
-  const [
-    routeType,
-    setRouteType,
-  ] =
-    useState<TypeFilter>(
-      'all',
-    );
+  const [routeType, setRouteType] = useState<TypeFilter>("all");
 
-  const [
-    page,
-    setPage,
-  ] =
-    useState(1);
+  const [page, setPage] = useState(1);
 
-  const [
-    limit,
-    setLimit,
-  ] =
-    useState(10);
+  const [limit, setLimit] = useState(10);
 
-  const [
-    formOpen,
-    setFormOpen,
-  ] =
-    useState(false);
+  const [formOpen, setFormOpen] = useState(false);
 
-  const [
-    editingRoute,
-    setEditingRoute,
-  ] =
-    useState<
-      Route | null
-    >(null);
+  const [editingRoute, setEditingRoute] = useState<Route | null>(null);
 
-  const [
-    deactivateTarget,
-    setDeactivateTarget,
-  ] =
-    useState<
-      Route | null
-    >(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<Route | null>(null);
 
-  const [
-    stopsRoute,
-    setStopsRoute,
-  ] =
-    useState<
-      Route | null
-    >(null);
+  const [stopsRoute, setStopsRoute] = useState<Route | null>(null);
 
-  const [
-    mutationError,
-    setMutationError,
-  ] =
-    useState<
-      string | null
-    >(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
-  const [
-    successMessage,
-    setSuccessMessage,
-  ] =
-    useState<
-      string | null
-    >(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const tenantId =
-    tenant?.tenantId;
+  const tenantId = tenant?.tenantId;
 
-  const routesQuery =
-    useQuery({
-      queryKey: [
-        'routes',
-        tenantId,
-        search,
-        status,
-        routeType,
+  const routesQuery = useQuery({
+    queryKey: ["routes", tenantId, search, status, routeType, page, limit],
+
+    enabled: Boolean(tenantId),
+
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
+
+      return listRoutesPage(tenantId, {
         page,
+
         limit,
-      ],
 
-      enabled:
-        Boolean(
-          tenantId,
-        ),
+        search: search.trim() || undefined,
 
-      queryFn:
-        async () => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+        status: status === "all" ? undefined : status,
 
-          return listRoutesPage(
-            tenantId,
-            {
-              page,
+        routeType: routeType === "all" ? undefined : routeType,
+      });
+    },
+  });
 
-              limit,
+  const routeSummaryQuery = useQuery({
+    queryKey: ["routes-summary", tenantId],
 
-              search:
-                search.trim() ||
-                undefined,
+    enabled: Boolean(tenantId),
 
-              status:
-                status ===
-                  'all'
-                  ? undefined
-                  : status,
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-              routeType:
-                routeType ===
-                  'all'
-                  ? undefined
-                  : routeType,
-            },
-          );
-        },
-    });
+      const [all, active, inactive, pickup] = await Promise.all([
+        listRoutesPage(tenantId, {
+          page: 1,
+          limit: 1,
+        }),
 
-  const routeSummaryQuery =
-    useQuery({
-      queryKey: [
-        'routes-summary',
-        tenantId,
-      ],
+        listRoutesPage(tenantId, {
+          page: 1,
+          limit: 1,
+          status: "active",
+        }),
 
-      enabled:
-        Boolean(
-          tenantId,
-        ),
+        listRoutesPage(tenantId, {
+          page: 1,
+          limit: 1,
+          status: "inactive",
+        }),
 
-      queryFn:
-        async () => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+        listRoutesPage(tenantId, {
+          page: 1,
+          limit: 1,
+          routeType: "pickup",
+        }),
+      ]);
 
-          const [
-            all,
-            active,
-            inactive,
-            pickup,
-          ] =
-            await Promise.all([
-              listRoutesPage(
-                tenantId,
-                {
-                  page: 1,
-                  limit: 1,
-                },
-              ),
+      return {
+        total: all.total,
 
-              listRoutesPage(
-                tenantId,
-                {
-                  page: 1,
-                  limit: 1,
-                  status:
-                    'active',
-                },
-              ),
+        active: active.total,
 
-              listRoutesPage(
-                tenantId,
-                {
-                  page: 1,
-                  limit: 1,
-                  status:
-                    'inactive',
-                },
-              ),
+        inactive: inactive.total,
 
-              listRoutesPage(
-                tenantId,
-                {
-                  page: 1,
-                  limit: 1,
-                  routeType:
-                    'pickup',
-                },
-              ),
-            ]);
+        pickup: pickup.total,
+      };
+    },
+  });
 
-          return {
-            total:
-              all.total,
+  const schoolsQuery = useQuery({
+    queryKey: ["schools", tenantId],
 
-            active:
-              active.total,
+    enabled: Boolean(tenantId),
 
-            inactive:
-              inactive.total,
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-            pickup:
-              pickup.total,
-          };
-        },
-    });
+      return listSchools(tenantId);
+    },
+  });
 
-  const schoolsQuery =
-    useQuery({
-      queryKey: [
-        'schools',
-        tenantId,
-      ],
-
-      enabled:
-        Boolean(
-          tenantId,
-        ),
-
-      queryFn:
-        async () => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
-
-          return listSchools(
-            tenantId,
-          );
-        },
-    });
-
-  async function refreshRoutes():
-    Promise<void> {
+  async function refreshRoutes(): Promise<void> {
     await Promise.all([
-      queryClient.invalidateQueries(
-        {
-          queryKey: [
-            'routes',
-          ],
-        },
-      ),
+      queryClient.invalidateQueries({
+        queryKey: ["routes"],
+      }),
 
-      queryClient.invalidateQueries(
-        {
-          queryKey: [
-            'routes-summary',
-          ],
-        },
-      ),
+      queryClient.invalidateQueries({
+        queryKey: ["routes-summary"],
+      }),
     ]);
   }
 
-  const createMutation =
-    useMutation({
-      mutationFn:
-        async (
-          input:
-            CreateRouteInput,
-        ) => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+  const createMutation = useMutation({
+    mutationFn: async (input: CreateRouteInput) => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-          return createRoute(
-            tenantId,
-            input,
-          );
-        },
+      return createRoute(tenantId, input);
+    },
 
-      onSuccess:
-        async () => {
-          await refreshRoutes();
+    onSuccess: async () => {
+      await refreshRoutes();
 
-          setFormOpen(
-            false,
-          );
+      setFormOpen(false);
 
-          setEditingRoute(
-            null,
-          );
+      setEditingRoute(null);
 
-          setMutationError(
-            null,
-          );
+      setMutationError(null);
 
-          setSuccessMessage(
-            'Route added successfully.',
-          );
-        },
+      setSuccessMessage("Route added successfully.");
+    },
 
-      onError:
-        (error) => {
-          setMutationError(
-            errorMessage(
-              error,
-            ),
-          );
-        },
-    });
+    onError: (error) => {
+      setMutationError(errorMessage(error));
+    },
+  });
 
-  const updateMutation =
-    useMutation({
-      mutationFn:
-        async ({
-          routeId,
-          input,
-        }: {
-          routeId:
-          string;
+  const updateMutation = useMutation({
+    mutationFn: async ({
+      routeId,
+      input,
+    }: {
+      routeId: string;
 
-          input:
-          UpdateRouteInput;
-        }) => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+      input: UpdateRouteInput;
+    }) => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-          return updateRoute(
-            tenantId,
-            routeId,
-            input,
-          );
-        },
+      return updateRoute(tenantId, routeId, input);
+    },
 
-      onSuccess:
-        async () => {
-          await refreshRoutes();
+    onSuccess: async () => {
+      await refreshRoutes();
 
-          setFormOpen(
-            false,
-          );
+      setFormOpen(false);
 
-          setEditingRoute(
-            null,
-          );
+      setEditingRoute(null);
 
-          setMutationError(
-            null,
-          );
+      setMutationError(null);
 
-          setSuccessMessage(
-            'Route updated successfully.',
-          );
-        },
+      setSuccessMessage("Route updated successfully.");
+    },
 
-      onError:
-        (error) => {
-          setMutationError(
-            errorMessage(
-              error,
-            ),
-          );
-        },
-    });
+    onError: (error) => {
+      setMutationError(errorMessage(error));
+    },
+  });
 
-  const deactivateMutation =
-    useMutation({
-      mutationFn:
-        async (
-          routeId:
-            string,
-        ) => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+  const deactivateMutation = useMutation({
+    mutationFn: async (routeId: string) => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-          return deactivateRoute(
-            tenantId,
-            routeId,
-          );
-        },
+      return deactivateRoute(tenantId, routeId);
+    },
 
-      onSuccess:
-        async () => {
-          await refreshRoutes();
+    onSuccess: async () => {
+      await refreshRoutes();
 
-          setDeactivateTarget(
-            null,
-          );
+      setDeactivateTarget(null);
 
-          setSuccessMessage(
-            'Route deactivated successfully.',
-          );
-        },
-    });
+      setSuccessMessage("Route deactivated successfully.");
+    },
+  });
 
-  const activateMutation =
-    useMutation({
-      mutationFn:
-        async (
-          routeId:
-            string,
-        ) => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+  const activateMutation = useMutation({
+    mutationFn: async (routeId: string) => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-          return activateRoute(
-            tenantId,
-            routeId,
-          );
-        },
+      return activateRoute(tenantId, routeId);
+    },
 
-      onSuccess:
-        async () => {
-          await refreshRoutes();
+    onSuccess: async () => {
+      await refreshRoutes();
 
-          setSuccessMessage(
-            'Route activated successfully.',
-          );
-        },
-    });
+      setSuccessMessage("Route activated successfully.");
+    },
+  });
 
-  const routes =
-    routesQuery.data
-      ?.items ??
-    EMPTY_ROUTES;
+  const routes = routesQuery.data?.items ?? EMPTY_ROUTES;
 
-  const schools =
-    schoolsQuery.data ??
-    EMPTY_SCHOOLS;
+  const schools = schoolsQuery.data ?? EMPTY_SCHOOLS;
 
-  const schoolById =
-    useMemo(
-      () =>
-        new Map(
-          schools.map(
-            (school) => [
-              school.id,
-              school,
-            ],
-          ),
-        ),
-      [
-        schools,
-      ],
-    );
+  const schoolById = useMemo(
+    () => new Map(schools.map((school) => [school.id, school])),
+    [schools],
+  );
 
-  const schoolName =
-    useCallback(
-      (
-        schoolId:
-          string,
-      ): string =>
-        schoolById.get(
-          schoolId,
-        )?.name ??
-        'School unavailable',
-      [
-        schoolById,
-      ],
-    );
+  const schoolName = useCallback(
+    (schoolId: string): string =>
+      schoolById.get(schoolId)?.name ?? "School unavailable",
+    [schoolById],
+  );
 
-  const filteredRoutes =
-    routes;
+  const filteredRoutes = routes;
 
-  const summary =
-    routeSummaryQuery.data ?? {
-      total: 0,
-      active: 0,
-      inactive: 0,
-      pickup: 0,
-    };
+  const summary = routeSummaryQuery.data ?? {
+    total: 0,
+    active: 0,
+    inactive: 0,
+    pickup: 0,
+  };
 
-  function openCreate():
-    void {
-    setMutationError(
-      null,
-    );
+  function openCreate(): void {
+    setMutationError(null);
 
-    setEditingRoute(
-      null,
-    );
+    setEditingRoute(null);
 
-    setFormOpen(
-      true,
-    );
+    setFormOpen(true);
   }
 
-  function openEdit(
-    route:
-      Route,
-  ): void {
-    setMutationError(
-      null,
-    );
+  function openEdit(route: Route): void {
+    setMutationError(null);
 
-    setEditingRoute(
-      route,
-    );
+    setEditingRoute(route);
 
-    setFormOpen(
-      true,
-    );
+    setFormOpen(true);
   }
 
-  function closeForm():
-    void {
-    if (
-      createMutation.isPending ||
-      updateMutation.isPending
-    ) {
+  function closeForm(): void {
+    if (createMutation.isPending || updateMutation.isPending) {
       return;
     }
 
-    setMutationError(
-      null,
-    );
+    setMutationError(null);
 
-    setFormOpen(
-      false,
-    );
+    setFormOpen(false);
 
-    setEditingRoute(
-      null,
-    );
+    setEditingRoute(null);
   }
 
   async function submitRoute(
-    input:
-      | CreateRouteInput
-      | UpdateRouteInput,
+    input: CreateRouteInput | UpdateRouteInput,
   ): Promise<void> {
-    setMutationError(
-      null,
-    );
+    setMutationError(null);
 
     if (editingRoute) {
-      await updateMutation.mutateAsync(
-        {
-          routeId:
-            editingRoute.id,
+      await updateMutation.mutateAsync({
+        routeId: editingRoute.id,
 
-          input:
-            input as UpdateRouteInput,
-        },
-      );
+        input: input as UpdateRouteInput,
+      });
 
       return;
     }
 
-    await createMutation.mutateAsync(
-      input as CreateRouteInput,
-    );
+    await createMutation.mutateAsync(input as CreateRouteInput);
   }
 
   return (
@@ -743,27 +418,21 @@ export function RoutesPage() {
         sx={{
           mb: 3,
 
-          display:
-            'flex',
+          display: "flex",
 
           flexDirection: {
-            xs:
-              'column',
+            xs: "column",
 
-            md:
-              'row',
+            md: "row",
           },
 
           alignItems: {
-            xs:
-              'flex-start',
+            xs: "flex-start",
 
-            md:
-              'flex-end',
+            md: "flex-end",
           },
 
-          justifyContent:
-            'space-between',
+          justifyContent: "space-between",
 
           gap: 2,
         }}
@@ -771,20 +440,15 @@ export function RoutesPage() {
         <Box>
           <Typography
             sx={{
-              color:
-                'primary.dark',
+              color: "primary.dark",
 
-              fontSize:
-                10,
+              fontSize: 10,
 
-              fontWeight:
-                850,
+              fontWeight: 850,
 
-              textTransform:
-                'uppercase',
+              textTransform: "uppercase",
 
-              letterSpacing:
-                '0.14em',
+              letterSpacing: "0.14em",
             }}
           >
             Route Planning
@@ -797,18 +461,14 @@ export function RoutesPage() {
               mt: 0.7,
 
               fontSize: {
-                xs:
-                  30,
+                xs: 30,
 
-                md:
-                  38,
+                md: 38,
               },
 
-              fontWeight:
-                900,
+              fontWeight: 900,
 
-              letterSpacing:
-                '-0.04em',
+              letterSpacing: "-0.04em",
             }}
           >
             Routes
@@ -818,11 +478,9 @@ export function RoutesPage() {
             sx={{
               mt: 0.7,
 
-              color:
-                'text.secondary',
+              color: "text.secondary",
 
-              fontSize:
-                13,
+              fontSize: 13,
             }}
           >
             Manage reusable route templates before they become dated trips.
@@ -831,39 +489,28 @@ export function RoutesPage() {
 
         <Box
           sx={{
-            display:
-              'flex',
+            display: "flex",
 
             gap: 1,
 
-            alignItems:
-              'center',
+            alignItems: "center",
 
-            flexWrap:
-              'wrap',
+            flexWrap: "wrap",
           }}
         >
           <Chip
-            icon={
-              <AltRouteRounded />
-            }
+            icon={<AltRouteRounded />}
 
-            label={
-              `${summary.total} routes`
-            }
+            label={`${summary.total} routes`}
 
             sx={{
-              color:
-                'primary.main',
+              color: "primary.main",
 
-              bgcolor:
-                'rgba(201,165,92,0.10)',
+              bgcolor: "rgba(201,165,92,0.10)",
 
-              border:
-                '1px solid',
+              border: "1px solid",
 
-              borderColor:
-                'rgba(201,165,92,0.22)',
+              borderColor: "rgba(201,165,92,0.22)",
             }}
           />
 
@@ -873,17 +520,12 @@ export function RoutesPage() {
             disabled={
               schoolsQuery.isLoading ||
               schoolsQuery.isError ||
-              schools.length ===
-              0
+              schools.length === 0
             }
 
-            startIcon={
-              <AddRounded />
-            }
+            startIcon={<AddRounded />}
 
-            onClick={
-              openCreate
-            }
+            onClick={openCreate}
           >
             Add route
           </Button>
@@ -896,18 +538,14 @@ export function RoutesPage() {
 
       <Box
         sx={{
-          display:
-            'grid',
+          display: "grid",
 
           gridTemplateColumns: {
-            xs:
-              '1fr',
+            xs: "1fr",
 
-            sm:
-              'repeat(2, minmax(0, 1fr))',
+            sm: "repeat(2, minmax(0, 1fr))",
 
-            xl:
-              'repeat(4, minmax(0, 1fr))',
+            xl: "repeat(4, minmax(0, 1fr))",
           },
 
           gap: 2,
@@ -917,187 +555,145 @@ export function RoutesPage() {
       >
         {[
           {
-            label:
-              'Total Routes',
+            label: "Total Routes",
 
-            value:
-              summary.total,
+            value: summary.total,
 
-            icon:
-              <AltRouteRounded />,
+            icon: <AltRouteRounded />,
 
-            accent:
-              '#C9A55C',
+            accent: "#C9A55C",
           },
 
           {
-            label:
-              'Active',
+            label: "Active",
 
-            value:
-              summary.active,
+            value: summary.active,
 
-            icon:
-              <ToggleOnRounded />,
+            icon: <ToggleOnRounded />,
 
-            accent:
-              '#5F9471',
+            accent: "#5F9471",
           },
 
           {
-            label:
-              'Inactive',
+            label: "Inactive",
 
-            value:
-              summary.inactive,
+            value: summary.inactive,
 
-            icon:
-              <ArchiveRounded />,
+            icon: <ArchiveRounded />,
 
-            accent:
-              '#85898F',
+            accent: "#85898F",
           },
 
           {
-            label:
-              'Pickup Routes',
+            label: "Pickup Routes",
 
-            value:
-              summary.pickup,
+            value: summary.pickup,
 
-            icon:
-              <NorthRounded />,
+            icon: <NorthRounded />,
 
-            accent:
-              '#98805A',
+            accent: "#98805A",
           },
-        ].map(
-          (item) => (
-            <Paper
-              key={
-                item.label
-              }
+        ].map((item) => (
+          <Paper
+            key={item.label}
 
-              elevation={0}
+            elevation={0}
 
+            sx={{
+              p: 2.5,
+
+              border: "1px solid",
+
+              borderColor: "divider",
+
+              position: "relative",
+
+              overflow: "hidden",
+            }}
+          >
+            <Box
               sx={{
-                p: 2.5,
+                position: "absolute",
 
-                border:
-                  '1px solid',
+                top: 0,
 
-                borderColor:
-                  'divider',
+                left: 0,
 
-                position:
-                  'relative',
+                width: "100%",
 
-                overflow:
-                  'hidden',
-              }}
-            >
-              <Box
-                sx={{
-                  position:
-                    'absolute',
+                height: 3,
 
-                  top: 0,
-
-                  left: 0,
-
-                  width:
-                    '100%',
-
-                  height: 3,
-
-                  background:
-                    `linear-gradient(
+                background: `linear-gradient(
                       90deg,
                       ${item.accent},
                       transparent 75%
                     )`,
-                }}
-              />
+              }}
+            />
+
+            <Box
+              sx={{
+                display: "flex",
+
+                alignItems: "center",
+
+                justifyContent: "space-between",
+              }}
+            >
+              <Box>
+                <Typography
+                  sx={{
+                    color: "text.secondary",
+
+                    fontSize: 10.5,
+
+                    fontWeight: 800,
+
+                    textTransform: "uppercase",
+
+                    letterSpacing: "0.09em",
+                  }}
+                >
+                  {item.label}
+                </Typography>
+
+                <Typography
+                  sx={{
+                    mt: 1,
+
+                    fontSize: 30,
+
+                    lineHeight: 1,
+
+                    fontWeight: 900,
+                  }}
+                >
+                  {item.value}
+                </Typography>
+              </Box>
 
               <Box
                 sx={{
-                  display:
-                    'flex',
+                  width: 42,
 
-                  alignItems:
-                    'center',
+                  height: 42,
 
-                  justifyContent:
-                    'space-between',
+                  display: "grid",
+
+                  placeItems: "center",
+
+                  borderRadius: 2,
+
+                  color: item.accent,
+
+                  bgcolor: `${item.accent}15`,
                 }}
               >
-                <Box>
-                  <Typography
-                    sx={{
-                      color:
-                        'text.secondary',
-
-                      fontSize:
-                        10.5,
-
-                      fontWeight:
-                        800,
-
-                      textTransform:
-                        'uppercase',
-
-                      letterSpacing:
-                        '0.09em',
-                    }}
-                  >
-                    {item.label}
-                  </Typography>
-
-                  <Typography
-                    sx={{
-                      mt: 1,
-
-                      fontSize:
-                        30,
-
-                      lineHeight: 1,
-
-                      fontWeight:
-                        900,
-                    }}
-                  >
-                    {item.value}
-                  </Typography>
-                </Box>
-
-                <Box
-                  sx={{
-                    width: 42,
-
-                    height: 42,
-
-                    display:
-                      'grid',
-
-                    placeItems:
-                      'center',
-
-                    borderRadius:
-                      2,
-
-                    color:
-                      item.accent,
-
-                    bgcolor:
-                      `${item.accent}15`,
-                  }}
-                >
-                  {item.icon}
-                </Box>
+                {item.icon}
               </Box>
-            </Paper>
-          ),
-        )}
+            </Box>
+          </Paper>
+        ))}
       </Box>
 
       {/* ================================================
@@ -1112,46 +708,32 @@ export function RoutesPage() {
 
           mb: 2,
 
-          border:
-            '1px solid',
+          border: "1px solid",
 
-          borderColor:
-            'divider',
+          borderColor: "divider",
         }}
       >
         <Box
           sx={{
-            display:
-              'grid',
+            display: "grid",
 
             gridTemplateColumns: {
-              xs:
-                '1fr',
+              xs: "1fr",
 
-              lg:
-                'minmax(0, 1fr) 190px 190px',
+              lg: "minmax(0, 1fr) 190px 190px",
             },
 
             gap: 1.5,
           }}
         >
           <TextField
-            value={
-              search
-            }
+            value={search}
 
-            onChange={
-              (event) => {
-                setSearch(
-                  event.target
-                    .value,
-                );
+            onChange={(event) => {
+              setSearch(event.target.value);
 
-                setPage(
-                  1,
-                );
-              }
-            }
+              setPage(1);
+            }}
 
             label="Search routes"
 
@@ -1159,111 +741,68 @@ export function RoutesPage() {
 
             slotProps={{
               input: {
-                startAdornment:
-                  (
-                    <SearchRounded
-                      sx={{
-                        mr: 1,
+                startAdornment: (
+                  <SearchRounded
+                    sx={{
+                      mr: 1,
 
-                        color:
-                          'text.secondary',
+                      color: "text.secondary",
 
-                        fontSize:
-                          20,
-                      }}
-                    />
-                  ),
+                      fontSize: 20,
+                    }}
+                  />
+                ),
               },
             }}
           />
 
           <FormControl>
-            <InputLabel
-              id="route-type-label"
-            >
-              Type
-            </InputLabel>
+            <InputLabel id="route-type-label">Type</InputLabel>
 
             <Select
               labelId="route-type-label"
 
               label="Type"
 
-              value={
-                routeType
-              }
+              value={routeType}
 
-              onChange={
-                (event) => {
-                  setRouteType(
-                    event.target
-                      .value as TypeFilter,
-                  );
+              onChange={(event) => {
+                setRouteType(event.target.value as TypeFilter);
 
-                  setPage(
-                    1,
-                  );
-                }
-              }
+                setPage(1);
+              }}
             >
-              <MenuItem value="all">
-                All types
-              </MenuItem>
+              <MenuItem value="all">All types</MenuItem>
 
-              <MenuItem value="pickup">
-                Pickup
-              </MenuItem>
+              <MenuItem value="pickup">Pickup</MenuItem>
 
-              <MenuItem value="dropoff">
-                Drop-off
-              </MenuItem>
+              <MenuItem value="dropoff">Drop-off</MenuItem>
 
-              <MenuItem value="other">
-                Other
-              </MenuItem>
+              <MenuItem value="other">Other</MenuItem>
             </Select>
           </FormControl>
 
           <FormControl>
-            <InputLabel
-              id="route-status-label"
-            >
-              Status
-            </InputLabel>
+            <InputLabel id="route-status-label">Status</InputLabel>
 
             <Select
               labelId="route-status-label"
 
               label="Status"
 
-              value={
-                status
-              }
+              value={status}
 
-              onChange={
-                (event) => {
-                  setStatus(
-                    event.target
-                      .value as StatusFilter,
-                  );
+              onChange={(event) => {
+                setStatus(event.target.value as StatusFilter);
 
-                  setPage(
-                    1,
-                  );
-                }
-              }
+                setPage(1);
+              }}
             >
-              <MenuItem value="all">
-                All statuses
-              </MenuItem>
+              <MenuItem value="all">All statuses</MenuItem>
 
-              <MenuItem value="active">
-                Active
-              </MenuItem>
+              <MenuItem value="active">Active</MenuItem>
 
-              <MenuItem value="inactive">
-                Inactive
-              </MenuItem>
+              <MenuItem value="inactive">Inactive</MenuItem>
             </Select>
           </FormControl>
         </Box>
@@ -1277,15 +816,14 @@ export function RoutesPage() {
             mb: 2,
           }}
         >
-          Schools could not be loaded. Existing routes can still be viewed,
-          but a new route cannot be created until the school list is available.
+          Schools could not be loaded. Existing routes can still be viewed, but
+          a new route cannot be created until the school list is available.
         </Alert>
       ) : null}
 
       {!schoolsQuery.isLoading &&
-        !schoolsQuery.isError &&
-        schools.length ===
-        0 ? (
+      !schoolsQuery.isError &&
+      schools.length === 0 ? (
         <Alert
           severity="info"
 
@@ -1309,39 +847,26 @@ export function RoutesPage() {
           sx={{
             py: 8,
 
-            display:
-              'grid',
+            display: "grid",
 
-            placeItems:
-              'center',
+            placeItems: "center",
 
-            border:
-              '1px solid',
+            border: "1px solid",
 
-            borderColor:
-              'divider',
+            borderColor: "divider",
           }}
         >
-          <CircularProgress
-            size={32}
-          />
+          <CircularProgress size={32} />
         </Paper>
       ) : null}
 
       {routesQuery.isError ? (
-        <Alert
-          severity="error"
-        >
-          {errorMessage(
-            routesQuery.error,
-          )}
-        </Alert>
+        <Alert severity="error">{errorMessage(routesQuery.error)}</Alert>
       ) : null}
 
       {!routesQuery.isLoading &&
-        !routesQuery.isError &&
-        filteredRoutes.length ===
-        0 ? (
+      !routesQuery.isError &&
+      filteredRoutes.length === 0 ? (
         <Paper
           elevation={0}
 
@@ -1350,23 +875,18 @@ export function RoutesPage() {
 
             px: 3,
 
-            textAlign:
-              'center',
+            textAlign: "center",
 
-            border:
-              '1px solid',
+            border: "1px solid",
 
-            borderColor:
-              'divider',
+            borderColor: "divider",
           }}
         >
           <AltRouteRounded
             sx={{
-              fontSize:
-                42,
+              fontSize: 42,
 
-              color:
-                'primary.main',
+              color: "primary.main",
             }}
           />
 
@@ -1374,8 +894,7 @@ export function RoutesPage() {
             sx={{
               mt: 2,
 
-              fontWeight:
-                800,
+              fontWeight: 800,
             }}
           >
             No routes found
@@ -1388,21 +907,17 @@ export function RoutesPage() {
           ================================================ */}
 
       {!routesQuery.isLoading &&
-        !routesQuery.isError &&
-        filteredRoutes.length >
-        0 ? (
+      !routesQuery.isError &&
+      filteredRoutes.length > 0 ? (
         <Paper
           elevation={0}
 
           sx={{
-            overflow:
-              'hidden',
+            overflow: "hidden",
 
-            border:
-              '1px solid',
+            border: "1px solid",
 
-            borderColor:
-              'divider',
+            borderColor: "divider",
           }}
         >
           <Box
@@ -1412,57 +927,37 @@ export function RoutesPage() {
               py: 1.5,
 
               display: {
-                xs:
-                  'none',
+                xs: "none",
 
-                lg:
-                  'grid',
+                lg: "grid",
               },
 
-              gridTemplateColumns:
-                '1.3fr .85fr .8fr .65fr .7fr 150px',
+              gridTemplateColumns: "1.3fr .85fr .8fr .65fr .7fr 150px",
 
               gap: 2,
 
-              bgcolor:
-                'action.hover',
+              bgcolor: "action.hover",
 
-              borderBottom:
-                '1px solid',
+              borderBottom: "1px solid",
 
-              borderColor:
-                'divider',
+              borderColor: "divider",
             }}
           >
-            {[
-              'Route',
-              'Code',
-              'Type',
-              'Stops',
-              'Status',
-              'Actions',
-            ].map(
+            {["Route", "Code", "Type", "Stops", "Status", "Actions"].map(
               (heading) => (
                 <Typography
-                  key={
-                    heading
-                  }
+                  key={heading}
 
                   sx={{
-                    color:
-                      'text.secondary',
+                    color: "text.secondary",
 
-                    fontSize:
-                      10,
+                    fontSize: 10,
 
-                    fontWeight:
-                      800,
+                    fontWeight: 800,
 
-                    textTransform:
-                      'uppercase',
+                    textTransform: "uppercase",
 
-                    letterSpacing:
-                      '0.08em',
+                    letterSpacing: "0.08em",
                   }}
                 >
                   {heading}
@@ -1471,336 +966,226 @@ export function RoutesPage() {
             )}
           </Box>
 
-          {filteredRoutes.map(
-            (
-              route,
-              index,
-            ) => (
+          {filteredRoutes.map((route, index) => (
+            <Box
+              key={route.id}
+
+              sx={{
+                px: 2.5,
+
+                py: 2,
+
+                display: "grid",
+
+                gridTemplateColumns: {
+                  xs: "1fr",
+
+                  lg: "1.3fr .85fr .8fr .65fr .7fr 150px",
+                },
+
+                alignItems: "center",
+
+                gap: {
+                  xs: 1.5,
+
+                  lg: 2,
+                },
+
+                borderBottom:
+                  index === filteredRoutes.length - 1 ? "none" : "1px solid",
+
+                borderColor: "divider",
+
+                "&:hover": {
+                  bgcolor: "action.hover",
+                },
+              }}
+            >
               <Box
-                key={
-                  route.id
-                }
-
                 sx={{
-                  px: 2.5,
+                  display: "flex",
 
-                  py: 2,
+                  alignItems: "center",
 
-                  display:
-                    'grid',
-
-                  gridTemplateColumns: {
-                    xs:
-                      '1fr',
-
-                    lg:
-                      '1.3fr .85fr .8fr .65fr .7fr 150px',
-                  },
-
-                  alignItems:
-                    'center',
-
-                  gap: {
-                    xs:
-                      1.5,
-
-                    lg:
-                      2,
-                  },
-
-                  borderBottom:
-                    index ===
-                      filteredRoutes.length -
-                      1
-                      ? 'none'
-                      : '1px solid',
-
-                  borderColor:
-                    'divider',
-
-                  '&:hover': {
-                    bgcolor:
-                      'action.hover',
-                  },
+                  gap: 1.3,
                 }}
               >
                 <Box
                   sx={{
-                    display:
-                      'flex',
+                    width: 38,
 
-                    alignItems:
-                      'center',
+                    height: 38,
 
-                    gap: 1.3,
+                    display: "grid",
+
+                    placeItems: "center",
+
+                    borderRadius: 2,
+
+                    bgcolor: "rgba(201,165,92,0.10)",
+
+                    color: "primary.main",
                   }}
                 >
-                  <Box
-                    sx={{
-                      width: 38,
-
-                      height: 38,
-
-                      display:
-                        'grid',
-
-                      placeItems:
-                        'center',
-
-                      borderRadius:
-                        2,
-
-                      bgcolor:
-                        'rgba(201,165,92,0.10)',
-
-                      color:
-                        'primary.main',
-                    }}
-                  >
-                    <AltRouteRounded />
-                  </Box>
-
-                  <Box
-                    sx={{
-                      minWidth: 0,
-                    }}
-                  >
-                    <Typography
-                      noWrap
-
-                      sx={{
-                        fontSize:
-                          12.5,
-
-                        fontWeight:
-                          800,
-                      }}
-                    >
-                      {route.name}
-                    </Typography>
-
-                    <Typography
-                      noWrap
-
-                      sx={{
-                        color:
-                          'text.secondary',
-
-                        fontSize:
-                          10.5,
-                      }}
-                    >
-                      {schoolName(
-                        route.schoolId,
-                      )}
-                    </Typography>
-                  </Box>
+                  <AltRouteRounded />
                 </Box>
-
-                <Typography
-                  sx={{
-                    fontSize:
-                      12,
-
-                    fontWeight:
-                      750,
-                  }}
-                >
-                  {route.code ??
-                    '—'}
-                </Typography>
 
                 <Box
                   sx={{
-                    display:
-                      'flex',
-
-                    alignItems:
-                      'center',
-
-                    gap: 0.6,
+                    minWidth: 0,
                   }}
                 >
-                  {routeTypeIcon(
-                    route.routeType,
-                  )}
+                  <Typography
+                    noWrap
+
+                    sx={{
+                      fontSize: 12.5,
+
+                      fontWeight: 800,
+                    }}
+                  >
+                    {route.name}
+                  </Typography>
 
                   <Typography
+                    noWrap
+
                     sx={{
-                      fontSize:
-                        12,
+                      color: "text.secondary",
+
+                      fontSize: 10.5,
                     }}
                   >
-                    {routeTypeLabel(
-                      route.routeType,
-                    )}
+                    {schoolName(route.schoolId)}
                   </Typography>
                 </Box>
+              </Box>
+
+              <Typography
+                sx={{
+                  fontSize: 12,
+
+                  fontWeight: 750,
+                }}
+              >
+                {route.code ?? "—"}
+              </Typography>
+
+              <Box
+                sx={{
+                  display: "flex",
+
+                  alignItems: "center",
+
+                  gap: 0.6,
+                }}
+              >
+                {routeTypeIcon(route.routeType)}
 
                 <Typography
                   sx={{
-                    fontSize:
-                      12,
-
-                    fontWeight:
-                      750,
+                    fontSize: 12,
                   }}
                 >
-                  {route.stopCount}
+                  {routeTypeLabel(route.routeType)}
                 </Typography>
+              </Box>
 
-                <Chip
-                  size="small"
+              <Typography
+                sx={{
+                  fontSize: 12,
 
-                  label={
-                    statusLabel(
-                      route.status,
-                    )
-                  }
+                  fontWeight: 750,
+                }}
+              >
+                {route.stopCount}
+              </Typography>
 
-                  sx={{
-                    color:
-                      statusColor(
-                        route.status,
-                      ),
+              <Chip
+                size="small"
 
-                    bgcolor:
-                      `${statusColor(
-                        route.status,
-                      )}14`,
+                label={statusLabel(route.status)}
 
-                    border:
-                      '1px solid',
+                sx={{
+                  color: statusColor(route.status),
 
-                    borderColor:
-                      `${statusColor(
-                        route.status,
-                      )}30`,
-                  }}
-                />
+                  bgcolor: `${statusColor(route.status)}14`,
 
-                <Box
-                  sx={{
-                    display:
-                      'flex',
-                  }}
-                >
-                  <Tooltip title="Manage route stops">
+                  border: "1px solid",
+
+                  borderColor: `${statusColor(route.status)}30`,
+                }}
+              />
+
+              <Box
+                sx={{
+                  display: "flex",
+                }}
+              >
+                <Tooltip title="Manage route stops">
+                  <IconButton
+                    size="small"
+
+                    onClick={() => setStopsRoute(route)}
+                  >
+                    <FormatListNumberedRounded fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+
+                <Tooltip title="Edit route">
+                  <IconButton
+                    size="small"
+
+                    onClick={() => openEdit(route)}
+                  >
+                    <EditRounded fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+
+                {route.status === "active" ? (
+                  <Tooltip title="Deactivate route">
                     <IconButton
                       size="small"
 
-                      onClick={() =>
-                        setStopsRoute(
-                          route,
-                        )
-                      }
+                      onClick={() => setDeactivateTarget(route)}
                     >
-                      <FormatListNumberedRounded
-                        fontSize="small"
-                      />
+                      <ArchiveRounded fontSize="small" />
                     </IconButton>
                   </Tooltip>
-
-                  <Tooltip title="Edit route">
-                    <IconButton
-                      size="small"
-
-                      onClick={() =>
-                        openEdit(
-                          route,
-                        )
-                      }
-                    >
-                      <EditRounded
-                        fontSize="small"
-                      />
-                    </IconButton>
-                  </Tooltip>
-
-                  {route.status ===
-                    'active' ? (
-                    <Tooltip title="Deactivate route">
+                ) : (
+                  <Tooltip title="Activate route">
+                    <span>
                       <IconButton
                         size="small"
 
-                        onClick={() =>
-                          setDeactivateTarget(
-                            route,
-                          )
-                        }
+                        disabled={activateMutation.isPending}
+
+                        onClick={() => activateMutation.mutate(route.id)}
                       >
-                        <ArchiveRounded
-                          fontSize="small"
-                        />
+                        <ToggleOnRounded fontSize="small" />
                       </IconButton>
-                    </Tooltip>
-                  ) : (
-                    <Tooltip title="Activate route">
-                      <span>
-                        <IconButton
-                          size="small"
-
-                          disabled={
-                            activateMutation.isPending
-                          }
-
-                          onClick={() =>
-                            activateMutation.mutate(
-                              route.id,
-                            )
-                          }
-                        >
-                          <ToggleOnRounded
-                            fontSize="small"
-                          />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                  )}
-                </Box>
+                    </span>
+                  </Tooltip>
+                )}
               </Box>
-            ),
-          )}
+            </Box>
+          ))}
 
           <PaginationControls
-            page={
-              routesQuery.data
-                ?.page ??
-              page
-            }
+            page={routesQuery.data?.page ?? page}
 
-            limit={
-              routesQuery.data
-                ?.limit ??
-              limit
-            }
+            limit={routesQuery.data?.limit ?? limit}
 
-            total={
-              routesQuery.data
-                ?.total ??
-              0
-            }
+            total={routesQuery.data?.total ?? 0}
 
-            totalPages={
-              routesQuery.data
-                ?.totalPages ??
-              0
-            }
+            totalPages={routesQuery.data?.totalPages ?? 0}
 
-            onPageChange={
-              setPage
-            }
+            onPageChange={setPage}
 
-            onLimitChange={(
-              nextLimit,
-            ) => {
-              setLimit(
-                nextLimit,
-              );
+            onLimitChange={(nextLimit) => {
+              setLimit(nextLimit);
 
-              setPage(
-                1,
-              );
+              setPage(1);
             }}
           />
         </Paper>
@@ -1811,69 +1196,37 @@ export function RoutesPage() {
           ================================================ */}
 
       <RouteFormDialog
-        key={`${formOpen ? 'open' : 'closed'}:${editingRoute?.id ?? 'new'}`}
+        key={`${formOpen ? "open" : "closed"}:${editingRoute?.id ?? "new"}`}
 
-        open={
-          formOpen
-        }
+        open={formOpen}
 
-        route={
-          editingRoute
-        }
+        route={editingRoute}
 
-        schools={
-          schools
-        }
+        schools={schools}
 
-        schoolsLoading={
-          schoolsQuery.isLoading
-        }
+        schoolsLoading={schoolsQuery.isLoading}
 
         schoolsError={
-          schoolsQuery.isError
-            ? errorMessage(
-              schoolsQuery.error,
-            )
-            : null
+          schoolsQuery.isError ? errorMessage(schoolsQuery.error) : null
         }
 
-        saving={
-          createMutation.isPending ||
-          updateMutation.isPending
-        }
+        saving={createMutation.isPending || updateMutation.isPending}
 
-        error={
-          mutationError
-        }
+        error={mutationError}
 
-        onClose={
-          closeForm
-        }
+        onClose={closeForm}
 
-        onSubmit={
-          submitRoute
-        }
+        onSubmit={submitRoute}
       />
 
       <RouteStopsDialog
-        open={
-          stopsRoute !==
-          null
-        }
+        open={stopsRoute !== null}
 
-        tenantId={
-          tenantId
-        }
+        tenantId={tenantId}
 
-        route={
-          stopsRoute
-        }
+        route={stopsRoute}
 
-        onClose={() =>
-          setStopsRoute(
-            null,
-          )
-        }
+        onClose={() => setStopsRoute(null)}
       />
 
       {/* ================================================
@@ -1881,16 +1234,10 @@ export function RoutesPage() {
           ================================================ */}
 
       <Dialog
-        open={
-          deactivateTarget !==
-          null
-        }
+        open={deactivateTarget !== null}
 
         onClose={() =>
-          !deactivateMutation.isPending &&
-          setDeactivateTarget(
-            null,
-          )
+          !deactivateMutation.isPending && setDeactivateTarget(null)
         }
 
         maxWidth="xs"
@@ -1899,8 +1246,7 @@ export function RoutesPage() {
       >
         <DialogTitle
           sx={{
-            fontWeight:
-              850,
+            fontWeight: 850,
           }}
         >
           Deactivate route?
@@ -1915,27 +1261,22 @@ export function RoutesPage() {
                 mb: 2,
               }}
             >
-              {errorMessage(
-                deactivateMutation.error,
-              )}
+              {errorMessage(deactivateMutation.error)}
             </Alert>
           ) : null}
 
           <Typography
             sx={{
-              color:
-                'text.secondary',
+              color: "text.secondary",
 
-              fontSize:
-                13,
+              fontSize: 13,
 
-              lineHeight:
-                1.7,
+              lineHeight: 1.7,
             }}
           >
             {deactivateTarget
               ? `${deactivateTarget.name} will become inactive. Existing trip history remains unchanged.`
-              : ''}
+              : ""}
           </Typography>
         </DialogContent>
 
@@ -1947,15 +1288,9 @@ export function RoutesPage() {
           }}
         >
           <Button
-            disabled={
-              deactivateMutation.isPending
-            }
+            disabled={deactivateMutation.isPending}
 
-            onClick={() =>
-              setDeactivateTarget(
-                null,
-              )
-            }
+            onClick={() => setDeactivateTarget(null)}
           >
             Cancel
           </Button>
@@ -1963,24 +1298,17 @@ export function RoutesPage() {
           <Button
             variant="contained"
 
-            disabled={
-              deactivateMutation.isPending ||
-              !deactivateTarget
-            }
+            disabled={deactivateMutation.isPending || !deactivateTarget}
 
             onClick={() => {
-              if (
-                deactivateTarget
-              ) {
-                deactivateMutation.mutate(
-                  deactivateTarget.id,
-                );
+              if (deactivateTarget) {
+                deactivateMutation.mutate(deactivateTarget.id);
               }
             }}
           >
             {deactivateMutation.isPending
-              ? 'Deactivating...'
-              : 'Deactivate route'}
+              ? "Deactivating..."
+              : "Deactivate route"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1990,27 +1318,16 @@ export function RoutesPage() {
           ================================================ */}
 
       <Snackbar
-        open={
-          successMessage !==
-          null
-        }
+        open={successMessage !== null}
 
-        autoHideDuration={
-          3500
-        }
+        autoHideDuration={3500}
 
-        onClose={() =>
-          setSuccessMessage(
-            null,
-          )
-        }
+        onClose={() => setSuccessMessage(null)}
 
         anchorOrigin={{
-          vertical:
-            'bottom',
+          vertical: "bottom",
 
-          horizontal:
-            'right',
+          horizontal: "right",
         }}
       >
         <Alert
@@ -2018,11 +1335,7 @@ export function RoutesPage() {
 
           variant="filled"
 
-          onClose={() =>
-            setSuccessMessage(
-              null,
-            )
-          }
+          onClose={() => setSuccessMessage(null)}
         >
           {successMessage}
         </Alert>

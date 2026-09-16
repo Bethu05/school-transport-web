@@ -1,39 +1,27 @@
-import {
-  apiRequest,
-} from '../api/client';
+import { apiRequest } from "../api/client";
 
-export type StopStatus =
-  | 'active'
-  | 'inactive';
+export type StopStatus = "active" | "inactive";
 
 export interface Stop {
   id: string;
 
   tenantId: string;
 
-  schoolId:
-    | string
-    | null;
+  schoolId: string | null;
 
   name: string;
 
-  code:
-    | string
-    | null;
+  code: string | null;
 
-  address:
-    | string
-    | null;
+  address: string | null;
 
   latitude: number;
 
   longitude: number;
 
-  geofenceRadiusMeters:
-    number;
+  geofenceRadiusMeters: number;
 
-  status:
-    StopStatus;
+  status: StopStatus;
 
   createdAt: string;
 
@@ -102,109 +90,63 @@ export interface UpdateStopInput {
   geofenceRadiusMeters?: number;
 }
 
-function buildQueryString(
-  query:
-    ListStopsQuery,
-): string {
-  const parameters =
-    new URLSearchParams();
+function buildQueryString(query: ListStopsQuery): string {
+  const parameters = new URLSearchParams();
 
   if (query.page) {
-    parameters.set(
-      'page',
-      String(
-        query.page,
-      ),
-    );
+    parameters.set("page", String(query.page));
   }
 
   if (query.limit) {
-    parameters.set(
-      'limit',
-      String(
-        query.limit,
-      ),
-    );
+    parameters.set("limit", String(query.limit));
   }
 
-  if (
-    query.search?.trim()
-  ) {
-    parameters.set(
-      'search',
-      query.search.trim(),
-    );
+  if (query.search?.trim()) {
+    parameters.set("search", query.search.trim());
   }
 
   if (query.schoolId) {
-    parameters.set(
-      'schoolId',
-      query.schoolId,
-    );
+    parameters.set("schoolId", query.schoolId);
   }
 
   if (query.status) {
-    parameters.set(
-      'status',
-      query.status,
-    );
+    parameters.set("status", query.status);
   }
 
-  const value =
-    parameters.toString();
+  const value = parameters.toString();
 
-  return value
-    ? `?${value}`
-    : '';
+  return value ? `?${value}` : "";
 }
 
 export function listStopsPage(
   tenantId: string,
-  query:
-    ListStopsQuery = {},
+  query: ListStopsQuery = {},
 ): Promise<PaginatedStops> {
-  return apiRequest<PaginatedStops>(
-    `/stops${buildQueryString(
-      query,
-    )}`,
-    {
-      tenantId,
-    },
-  );
+  return apiRequest<PaginatedStops>(`/stops${buildQueryString(query)}`, {
+    tenantId,
+  });
 }
 
 /**
  * Compatibility helper for RouteStopsDialog and any existing
  * consumer that still expects Stop[].
  */
-export async function listStops(
-  tenantId: string,
-): Promise<Stop[]> {
-  const stops:
-    Stop[] = [];
+export async function listStops(tenantId: string): Promise<Stop[]> {
+  const stops: Stop[] = [];
 
   let page = 1;
 
   const limit = 100;
 
   while (true) {
-    const response =
-      await listStopsPage(
-        tenantId,
-        {
-          page,
-          limit,
-        },
-      );
+    const response = await listStopsPage(tenantId, {
+      page,
+      limit,
+    });
 
-    stops.push(
-      ...response.items,
-    );
+    stops.push(...response.items);
 
-    if (
-      page >=
-      response.totalPages
-    ) {
+    if (page >= response.totalPages) {
       return stops;
     }
 
@@ -214,58 +156,38 @@ export async function listStops(
 
 export function createStop(
   tenantId: string,
-  input:
-    CreateStopInput,
+  input: CreateStopInput,
 ): Promise<Stop> {
-  return apiRequest<Stop>(
-    '/stops',
-    {
-      method:
-        'POST',
+  return apiRequest<Stop>("/stops", {
+    method: "POST",
 
-      tenantId,
+    tenantId,
 
-      body:
-        JSON.stringify(
-          input,
-        ),
-    },
-  );
+    body: JSON.stringify(input),
+  });
 }
 
 export function updateStop(
   tenantId: string,
   stopId: string,
-  input:
-    UpdateStopInput,
+  input: UpdateStopInput,
 ): Promise<Stop> {
-  return apiRequest<Stop>(
-    `/stops/${stopId}`,
-    {
-      method:
-        'PATCH',
+  return apiRequest<Stop>(`/stops/${stopId}`, {
+    method: "PATCH",
 
-      tenantId,
+    tenantId,
 
-      body:
-        JSON.stringify(
-          input,
-        ),
-    },
-  );
+    body: JSON.stringify(input),
+  });
 }
 
 export function deactivateStop(
   tenantId: string,
   stopId: string,
 ): Promise<Stop> {
-  return apiRequest<Stop>(
-    `/stops/${stopId}`,
-    {
-      method:
-        'DELETE',
+  return apiRequest<Stop>(`/stops/${stopId}`, {
+    method: "DELETE",
 
-      tenantId,
-    },
-  );
+    tenantId,
+  });
 }

@@ -1,7 +1,4 @@
-import {
-  apiRequest,
-  setAccessToken,
-} from '../api/client';
+import { apiRequest, setAccessToken } from "../api/client";
 
 export interface LoginRequest {
   email: string;
@@ -42,25 +39,15 @@ export interface AuthContextResponse {
 /**
  * Authenticate the user and store the JWT.
  */
-export async function login(
-  credentials: LoginRequest,
-): Promise<LoginResponse> {
-  const response =
-    await apiRequest<LoginResponse>(
-      '/auth/login',
-      {
-        method: 'POST',
-        auth: false,
+export async function login(credentials: LoginRequest): Promise<LoginResponse> {
+  const response = await apiRequest<LoginResponse>("/auth/login", {
+    method: "POST",
+    auth: false,
 
-        body: JSON.stringify(
-          credentials,
-        ),
-      },
-    );
+    body: JSON.stringify(credentials),
+  });
 
-  setAccessToken(
-    response.accessToken,
-  );
+  setAccessToken(response.accessToken);
 
   return response;
 }
@@ -71,11 +58,8 @@ export async function login(
  * This endpoint does not require
  * x-tenant-id.
  */
-export function getCurrentUser():
-  Promise<CurrentUserResponse> {
-  return apiRequest<CurrentUserResponse>(
-    '/auth/me',
-  );
+export function getCurrentUser(): Promise<CurrentUserResponse> {
+  return apiRequest<CurrentUserResponse>("/auth/me");
 }
 
 /**
@@ -84,13 +68,8 @@ export function getCurrentUser():
  * Backend checks membership before
  * returning the tenant role.
  */
-export function getAuthContext(
-  tenantId: string,
-): Promise<AuthContextResponse> {
-  return apiRequest<AuthContextResponse>(
-    '/auth/context',
-    {
-      tenantId,
-    },
-  );
+export function getAuthContext(tenantId: string): Promise<AuthContextResponse> {
+  return apiRequest<AuthContextResponse>("/auth/context", {
+    tenantId,
+  });
 }

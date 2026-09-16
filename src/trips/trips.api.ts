@@ -1,4 +1,4 @@
-import { apiRequest } from '../api/client';
+import { apiRequest } from "../api/client";
 
 /**
  * Trip lifecycle statuses supported by the backend.
@@ -17,18 +17,14 @@ import { apiRequest } from '../api/client';
  * according to backend lifecycle rules.
  */
 export type TripStatus =
-  | 'draft'
-  | 'scheduled'
-  | 'boarding'
-  | 'in_progress'
-  | 'completed'
-  | 'cancelled';
+  | "draft"
+  | "scheduled"
+  | "boarding"
+  | "in_progress"
+  | "completed"
+  | "cancelled";
 
-export type TripStopStatus =
-  | 'pending'
-  | 'arrived'
-  | 'departed'
-  | 'skipped';
+export type TripStopStatus = "pending" | "arrived" | "departed" | "skipped";
 
 /**
  * Views supported by the paginated Trips endpoint.
@@ -45,11 +41,7 @@ export type TripStopStatus =
  * all:
  * all statuses
  */
-export type TripListView =
-  | 'current'
-  | 'completed'
-  | 'cancelled'
-  | 'all';
+export type TripListView = "current" | "completed" | "cancelled" | "all";
 
 /**
  * Frontend representation of a trip.
@@ -88,13 +80,9 @@ export interface Trip {
 
   routeCode: string | null;
 
-  vehicleRegistrationNumber:
-    | string
-    | null;
+  vehicleRegistrationNumber: string | null;
 
-  driverName:
-    | string
-    | null;
+  driverName: string | null;
 
   stopCount: number;
 
@@ -130,21 +118,13 @@ export interface TripStop {
 
   geofenceRadiusMeters: number;
 
-  plannedOffsetMinutes:
-    | number
-    | null;
+  plannedOffsetMinutes: number | null;
 
-  scheduledArrivalAt:
-    | string
-    | null;
+  scheduledArrivalAt: string | null;
 
-  actualArrivalAt:
-    | string
-    | null;
+  actualArrivalAt: string | null;
 
-  actualDepartureAt:
-    | string
-    | null;
+  actualDepartureAt: string | null;
 
   status: TripStopStatus;
 
@@ -227,25 +207,17 @@ export interface CreateTripInput {
  */
 export interface UpdateTripInput {
   routeId?: string;
-  vehicleId?:
-    | string
-    | null;
+  vehicleId?: string | null;
 
-  driverId?:
-    | string
-    | null;
+  driverId?: string | null;
 
   serviceDate?: string;
 
   scheduledStartAt?: string;
 
-  scheduledEndAt?:
-    | string
-    | null;
+  scheduledEndAt?: string | null;
 
-  notes?:
-    | string
-    | null;
+  notes?: string | null;
 }
 
 /**
@@ -254,57 +226,32 @@ export interface UpdateTripInput {
  * This keeps pagination/filter behaviour consistent
  * throughout the frontend.
  */
-function buildTripsQueryString(
-  query: ListTripsQuery,
-): string {
-  const parameters =
-    new URLSearchParams();
+function buildTripsQueryString(query: ListTripsQuery): string {
+  const parameters = new URLSearchParams();
 
   if (query.page !== undefined) {
-    parameters.set(
-      'page',
-      String(
-        query.page,
-      ),
-    );
+    parameters.set("page", String(query.page));
   }
 
   if (query.limit !== undefined) {
-    parameters.set(
-      'limit',
-      String(
-        query.limit,
-      ),
-    );
+    parameters.set("limit", String(query.limit));
   }
 
   if (query.view) {
-    parameters.set(
-      'view',
-      query.view,
-    );
+    parameters.set("view", query.view);
   }
 
   if (query.serviceDate) {
-    parameters.set(
-      'serviceDate',
-      query.serviceDate,
-    );
+    parameters.set("serviceDate", query.serviceDate);
   }
 
   if (query.schoolId) {
-    parameters.set(
-      'schoolId',
-      query.schoolId,
-    );
+    parameters.set("schoolId", query.schoolId);
   }
 
-  const queryString =
-    parameters.toString();
+  const queryString = parameters.toString();
 
-  return queryString
-    ? `?${queryString}`
-    : '';
+  return queryString ? `?${queryString}` : "";
 }
 
 /**
@@ -327,14 +274,9 @@ export function listTripsPage(
   tenantId: string,
   query: ListTripsQuery = {},
 ): Promise<PaginatedTrips> {
-  return apiRequest<PaginatedTrips>(
-    `/trips${buildTripsQueryString(
-      query,
-    )}`,
-    {
-      tenantId,
-    },
-  );
+  return apiRequest<PaginatedTrips>(`/trips${buildTripsQueryString(query)}`, {
+    tenantId,
+  });
 }
 
 /**
@@ -360,23 +302,14 @@ export function listTripsPage(
  * This wrapper should be removed once TripsPage has been
  * migrated to listTripsPage().
  */
-export async function listTrips(
-  tenantId: string,
-): Promise<Trip[]> {
-  const response =
-    await listTripsPage(
-      tenantId,
-      {
-        page:
-          1,
+export async function listTrips(tenantId: string): Promise<Trip[]> {
+  const response = await listTripsPage(tenantId, {
+    page: 1,
 
-        limit:
-          100,
+    limit: 100,
 
-        view:
-          'all',
-      },
-    );
+    view: "all",
+  });
 
   return response.items;
 }
@@ -384,16 +317,10 @@ export async function listTrips(
 /**
  * Return one trip.
  */
-export function getTrip(
-  tenantId: string,
-  tripId: string,
-): Promise<Trip> {
-  return apiRequest<Trip>(
-    `/trips/${tripId}`,
-    {
-      tenantId,
-    },
-  );
+export function getTrip(tenantId: string, tripId: string): Promise<Trip> {
+  return apiRequest<Trip>(`/trips/${tripId}`, {
+    tenantId,
+  });
 }
 
 /**
@@ -404,12 +331,9 @@ export function listTripStops(
   tenantId: string,
   tripId: string,
 ): Promise<TripStop[]> {
-  return apiRequest<TripStop[]>(
-    `/trips/${tripId}/stops`,
-    {
-      tenantId,
-    },
-  );
+  return apiRequest<TripStop[]>(`/trips/${tripId}/stops`, {
+    tenantId,
+  });
 }
 
 /**
@@ -421,20 +345,13 @@ export function createTrip(
   tenantId: string,
   input: CreateTripInput,
 ): Promise<Trip> {
-  return apiRequest<Trip>(
-    '/trips',
-    {
-      method:
-        'POST',
+  return apiRequest<Trip>("/trips", {
+    method: "POST",
 
-      tenantId,
+    tenantId,
 
-      body:
-        JSON.stringify(
-          input,
-        ),
-    },
-  );
+    body: JSON.stringify(input),
+  });
 }
 
 /**
@@ -445,20 +362,13 @@ export function updateTrip(
   tripId: string,
   input: UpdateTripInput,
 ): Promise<Trip> {
-  return apiRequest<Trip>(
-    `/trips/${tripId}`,
-    {
-      method:
-        'PATCH',
+  return apiRequest<Trip>(`/trips/${tripId}`, {
+    method: "PATCH",
 
-      tenantId,
+    tenantId,
 
-      body:
-        JSON.stringify(
-          input,
-        ),
-    },
-  );
+    body: JSON.stringify(input),
+  });
 }
 
 /**
@@ -475,90 +385,55 @@ export function updateTrip(
  * - driver overlap
  * - vehicle overlap
  */
-export function scheduleTrip(
-  tenantId: string,
-  tripId: string,
-): Promise<Trip> {
-  return apiRequest<Trip>(
-    `/trips/${tripId}/schedule`,
-    {
-      method:
-        'POST',
+export function scheduleTrip(tenantId: string, tripId: string): Promise<Trip> {
+  return apiRequest<Trip>(`/trips/${tripId}/schedule`, {
+    method: "POST",
 
-      tenantId,
-    },
-  );
+    tenantId,
+  });
 }
 
 /**
  * Scheduled -> Boarding
  */
-export function boardTrip(
-  tenantId: string,
-  tripId: string,
-): Promise<Trip> {
-  return apiRequest<Trip>(
-    `/trips/${tripId}/board`,
-    {
-      method:
-        'POST',
+export function boardTrip(tenantId: string, tripId: string): Promise<Trip> {
+  return apiRequest<Trip>(`/trips/${tripId}/board`, {
+    method: "POST",
 
-      tenantId,
-    },
-  );
+    tenantId,
+  });
 }
 
 /**
  * Boarding -> In Progress
  */
-export function startTrip(
-  tenantId: string,
-  tripId: string,
-): Promise<Trip> {
-  return apiRequest<Trip>(
-    `/trips/${tripId}/start`,
-    {
-      method:
-        'POST',
+export function startTrip(tenantId: string, tripId: string): Promise<Trip> {
+  return apiRequest<Trip>(`/trips/${tripId}/start`, {
+    method: "POST",
 
-      tenantId,
-    },
-  );
+    tenantId,
+  });
 }
 
 /**
  * In Progress -> Completed
  */
-export function completeTrip(
-  tenantId: string,
-  tripId: string,
-): Promise<Trip> {
-  return apiRequest<Trip>(
-    `/trips/${tripId}/complete`,
-    {
-      method:
-        'POST',
+export function completeTrip(tenantId: string, tripId: string): Promise<Trip> {
+  return apiRequest<Trip>(`/trips/${tripId}/complete`, {
+    method: "POST",
 
-      tenantId,
-    },
-  );
+    tenantId,
+  });
 }
 
 /**
  * Cancel a trip when permitted by the backend
  * lifecycle rules.
  */
-export function cancelTrip(
-  tenantId: string,
-  tripId: string,
-): Promise<Trip> {
-  return apiRequest<Trip>(
-    `/trips/${tripId}/cancel`,
-    {
-      method:
-        'POST',
+export function cancelTrip(tenantId: string, tripId: string): Promise<Trip> {
+  return apiRequest<Trip>(`/trips/${tripId}/cancel`, {
+    method: "POST",
 
-      tenantId,
-    },
-  );
+    tenantId,
+  });
 }

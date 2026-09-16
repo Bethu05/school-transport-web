@@ -1,7 +1,4 @@
-import {
-  useState,
-  type FormEvent,
-} from 'react';
+import { useState, type FormEvent } from "react";
 
 import {
   Alert,
@@ -14,7 +11,7 @@ import {
   MenuItem,
   TextField,
   Typography,
-} from '@mui/material';
+} from "@mui/material";
 
 import type {
   CreateIncidentInput,
@@ -22,71 +19,43 @@ import type {
   IncidentSeverity,
   IncidentStatus,
   UpdateIncidentInput,
-} from './incidents.api';
+} from "./incidents.api";
 
 interface IncidentFormDialogProps {
-  open:
-    boolean;
+  open: boolean;
 
-  incident:
-    | Incident
-    | null;
+  incident: Incident | null;
 
-  saving:
-    boolean;
+  saving: boolean;
 
-  error:
-    | string
-    | null;
+  error: string | null;
 
-  canUpdate:
-    boolean;
+  canUpdate: boolean;
 
-  onClose:
-    () => void;
+  onClose: () => void;
 
-  onSubmit: (
-    input:
-      | CreateIncidentInput
-      | UpdateIncidentInput,
-  ) => Promise<void>;
+  onSubmit: (input: CreateIncidentInput | UpdateIncidentInput) => Promise<void>;
 }
 
 interface FormState {
-  severity:
-    IncidentSeverity;
+  severity: IncidentSeverity;
 
-  type:
-    string;
+  type: string;
 
-  description:
-    string;
+  description: string;
 
-  status:
-    IncidentStatus;
+  status: IncidentStatus;
 }
 
-function createState(
-  incident:
-    | Incident
-    | null,
-): FormState {
+function createState(incident: Incident | null): FormState {
   return {
-    severity:
-      incident?.severity ??
-      'medium',
+    severity: incident?.severity ?? "medium",
 
-    type:
-      incident?.type ??
-      '',
+    type: incident?.type ?? "",
 
-    description:
-      incident?.description ??
-      '',
+    description: incident?.description ?? "",
 
-    status:
-      incident?.status ??
-      'open',
+    status: incident?.status ?? "open",
   };
 }
 
@@ -99,77 +68,42 @@ export function IncidentFormDialog({
   onClose,
   onSubmit,
 }: IncidentFormDialogProps) {
-  const editing =
-    incident !==
-    null;
+  const editing = incident !== null;
 
-  const [
-    form,
-    setForm,
-  ] =
-    useState<FormState>(
-      () =>
-        createState(
-          incident,
-        ),
-    );
+  const [form, setForm] = useState<FormState>(() => createState(incident));
 
-  const [
-    validationError,
-    setValidationError,
-  ] =
-    useState<
-      string | null
-    >(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
-  function updateField<
-    K extends keyof FormState,
-  >(
-    key:
-      K,
-    value:
-      FormState[K],
+  function updateField<K extends keyof FormState>(
+    key: K,
+    value: FormState[K],
   ): void {
-    setForm(
-      (
-        current,
-      ) => ({
-        ...current,
+    setForm((current) => ({
+      ...current,
 
-        [key]:
-          value,
-      }),
-    );
+      [key]: value,
+    }));
   }
 
   async function handleSubmit(
-    event:
-      FormEvent<HTMLFormElement>,
+    event: FormEvent<HTMLFormElement>,
   ): Promise<void> {
     event.preventDefault();
 
-    setValidationError(
-      null,
-    );
+    setValidationError(null);
 
-    const type =
-      form.type.trim();
+    const type = form.type.trim();
 
-    const description =
-      form.description.trim();
+    const description = form.description.trim();
 
     if (!type) {
-      setValidationError(
-        'Incident type is required.',
-      );
+      setValidationError("Incident type is required.");
 
       return;
     }
 
     if (!description) {
-      setValidationError(
-        'Description is required.',
-      );
+      setValidationError("Description is required.");
 
       return;
     }
@@ -180,23 +114,20 @@ export function IncidentFormDialog({
       }
 
       await onSubmit({
-        severity:
-          form.severity,
+        severity: form.severity,
 
         type,
 
         description,
 
-        status:
-          form.status,
+        status: form.status,
       });
 
       return;
     }
 
     await onSubmit({
-      severity:
-        form.severity,
+      severity: form.severity,
 
       type,
 
@@ -206,83 +137,58 @@ export function IncidentFormDialog({
 
   return (
     <Dialog
-      open={
-        open
-      }
-      onClose={
-        saving
-          ? undefined
-          : onClose
-      }
+      open={open}
+      onClose={saving ? undefined : onClose}
       fullWidth
       maxWidth="sm"
     >
-      <Box
-        component="form"
-        onSubmit={
-          handleSubmit
-        }
-      >
+      <Box component="form" onSubmit={handleSubmit}>
         <DialogTitle
           sx={{
-            fontWeight:
-              850,
+            fontWeight: 850,
           }}
         >
-          {editing
-            ? 'Edit incident'
-            : 'Report incident'}
+          {editing ? "Edit incident" : "Report incident"}
         </DialogTitle>
 
         <DialogContent>
           <Typography
             sx={{
-              mb:
-                2.5,
+              mb: 2.5,
 
-              color:
-                'text.secondary',
+              color: "text.secondary",
 
-              fontSize:
-                13,
+              fontSize: 13,
 
-              lineHeight:
-                1.6,
+              lineHeight: 1.6,
             }}
           >
             {editing
-              ? 'Update the incident details or lifecycle status.'
-              : 'Report a safety or operational incident. The incident will initially be Open.'}
+              ? "Update the incident details or lifecycle status."
+              : "Report a safety or operational incident. The incident will initially be Open."}
           </Typography>
 
           <Box
             sx={{
-              display:
-                'grid',
+              display: "grid",
 
               gridTemplateColumns: {
-                xs:
-                  '1fr',
+                xs: "1fr",
 
-                sm:
-                  'repeat(2, minmax(0, 1fr))',
+                sm: "repeat(2, minmax(0, 1fr))",
               },
 
-              gap:
-                2,
+              gap: 2,
             }}
           >
-            {validationError ||
-            error ? (
+            {validationError || error ? (
               <Alert
                 severity="error"
                 sx={{
-                  gridColumn:
-                    '1 / -1',
+                  gridColumn: "1 / -1",
                 }}
               >
-                {validationError ??
-                  error}
+                {validationError ?? error}
               </Alert>
             ) : null}
 
@@ -290,35 +196,18 @@ export function IncidentFormDialog({
               select
               required
               label="Severity"
-              value={
-                form.severity
-              }
-              onChange={(
-                event,
-              ) =>
-                updateField(
-                  'severity',
-                  event.target
-                    .value as
-                    IncidentSeverity,
-                )
+              value={form.severity}
+              onChange={(event) =>
+                updateField("severity", event.target.value as IncidentSeverity)
               }
             >
-              <MenuItem value="low">
-                Low
-              </MenuItem>
+              <MenuItem value="low">Low</MenuItem>
 
-              <MenuItem value="medium">
-                Medium
-              </MenuItem>
+              <MenuItem value="medium">Medium</MenuItem>
 
-              <MenuItem value="high">
-                High
-              </MenuItem>
+              <MenuItem value="high">High</MenuItem>
 
-              <MenuItem value="critical">
-                Critical
-              </MenuItem>
+              <MenuItem value="critical">Critical</MenuItem>
             </TextField>
 
             {editing ? (
@@ -326,34 +215,17 @@ export function IncidentFormDialog({
                 select
                 required
                 label="Status"
-                value={
-                  form.status
-                }
-                disabled={
-                  !canUpdate
-                }
-                onChange={(
-                  event,
-                ) =>
-                  updateField(
-                    'status',
-                    event.target
-                      .value as
-                      IncidentStatus,
-                  )
+                value={form.status}
+                disabled={!canUpdate}
+                onChange={(event) =>
+                  updateField("status", event.target.value as IncidentStatus)
                 }
               >
-                <MenuItem value="open">
-                  Open / Reopened
-                </MenuItem>
+                <MenuItem value="open">Open / Reopened</MenuItem>
 
-                <MenuItem value="resolved">
-                  Resolved
-                </MenuItem>
+                <MenuItem value="resolved">Resolved</MenuItem>
 
-                <MenuItem value="closed">
-                  Closed
-                </MenuItem>
+                <MenuItem value="closed">Closed</MenuItem>
               </TextField>
             ) : (
               <Box />
@@ -362,55 +234,27 @@ export function IncidentFormDialog({
             <TextField
               required
               label="Incident type"
-              value={
-                form.type
-              }
-              disabled={
-                editing &&
-                !canUpdate
-              }
-              onChange={(
-                event,
-              ) =>
-                updateField(
-                  'type',
-                  event.target
-                    .value,
-                )
-              }
+              value={form.type}
+              disabled={editing && !canUpdate}
+              onChange={(event) => updateField("type", event.target.value)}
               placeholder="e.g. Vehicle breakdown"
               sx={{
-                gridColumn:
-                  '1 / -1',
+                gridColumn: "1 / -1",
               }}
             />
 
             <TextField
               required
               label="Description"
-              value={
-                form.description
-              }
-              disabled={
-                editing &&
-                !canUpdate
-              }
-              onChange={(
-                event,
-              ) =>
-                updateField(
-                  'description',
-                  event.target
-                    .value,
-                )
+              value={form.description}
+              disabled={editing && !canUpdate}
+              onChange={(event) =>
+                updateField("description", event.target.value)
               }
               multiline
-              minRows={
-                5
-              }
+              minRows={5}
               sx={{
-                gridColumn:
-                  '1 / -1',
+                gridColumn: "1 / -1",
               }}
             />
           </Box>
@@ -418,40 +262,22 @@ export function IncidentFormDialog({
 
         <DialogActions
           sx={{
-            px:
-              3,
+            px: 3,
 
-            pb:
-              3,
+            pb: 3,
           }}
         >
-          <Button
-            onClick={
-              onClose
-            }
-            disabled={
-              saving
-            }
-          >
+          <Button onClick={onClose} disabled={saving}>
             Cancel
           </Button>
 
-          {(
-            !editing ||
-            canUpdate
-          ) ? (
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={
-                saving
-              }
-            >
+          {!editing || canUpdate ? (
+            <Button type="submit" variant="contained" disabled={saving}>
               {saving
-                ? 'Saving...'
+                ? "Saving..."
                 : editing
-                  ? 'Save changes'
-                  : 'Report incident'}
+                  ? "Save changes"
+                  : "Report incident"}
             </Button>
           ) : null}
         </DialogActions>

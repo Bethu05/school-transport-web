@@ -1,72 +1,44 @@
-const apiUrl = (
-  process.env.VITE_API_URL ??
-  'http://localhost:3000'
-).replace(/\/$/, '');
+const apiUrl = (process.env.VITE_API_URL ?? "http://localhost:3000").replace(
+  /\/$/,
+  "",
+);
 
-const email =
-  process.env.VITE_DEV_ADMIN_EMAIL;
+const email = process.env.VITE_DEV_ADMIN_EMAIL;
 
-const password =
-  process.env.VITE_DEV_PASSWORD;
+const password = process.env.VITE_DEV_PASSWORD;
 
-const tenantId =
-  process.env.VITE_DEV_TENANT_ID;
+const tenantId = process.env.VITE_DEV_TENANT_ID;
 
-const licenseNumber =
-  'WEB-DRIVER-CRUD-CHECKPOINT';
+const licenseNumber = "WEB-DRIVER-CRUD-CHECKPOINT";
 
-const initialLicenseExpiryDate =
-  '2030-12-31';
+const initialLicenseExpiryDate = "2030-12-31";
 
-const updatedLicenseExpiryDate =
-  '2031-12-31';
+const updatedLicenseExpiryDate = "2031-12-31";
 
-const BUSINESS_TIME_ZONE =
-  'Africa/Nairobi';
+const BUSINESS_TIME_ZONE = "Africa/Nairobi";
 
-function required(
-  name,
-  value,
-) {
+function required(name, value) {
   if (!value) {
-    throw new Error(
-      `${name} is required`,
-    );
+    throw new Error(`${name} is required`);
   }
 
   return value;
 }
 
-required(
-  'VITE_DEV_ADMIN_EMAIL',
-  email,
-);
+required("VITE_DEV_ADMIN_EMAIL", email);
 
-required(
-  'VITE_DEV_PASSWORD',
-  password,
-);
+required("VITE_DEV_PASSWORD", password);
 
-required(
-  'VITE_DEV_TENANT_ID',
-  tenantId,
-);
+required("VITE_DEV_TENANT_ID", tenantId);
 
-async function readJson(
-  response,
-) {
-  const text =
-    await response.text();
+async function readJson(response) {
+  const text = await response.text();
 
   if (!response.ok) {
-    throw new Error(
-      `${response.status} ${response.statusText}\n${text}`,
-    );
+    throw new Error(`${response.status} ${response.statusText}\n${text}`);
   }
 
-  return text
-    ? JSON.parse(text)
-    : undefined;
+  return text ? JSON.parse(text) : undefined;
 }
 
 /**
@@ -87,11 +59,7 @@ async function readJson(
  * Therefore always compare licence dates using the
  * business timezone.
  */
-function calendarDateInTimeZone(
-  value,
-  timeZone =
-    BUSINESS_TIME_ZONE,
-) {
+function calendarDateInTimeZone(value, timeZone = BUSINESS_TIME_ZONE) {
   if (!value) {
     return null;
   }
@@ -100,72 +68,33 @@ function calendarDateInTimeZone(
    * If the API already returns an ordinary YYYY-MM-DD
    * date, there is nothing to convert.
    */
-  if (
-    typeof value ===
-      'string' &&
-    /^\d{4}-\d{2}-\d{2}$/.test(
-      value,
-    )
-  ) {
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return value;
   }
 
-  const date =
-    new Date(value);
+  const date = new Date(value);
 
-  if (
-    Number.isNaN(
-      date.getTime(),
-    )
-  ) {
+  if (Number.isNaN(date.getTime())) {
     return null;
   }
 
-  const parts =
-    new Intl.DateTimeFormat(
-      'en-GB',
-      {
-        timeZone,
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
 
-        year:
-          'numeric',
+    year: "numeric",
 
-        month:
-          '2-digit',
+    month: "2-digit",
 
-        day:
-          '2-digit',
-      },
-    ).formatToParts(
-      date,
-    );
+    day: "2-digit",
+  }).formatToParts(date);
 
-  const year =
-    parts.find(
-      (part) =>
-        part.type ===
-        'year',
-    )?.value;
+  const year = parts.find((part) => part.type === "year")?.value;
 
-  const month =
-    parts.find(
-      (part) =>
-        part.type ===
-        'month',
-    )?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
 
-  const day =
-    parts.find(
-      (part) =>
-        part.type ===
-        'day',
-    )?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
 
-  if (
-    !year ||
-    !month ||
-    !day
-  ) {
+  if (!year || !month || !day) {
     return null;
   }
 
@@ -178,41 +107,18 @@ function calendarDateInTimeZone(
  * Keeping this helper makes the checkpoint easy to
  * adapt if the backend representation changes later.
  */
-function getLicenseExpiry(
-  driver,
-) {
-  return (
-    driver
-      ?.licenseExpiryDate ??
-    driver
-      ?.licenseExpiry ??
-    null
-  );
+function getLicenseExpiry(driver) {
+  return driver?.licenseExpiryDate ?? driver?.licenseExpiry ?? null;
 }
 
-function assertLicenseExpiry(
-  driver,
-  expected,
-  context,
-) {
-  const raw =
-    getLicenseExpiry(
-      driver,
-    );
+function assertLicenseExpiry(driver, expected, context) {
+  const raw = getLicenseExpiry(driver);
 
-  const actual =
-    calendarDateInTimeZone(
-      raw,
-    );
+  const actual = calendarDateInTimeZone(raw);
 
-  if (
-    actual !==
-    expected
-  ) {
+  if (actual !== expected) {
     throw new Error(
-      `${context}: expected ${expected}, received ${String(
-        raw,
-      )} -> ${String(
+      `${context}: expected ${expected}, received ${String(raw)} -> ${String(
         actual,
       )}`,
     );
@@ -224,59 +130,37 @@ function assertLicenseExpiry(
   };
 }
 
-console.log(
-  'Drivers CRUD API checkpoint',
-);
+console.log("Drivers CRUD API checkpoint");
 
-console.log(
-  '---------------------------',
-);
+console.log("---------------------------");
 
 /**
  * ========================================================
  * LOGIN
  * ========================================================
  */
-const loginResponse =
-  await fetch(
-    `${apiUrl}/auth/login`,
-    {
-      method:
-        'POST',
+const loginResponse = await fetch(`${apiUrl}/auth/login`, {
+  method: "POST",
 
-      headers: {
-        Accept:
-          'application/json',
+  headers: {
+    Accept: "application/json",
 
-        'Content-Type':
-          'application/json',
-      },
+    "Content-Type": "application/json",
+  },
 
-      body:
-        JSON.stringify({
-          email,
-          password,
-        }),
-    },
-  );
+  body: JSON.stringify({
+    email,
+    password,
+  }),
+});
 
-const login =
-  await readJson(
-    loginResponse,
-  );
+const login = await readJson(loginResponse);
 
-const token =
-  login
-    ?.accessToken;
+const token = login?.accessToken;
 
-required(
-  'accessToken',
-  token,
-);
+required("accessToken", token);
 
-console.log(
-  '✓ administrator login',
-);
+console.log("✓ administrator login");
 
 /**
  * Bodyless requests.
@@ -284,14 +168,11 @@ console.log(
  * No Content-Type header.
  */
 const baseHeaders = {
-  Authorization:
-    `Bearer ${token}`,
+  Authorization: `Bearer ${token}`,
 
-  'x-tenant-id':
-    tenantId,
+  "x-tenant-id": tenantId,
 
-  Accept:
-    'application/json',
+  Accept: "application/json",
 };
 
 /**
@@ -300,8 +181,7 @@ const baseHeaders = {
 const jsonHeaders = {
   ...baseHeaders,
 
-  'Content-Type':
-    'application/json',
+  "Content-Type": "application/json",
 };
 
 /**
@@ -310,51 +190,29 @@ const jsonHeaders = {
  * ========================================================
  */
 async function loadDrivers() {
-  const response =
-    await fetch(
-      `${apiUrl}/drivers`,
-      {
-        headers:
-          baseHeaders,
-      },
-    );
+  const response = await fetch(`${apiUrl}/drivers`, {
+    headers: baseHeaders,
+  });
 
-  const result =
-    await readJson(
-      response,
-    );
+  const result = await readJson(response);
 
-  if (
-    !Array.isArray(
-      result,
-    )
-  ) {
-    throw new Error(
-      'GET /drivers must return an array',
-    );
+  if (!Array.isArray(result)) {
+    throw new Error("GET /drivers must return an array");
   }
 
   return result;
 }
 
-let drivers =
-  await loadDrivers();
+let drivers = await loadDrivers();
 
-console.log(
-  '✓ drivers list loaded',
-);
+console.log("✓ drivers list loaded");
 
 /**
  * ========================================================
  * FIND REUSABLE FIXTURE
  * ========================================================
  */
-let driver =
-  drivers.find(
-    (item) =>
-      item.licenseNumber ===
-      licenseNumber,
-  );
+let driver = drivers.find((item) => item.licenseNumber === licenseNumber);
 
 /**
  * ========================================================
@@ -362,66 +220,37 @@ let driver =
  * ========================================================
  */
 if (!driver) {
-  const createResponse =
-    await fetch(
-      `${apiUrl}/drivers`,
-      {
-        method:
-          'POST',
+  const createResponse = await fetch(`${apiUrl}/drivers`, {
+    method: "POST",
 
-        headers:
-          jsonHeaders,
+    headers: jsonHeaders,
 
-        body:
-          JSON.stringify({
-            firstName:
-              'Web',
+    body: JSON.stringify({
+      firstName: "Web",
 
-            lastName:
-              'Checkpoint',
+      lastName: "Checkpoint",
 
-            licenseNumber,
+      licenseNumber,
 
-            licenseExpiryDate:
-              initialLicenseExpiryDate,
+      licenseExpiryDate: initialLicenseExpiryDate,
 
-            status:
-              'active',
-          }),
-      },
-    );
+      status: "active",
+    }),
+  });
 
-  driver =
-    await readJson(
-      createResponse,
-    );
+  driver = await readJson(createResponse);
 
-  console.log(
-    '✓ driver created',
-  );
+  console.log("✓ driver created");
 } else {
-  console.log(
-    '✓ existing checkpoint driver found',
-  );
+  console.log("✓ existing checkpoint driver found");
 }
 
-if (
-  !driver ||
-  typeof driver.id !==
-    'string'
-) {
-  throw new Error(
-    'Checkpoint driver response is invalid',
-  );
+if (!driver || typeof driver.id !== "string") {
+  throw new Error("Checkpoint driver response is invalid");
 }
 
-if (
-  driver.tenantId !==
-  tenantId
-) {
-  throw new Error(
-    'Driver belongs to another tenant',
-  );
+if (driver.tenantId !== tenantId) {
+  throw new Error("Driver belongs to another tenant");
 }
 
 /**
@@ -429,122 +258,74 @@ if (
  * RESET FIXTURE
  * ========================================================
  */
-const resetResponse =
-  await fetch(
-    `${apiUrl}/drivers/${driver.id}`,
-    {
-      method:
-        'PATCH',
+const resetResponse = await fetch(`${apiUrl}/drivers/${driver.id}`, {
+  method: "PATCH",
 
-      headers:
-        jsonHeaders,
+  headers: jsonHeaders,
 
-      body:
-        JSON.stringify({
-          firstName:
-            'Web',
+  body: JSON.stringify({
+    firstName: "Web",
 
-          lastName:
-            'Checkpoint',
+    lastName: "Checkpoint",
 
-          licenseExpiryDate:
-            initialLicenseExpiryDate,
+    licenseExpiryDate: initialLicenseExpiryDate,
 
-          status:
-            'active',
-        }),
-    },
-  );
+    status: "active",
+  }),
+});
 
-const resetDriver =
-  await readJson(
-    resetResponse,
-  );
+const resetDriver = await readJson(resetResponse);
 
-if (
-  resetDriver.status !==
-  'active'
-) {
-  throw new Error(
-    'Driver could not be reset to active',
-  );
+if (resetDriver.status !== "active") {
+  throw new Error("Driver could not be reset to active");
 }
 
 assertLicenseExpiry(
   resetDriver,
   initialLicenseExpiryDate,
-  'Reset licence expiry failed',
+  "Reset licence expiry failed",
 );
 
-console.log(
-  '✓ driver activated/reset',
-);
+console.log("✓ driver activated/reset");
 
 /**
  * ========================================================
  * UPDATE
  * ========================================================
  */
-const updateResponse =
-  await fetch(
-    `${apiUrl}/drivers/${driver.id}`,
-    {
-      method:
-        'PATCH',
+const updateResponse = await fetch(`${apiUrl}/drivers/${driver.id}`, {
+  method: "PATCH",
 
-      headers:
-        jsonHeaders,
+  headers: jsonHeaders,
 
-      body:
-        JSON.stringify({
-          firstName:
-            'Web',
+  body: JSON.stringify({
+    firstName: "Web",
 
-          lastName:
-            'Checkpoint Updated',
+    lastName: "Checkpoint Updated",
 
-          phone:
-            '+254700999999',
+    phone: "+254700999999",
 
-          licenseExpiryDate:
-            updatedLicenseExpiryDate,
-        }),
-    },
-  );
+    licenseExpiryDate: updatedLicenseExpiryDate,
+  }),
+});
 
-const updated =
-  await readJson(
-    updateResponse,
-  );
+const updated = await readJson(updateResponse);
 
-if (
-  updated.lastName !==
-  'Checkpoint Updated'
-) {
-  throw new Error(
-    'Driver last name update was not persisted',
-  );
+if (updated.lastName !== "Checkpoint Updated") {
+  throw new Error("Driver last name update was not persisted");
 }
 
-if (
-  updated.phone !==
-  '+254700999999'
-) {
-  throw new Error(
-    'Driver phone update was not persisted',
-  );
+if (updated.phone !== "+254700999999") {
+  throw new Error("Driver phone update was not persisted");
 }
 
-const updateExpiry =
-  assertLicenseExpiry(
-    updated,
-    updatedLicenseExpiryDate,
-    'Driver licence expiry update failed',
-  );
-
-console.log(
-  '✓ driver updated',
+const updateExpiry = assertLicenseExpiry(
+  updated,
+  updatedLicenseExpiryDate,
+  "Driver licence expiry update failed",
 );
+
+console.log("✓ driver updated");
 
 console.log(
   `✓ licence expiry: ${String(
@@ -557,143 +338,83 @@ console.log(
  * VERIFY THROUGH GET /drivers
  * ========================================================
  */
-drivers =
-  await loadDrivers();
+drivers = await loadDrivers();
 
-const reread =
-  drivers.find(
-    (item) =>
-      item.id ===
-      driver.id,
-  );
+const reread = drivers.find((item) => item.id === driver.id);
 
 if (!reread) {
-  throw new Error(
-    'Updated driver disappeared from GET /drivers',
-  );
+  throw new Error("Updated driver disappeared from GET /drivers");
 }
 
-if (
-  reread.lastName !==
-  'Checkpoint Updated'
-) {
-  throw new Error(
-    'Updated driver name was not returned by GET /drivers',
-  );
+if (reread.lastName !== "Checkpoint Updated") {
+  throw new Error("Updated driver name was not returned by GET /drivers");
 }
 
-if (
-  reread.phone !==
-  '+254700999999'
-) {
-  throw new Error(
-    'Updated driver phone was not returned by GET /drivers',
-  );
+if (reread.phone !== "+254700999999") {
+  throw new Error("Updated driver phone was not returned by GET /drivers");
 }
 
 assertLicenseExpiry(
   reread,
   updatedLicenseExpiryDate,
-  'Persisted licence expiry verification failed',
+  "Persisted licence expiry verification failed",
 );
 
-console.log(
-  '✓ driver update verified',
-);
+console.log("✓ driver update verified");
 
 /**
  * ========================================================
  * DEACTIVATE
  * ========================================================
  */
-const deactivateResponse =
-  await fetch(
-    `${apiUrl}/drivers/${driver.id}`,
-    {
-      method:
-        'DELETE',
+const deactivateResponse = await fetch(`${apiUrl}/drivers/${driver.id}`, {
+  method: "DELETE",
 
-      headers:
-        baseHeaders,
-    },
-  );
+  headers: baseHeaders,
+});
 
-const deactivated =
-  await readJson(
-    deactivateResponse,
-  );
+const deactivated = await readJson(deactivateResponse);
 
-if (
-  deactivated.status !==
-  'inactive'
-) {
+if (deactivated.status !== "inactive") {
   throw new Error(
     `Expected inactive status after deactivation, received: ${deactivated.status}`,
   );
 }
 
-console.log(
-  '✓ driver deactivated',
-);
+console.log("✓ driver deactivated");
 
 /**
  * ========================================================
  * VERIFY DEACTIVATION
  * ========================================================
  */
-drivers =
-  await loadDrivers();
+drivers = await loadDrivers();
 
-const verified =
-  drivers.find(
-    (item) =>
-      item.id ===
-      driver.id,
-  );
+const verified = drivers.find((item) => item.id === driver.id);
 
 if (!verified) {
-  throw new Error(
-    'Deactivated driver should remain in historical records',
-  );
+  throw new Error("Deactivated driver should remain in historical records");
 }
 
-if (
-  verified.status !==
-  'inactive'
-) {
-  throw new Error(
-    'Driver deactivation was not persisted',
-  );
+if (verified.status !== "inactive") {
+  throw new Error("Driver deactivation was not persisted");
 }
 
-console.log(
-  '✓ deactivation persisted',
-);
+console.log("✓ deactivation persisted");
 
 /**
  * ========================================================
  * TENANT ISOLATION
  * ========================================================
  */
-for (
-  const item of drivers
-) {
-  if (
-    item.tenantId !==
-    tenantId
-  ) {
-    throw new Error(
-      `Cross-tenant driver returned: ${item.id}`,
-    );
+for (const item of drivers) {
+  if (item.tenantId !== tenantId) {
+    throw new Error(`Cross-tenant driver returned: ${item.id}`);
   }
 }
 
-console.log(
-  '✓ tenant isolation response',
-);
+console.log("✓ tenant isolation response");
 
 console.log();
 
-console.log(
-  'Drivers CRUD API checkpoint PASSED',
-);
+console.log("Drivers CRUD API checkpoint PASSED");

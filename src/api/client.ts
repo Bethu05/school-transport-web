@@ -1,39 +1,20 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ??
-  'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
-const ACCESS_TOKEN_KEY =
-  'school_transport_access_token';
+const ACCESS_TOKEN_KEY = "school_transport_access_token";
 
-export function getAccessToken():
-  | string
-  | null {
-  return localStorage.getItem(
-    ACCESS_TOKEN_KEY,
-  );
+export function getAccessToken(): string | null {
+  return localStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
-export function setAccessToken(
-  token: string,
-): void {
-  localStorage.setItem(
-    ACCESS_TOKEN_KEY,
-    token,
-  );
+export function setAccessToken(token: string): void {
+  localStorage.setItem(ACCESS_TOKEN_KEY, token);
 }
 
-export function clearAccessToken():
-  void {
-  localStorage.removeItem(
-    ACCESS_TOKEN_KEY,
-  );
+export function clearAccessToken(): void {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
 }
 
-interface ApiRequestOptions
-  extends Omit<
-    RequestInit,
-    'headers'
-  > {
+interface ApiRequestOptions extends Omit<RequestInit, "headers"> {
   tenantId?: string;
 
   /**
@@ -50,38 +31,20 @@ interface ApiRequestOptions
  * Convert API error responses into one useful
  * browser Error message.
  */
-function apiErrorMessage(
-  body: unknown,
-  fallback: string,
-): string {
-  if (
-    typeof body ===
-    'object' &&
-    body !== null &&
-    'message' in body
-  ) {
-    const message =
-      (
-        body as {
-          message?: unknown;
-        }
-      ).message;
+function apiErrorMessage(body: unknown, fallback: string): string {
+  if (typeof body === "object" && body !== null && "message" in body) {
+    const message = (
+      body as {
+        message?: unknown;
+      }
+    ).message;
 
-    if (
-      typeof message ===
-      'string'
-    ) {
+    if (typeof message === "string") {
       return message;
     }
 
-    if (
-      Array.isArray(
-        message,
-      )
-    ) {
-      return message
-        .map(String)
-        .join(', ');
+    if (Array.isArray(message)) {
+      return message.map(String).join(", ");
     }
   }
 
@@ -104,26 +67,18 @@ function apiErrorMessage(
  */
 export async function apiRequest<T>(
   path: string,
-  options:
-    ApiRequestOptions = {},
+  options: ApiRequestOptions = {},
 ): Promise<T> {
   const {
     tenantId,
     auth = true,
-    headers:
-      suppliedHeaders,
+    headers: suppliedHeaders,
     ...requestOptions
   } = options;
 
-  const headers =
-    new Headers(
-      suppliedHeaders,
-    );
+  const headers = new Headers(suppliedHeaders);
 
-  headers.set(
-    'Accept',
-    'application/json',
-  );
+  headers.set("Accept", "application/json");
 
   /**
    * Only advertise JSON when there is actually
@@ -135,108 +90,67 @@ export async function apiRequest<T>(
    * DELETE /vehicles/:id
    */
   if (
-    requestOptions.body !==
-      undefined &&
-    requestOptions.body !==
-      null &&
-    !headers.has(
-      'Content-Type',
-    )
+    requestOptions.body !== undefined &&
+    requestOptions.body !== null &&
+    !headers.has("Content-Type")
   ) {
     const isFormData =
-      typeof FormData !==
-        'undefined' &&
-      requestOptions.body instanceof
-        FormData;
+      typeof FormData !== "undefined" &&
+      requestOptions.body instanceof FormData;
 
     if (!isFormData) {
-      headers.set(
-        'Content-Type',
-        'application/json',
-      );
+      headers.set("Content-Type", "application/json");
     }
   }
 
   if (auth) {
-    const token =
-      getAccessToken();
+    const token = getAccessToken();
 
     if (token) {
-      headers.set(
-        'Authorization',
-        `Bearer ${token}`,
-      );
+      headers.set("Authorization", `Bearer ${token}`);
     }
   }
 
   if (tenantId) {
-    headers.set(
-      'x-tenant-id',
-      tenantId,
-    );
+    headers.set("x-tenant-id", tenantId);
   }
 
-  const response =
-    await fetch(
-      `${API_BASE_URL}${path}`,
-      {
-        ...requestOptions,
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...requestOptions,
 
-        headers,
-      },
-    );
+    headers,
+  });
 
   /**
    * Some REST actions legitimately return no body.
    */
-  if (
-    response.status ===
-    204
-  ) {
+  if (response.status === 204) {
     if (!response.ok) {
-      throw new Error(
-        `${response.status} ${response.statusText}`,
-      );
+      throw new Error(`${response.status} ${response.statusText}`);
     }
 
     return undefined as T;
   }
 
-  const contentType =
-    response.headers.get(
-      'content-type',
-    );
+  const contentType = response.headers.get("content-type");
 
   let body: unknown;
 
-  if (
-    contentType?.includes(
-      'application/json',
-    )
-  ) {
-    body =
-      await response.json();
+  if (contentType?.includes("application/json")) {
+    body = await response.json();
   } else {
-    const text =
-      await response.text();
+    const text = await response.text();
 
-    body =
-      text || undefined;
+    body = text || undefined;
   }
 
   if (!response.ok) {
     const fallback =
-      typeof body ===
-      'string'
+      typeof body === "string"
         ? body
         : `${response.status} ${response.statusText}`;
 
-    throw new Error(
-      apiErrorMessage(
-        body,
-        fallback,
-      ),
-    );
+    throw new Error(apiErrorMessage(body, fallback));
   }
 
   return body as T;

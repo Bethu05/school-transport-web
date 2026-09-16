@@ -1,6 +1,4 @@
-import {
-  useState,
-} from 'react';
+import { useState } from "react";
 
 import {
   Alert,
@@ -15,23 +13,17 @@ import {
   Switch,
   TextField,
   Typography,
-} from '@mui/material';
+} from "@mui/material";
 
 import {
   CheckCircleOutlineRounded,
   NotificationsNoneRounded,
   SettingsRounded,
-} from '@mui/icons-material';
+} from "@mui/icons-material";
 
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import {
-  useAuth,
-} from '../auth/AuthProvider';
+import { useAuth } from "../auth/AuthProvider";
 
 import {
   getMyNotificationPreferences,
@@ -40,295 +32,154 @@ import {
   updateMyNotificationPreferences,
   type NotificationType,
   type UpdateNotificationPreferencesInput,
-} from './notifications.api';
+} from "./notifications.api";
 
-const PAGE_SIZES = [
-  10,
-  25,
-  50,
-  100,
-] as const;
+const PAGE_SIZES = [10, 25, 50, 100] as const;
 
-function errorMessage(
-  error:
-    unknown,
-): string {
-  return error instanceof
-    Error
+function errorMessage(error: unknown): string {
+  return error instanceof Error
     ? error.message
-    : 'The operation could not be completed.';
+    : "The operation could not be completed.";
 }
 
-function formatDateTime(
-  value:
-    string,
-): string {
-  const date =
-    new Date(
-      value,
-    );
+function formatDateTime(value: string): string {
+  const date = new Date(value);
 
-  if (
-    Number.isNaN(
-      date.getTime(),
-    )
-  ) {
+  if (Number.isNaN(date.getTime())) {
     return value;
   }
 
-  return new Intl.DateTimeFormat(
-    'en-GB',
-    {
-      dateStyle:
-        'medium',
+  return new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium",
 
-      timeStyle:
-        'short',
+    timeStyle: "short",
 
-      timeZone:
-        'Africa/Nairobi',
-    },
-  ).format(
-    date,
-  );
+    timeZone: "Africa/Nairobi",
+  }).format(date);
 }
 
-function notificationTypeLabel(
-  type:
-    NotificationType,
-): string {
-  switch (
-    type
-  ) {
-    case 'student.boarded':
-      return 'Boarded';
+function notificationTypeLabel(type: NotificationType): string {
+  switch (type) {
+    case "student.boarded":
+      return "Boarded";
 
-    case 'student.dropped_off':
-      return 'Dropped off';
+    case "student.dropped_off":
+      return "Dropped off";
   }
 }
 
 export function NotificationsPage() {
-  const {
-    tenant,
-  } =
-    useAuth();
+  const { tenant } = useAuth();
 
-  const queryClient =
-    useQueryClient();
+  const queryClient = useQueryClient();
 
-  const tenantId =
-    tenant?.tenantId;
+  const tenantId = tenant?.tenantId;
 
-  const [
-    limit,
-    setLimit,
-  ] =
-    useState<
-      number
-    >(25);
+  const [limit, setLimit] = useState<number>(25);
 
-  const [
-    cursor,
-    setCursor,
-  ] =
-    useState<
-      string | null
-    >(null);
+  const [cursor, setCursor] = useState<string | null>(null);
 
-  const [
-    cursorHistory,
-    setCursorHistory,
-  ] =
-    useState<
-      Array<
-        string | null
-      >
-    >([]);
+  const [cursorHistory, setCursorHistory] = useState<Array<string | null>>([]);
 
-  const [
-    successMessage,
-    setSuccessMessage,
-  ] =
-    useState<
-      string | null
-    >(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  function resetPaging():
-    void {
-    setCursor(
-      null,
-    );
+  function resetPaging(): void {
+    setCursor(null);
 
-    setCursorHistory(
-      [],
-    );
+    setCursorHistory([]);
   }
 
-  const notificationsQuery =
-    useQuery({
-      queryKey: [
-        'my-notifications',
-        tenantId,
+  const notificationsQuery = useQuery({
+    queryKey: ["my-notifications", tenantId, limit, cursor],
+
+    enabled: Boolean(tenantId),
+
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
+
+      return listMyNotifications(tenantId, {
         limit,
-        cursor,
-      ],
 
-      enabled:
-        Boolean(
-          tenantId,
-        ),
+        cursor: cursor ?? undefined,
+      });
+    },
+  });
 
-      queryFn:
-        async () => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+  const preferencesQuery = useQuery({
+    queryKey: ["my-notification-preferences", tenantId],
 
-          return listMyNotifications(
-            tenantId,
-            {
-              limit,
+    enabled: Boolean(tenantId),
 
-              cursor:
-                cursor ??
-                undefined,
-            },
-          );
-        },
-    });
+    retry: false,
 
-  const preferencesQuery =
-    useQuery({
-      queryKey: [
-        'my-notification-preferences',
-        tenantId,
-      ],
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-      enabled:
-        Boolean(
-          tenantId,
-        ),
+      return getMyNotificationPreferences(tenantId);
+    },
+  });
 
-      retry:
-        false,
+  const markReadMutation = useMutation({
+    mutationFn: async (notificationId: string) => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-      queryFn:
-        async () => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+      return markNotificationRead(tenantId, notificationId);
+    },
 
-          return getMyNotificationPreferences(
-            tenantId,
-          );
-        },
-    });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["my-notifications"],
+      });
+    },
+  });
 
-  const markReadMutation =
-    useMutation({
-      mutationFn:
-        async (
-          notificationId:
-            string,
-        ) => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+  const preferenceMutation = useMutation({
+    mutationFn: async (input: UpdateNotificationPreferencesInput) => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-          return markNotificationRead(
-            tenantId,
-            notificationId,
-          );
-        },
+      return updateMyNotificationPreferences(tenantId, input);
+    },
 
-      onSuccess:
-        async () => {
-          await queryClient
-            .invalidateQueries({
-              queryKey: [
-                'my-notifications',
-              ],
-            });
-        },
-    });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["my-notification-preferences"],
+      });
 
-  const preferenceMutation =
-    useMutation({
-      mutationFn:
-        async (
-          input:
-            UpdateNotificationPreferencesInput,
-        ) => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+      setSuccessMessage("Notification preferences updated.");
+    },
+  });
 
-          return updateMyNotificationPreferences(
-            tenantId,
-            input,
-          );
-        },
+  const notifications = notificationsQuery.data?.items ?? [];
 
-      onSuccess:
-        async () => {
-          await queryClient
-            .invalidateQueries({
-              queryKey: [
-                'my-notification-preferences',
-              ],
-            });
+  const unreadCount = notifications.filter(
+    (notification) => !notification.readAt,
+  ).length;
 
-          setSuccessMessage(
-            'Notification preferences updated.',
-          );
-        },
-    });
-
-  const notifications =
-    notificationsQuery
-      .data
-      ?.items ??
-    [];
-
-  const unreadCount =
-    notifications.filter(
-      (
-        notification,
-      ) =>
-        !notification.readAt,
-    ).length;
-
-  const preferences =
-    preferencesQuery.data;
+  const preferences = preferencesQuery.data;
 
   return (
     <Box>
       <Box
         sx={{
-          mb:
-            3,
+          mb: 3,
         }}
       >
         <Typography
           component="h1"
           sx={{
-            fontSize:
-              26,
+            fontSize: 26,
 
-            fontWeight:
-              850,
+            fontWeight: 850,
 
-            letterSpacing:
-              '-0.03em',
+            letterSpacing: "-0.03em",
           }}
         >
           Notifications
@@ -336,14 +187,11 @@ export function NotificationsPage() {
 
         <Typography
           sx={{
-            mt:
-              0.5,
+            mt: 0.5,
 
-            color:
-              'text.secondary',
+            color: "text.secondary",
 
-            fontSize:
-              13.5,
+            fontSize: 13.5,
           }}
         >
           Your personal school transport notification inbox.
@@ -352,22 +200,17 @@ export function NotificationsPage() {
 
       <Box
         sx={{
-          display:
-            'grid',
+          display: "grid",
 
           gridTemplateColumns: {
-            xs:
-              '1fr',
+            xs: "1fr",
 
-            lg:
-              'minmax(0, 2fr) minmax(280px, 1fr)',
+            lg: "minmax(0, 2fr) minmax(280px, 1fr)",
           },
 
-          gap:
-            2.5,
+          gap: 2.5,
 
-          alignItems:
-            'start',
+          alignItems: "start",
         }}
       >
         {/* ====================================================
@@ -376,45 +219,32 @@ export function NotificationsPage() {
 
         <Box>
           <Paper
-            elevation={
-              0
-            }
+            elevation={0}
             sx={{
-              mb:
-                2,
+              mb: 2,
 
-              p:
-                2,
+              p: 2,
 
-              display:
-                'flex',
+              display: "flex",
 
-              justifyContent:
-                'space-between',
+              justifyContent: "space-between",
 
-              alignItems:
-                'center',
+              alignItems: "center",
 
-              gap:
-                2,
+              gap: 2,
 
-              border:
-                '1px solid',
+              border: "1px solid",
 
-              borderColor:
-                'divider',
+              borderColor: "divider",
             }}
           >
             <Box
               sx={{
-                display:
-                  'flex',
+                display: "flex",
 
-                alignItems:
-                  'center',
+                alignItems: "center",
 
-                gap:
-                  1.25,
+                gap: 1.25,
               }}
             >
               <NotificationsNoneRounded />
@@ -422,8 +252,7 @@ export function NotificationsPage() {
               <Box>
                 <Typography
                   sx={{
-                    fontWeight:
-                      800,
+                    fontWeight: 800,
                   }}
                 >
                   Inbox
@@ -431,11 +260,9 @@ export function NotificationsPage() {
 
                 <Typography
                   sx={{
-                    color:
-                      'text.secondary',
+                    color: "text.secondary",
 
-                    fontSize:
-                      11.5,
+                    fontSize: 11.5,
                   }}
                 >
                   {unreadCount} unread on this page
@@ -447,63 +274,35 @@ export function NotificationsPage() {
               select
               size="small"
               label="Rows"
-              value={
-                limit
-              }
-              onChange={(
-                event,
-              ) => {
-                setLimit(
-                  Number(
-                    event.target
-                      .value,
-                  ),
-                );
+              value={limit}
+              onChange={(event) => {
+                setLimit(Number(event.target.value));
 
                 resetPaging();
               }}
               sx={{
-                width:
-                  100,
+                width: 100,
               }}
             >
-              {PAGE_SIZES.map(
-                (
-                  size,
-                ) => (
-                  <MenuItem
-                    key={
-                      size
-                    }
-                    value={
-                      size
-                    }
-                  >
-                    {size}
-                  </MenuItem>
-                ),
-              )}
+              {PAGE_SIZES.map((size) => (
+                <MenuItem key={size} value={size}>
+                  {size}
+                </MenuItem>
+              ))}
             </TextField>
           </Paper>
 
           {notificationsQuery.isLoading ? (
             <Box
               sx={{
-                py:
-                  6,
+                py: 6,
 
-                display:
-                  'grid',
+                display: "grid",
 
-                placeItems:
-                  'center',
+                placeItems: "center",
               }}
             >
-              <CircularProgress
-                size={
-                  28
-                }
-              />
+              <CircularProgress size={28} />
             </Box>
           ) : null}
 
@@ -511,55 +310,41 @@ export function NotificationsPage() {
             <Alert
               severity="error"
               sx={{
-                mb:
-                  2,
+                mb: 2,
               }}
             >
-              {errorMessage(
-                notificationsQuery.error,
-              )}
+              {errorMessage(notificationsQuery.error)}
             </Alert>
           ) : null}
 
           {!notificationsQuery.isLoading &&
           !notificationsQuery.isError &&
-          notifications.length ===
-            0 ? (
+          notifications.length === 0 ? (
             <Paper
-              elevation={
-                0
-              }
+              elevation={0}
               sx={{
-                p:
-                  4,
+                p: 4,
 
-                textAlign:
-                  'center',
+                textAlign: "center",
 
-                border:
-                  '1px solid',
+                border: "1px solid",
 
-                borderColor:
-                  'divider',
+                borderColor: "divider",
               }}
             >
               <NotificationsNoneRounded
                 sx={{
-                  fontSize:
-                    36,
+                  fontSize: 36,
 
-                  color:
-                    'text.secondary',
+                  color: "text.secondary",
                 }}
               />
 
               <Typography
                 sx={{
-                  mt:
-                    1,
+                  mt: 1,
 
-                  fontWeight:
-                    800,
+                  fontWeight: 800,
                 }}
               >
                 No notifications
@@ -567,277 +352,178 @@ export function NotificationsPage() {
 
               <Typography
                 sx={{
-                  mt:
-                    0.5,
+                  mt: 0.5,
 
-                  color:
-                    'text.secondary',
+                  color: "text.secondary",
 
-                  fontSize:
-                    12.5,
+                  fontSize: 12.5,
                 }}
               >
-                New transport updates linked to your guardian profile will appear here.
+                New transport updates linked to your guardian profile will
+                appear here.
               </Typography>
             </Paper>
           ) : null}
 
-          {notifications.map(
-            (
-              notification,
-            ) => {
-              const unread =
-                !notification.readAt;
+          {notifications.map((notification) => {
+            const unread = !notification.readAt;
 
-              return (
-                <Paper
-                  key={
-                    notification.id
-                  }
-                  elevation={
-                    0
-                  }
+            return (
+              <Paper
+                key={notification.id}
+                elevation={0}
+                sx={{
+                  mb: 1.5,
+
+                  p: 2.25,
+
+                  border: "1px solid",
+
+                  borderColor: unread ? "primary.main" : "divider",
+
+                  bgcolor: unread ? "action.hover" : "background.paper",
+                }}
+              >
+                <Box
                   sx={{
-                    mb:
-                      1.5,
+                    display: "flex",
 
-                    p:
-                      2.25,
+                    justifyContent: "space-between",
 
-                    border:
-                      '1px solid',
+                    alignItems: {
+                      xs: "flex-start",
 
-                    borderColor:
-                      unread
-                        ? 'primary.main'
-                        : 'divider',
+                      sm: "center",
+                    },
 
-                    bgcolor:
-                      unread
-                        ? 'action.hover'
-                        : 'background.paper',
+                    flexDirection: {
+                      xs: "column",
+
+                      sm: "row",
+                    },
+
+                    gap: 1.5,
                   }}
                 >
                   <Box
                     sx={{
-                      display:
-                        'flex',
-
-                      justifyContent:
-                        'space-between',
-
-                      alignItems: {
-                        xs:
-                          'flex-start',
-
-                        sm:
-                          'center',
-                      },
-
-                      flexDirection: {
-                        xs:
-                          'column',
-
-                        sm:
-                          'row',
-                      },
-
-                      gap:
-                        1.5,
+                      minWidth: 0,
                     }}
                   >
                     <Box
                       sx={{
-                        minWidth:
-                          0,
+                        display: "flex",
+
+                        alignItems: "center",
+
+                        flexWrap: "wrap",
+
+                        gap: 1,
                       }}
                     >
-                      <Box
-                        sx={{
-                          display:
-                            'flex',
-
-                          alignItems:
-                            'center',
-
-                          flexWrap:
-                            'wrap',
-
-                          gap:
-                            1,
-                        }}
-                      >
-                        <Typography
-                          sx={{
-                            fontWeight:
-                              unread
-                                ? 850
-                                : 700,
-
-                            fontSize:
-                              14.5,
-                          }}
-                        >
-                          {notification.title}
-                        </Typography>
-
-                        <Chip
-                          size="small"
-                          label={
-                            notificationTypeLabel(
-                              notification.notificationType,
-                            )
-                          }
-                          variant="outlined"
-                        />
-
-                        {unread ? (
-                          <Chip
-                            size="small"
-                            label="Unread"
-                            color="primary"
-                          />
-                        ) : null}
-                      </Box>
-
                       <Typography
                         sx={{
-                          mt:
-                            1,
+                          fontWeight: unread ? 850 : 700,
 
-                          color:
-                            'text.secondary',
-
-                          fontSize:
-                            13,
-
-                          lineHeight:
-                            1.6,
+                          fontSize: 14.5,
                         }}
                       >
-                        {notification.body}
+                        {notification.title}
                       </Typography>
 
-                      <Typography
-                        sx={{
-                          mt:
-                            1,
-
-                          color:
-                            'text.secondary',
-
-                          fontSize:
-                            11.5,
-                        }}
-                      >
-                        {formatDateTime(
-                          notification.createdAt,
+                      <Chip
+                        size="small"
+                        label={notificationTypeLabel(
+                          notification.notificationType,
                         )}
-                      </Typography>
+                        variant="outlined"
+                      />
+
+                      {unread ? (
+                        <Chip size="small" label="Unread" color="primary" />
+                      ) : null}
                     </Box>
 
-                    {unread ? (
-                      <Button
-                        size="small"
-                        startIcon={
-                          <CheckCircleOutlineRounded />
-                        }
-                        disabled={
-                          markReadMutation
-                            .isPending
-                        }
-                        onClick={() =>
-                          markReadMutation
-                            .mutate(
-                              notification.id,
-                            )
-                        }
-                      >
-                        Mark read
-                      </Button>
-                    ) : null}
-                  </Box>
-                </Paper>
-              );
-            },
-          )}
+                    <Typography
+                      sx={{
+                        mt: 1,
 
-          {!notificationsQuery.isLoading &&
-          !notificationsQuery.isError ? (
+                        color: "text.secondary",
+
+                        fontSize: 13,
+
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      {notification.body}
+                    </Typography>
+
+                    <Typography
+                      sx={{
+                        mt: 1,
+
+                        color: "text.secondary",
+
+                        fontSize: 11.5,
+                      }}
+                    >
+                      {formatDateTime(notification.createdAt)}
+                    </Typography>
+                  </Box>
+
+                  {unread ? (
+                    <Button
+                      size="small"
+                      startIcon={<CheckCircleOutlineRounded />}
+                      disabled={markReadMutation.isPending}
+                      onClick={() => markReadMutation.mutate(notification.id)}
+                    >
+                      Mark read
+                    </Button>
+                  ) : null}
+                </Box>
+              </Paper>
+            );
+          })}
+
+          {!notificationsQuery.isLoading && !notificationsQuery.isError ? (
             <Box
               sx={{
-                mt:
-                  2,
+                mt: 2,
 
-                display:
-                  'flex',
+                display: "flex",
 
-                justifyContent:
-                  'space-between',
+                justifyContent: "space-between",
 
-                alignItems:
-                  'center',
+                alignItems: "center",
               }}
             >
               <Button
-                disabled={
-                  cursorHistory.length ===
-                  0
-                }
+                disabled={cursorHistory.length === 0}
                 onClick={() => {
                   const previous =
-                    cursorHistory[
-                      cursorHistory.length -
-                      1
-                    ] ??
-                    null;
+                    cursorHistory[cursorHistory.length - 1] ?? null;
 
-                  setCursorHistory(
-                    (
-                      history,
-                    ) =>
-                      history.slice(
-                        0,
-                        -1,
-                      ),
-                  );
+                  setCursorHistory((history) => history.slice(0, -1));
 
-                  setCursor(
-                    previous,
-                  );
+                  setCursor(previous);
                 }}
               >
                 Previous
               </Button>
 
               <Button
-                disabled={
-                  !notificationsQuery
-                    .data
-                    ?.nextCursor
-                }
+                disabled={!notificationsQuery.data?.nextCursor}
                 onClick={() => {
-                  const next =
-                    notificationsQuery
-                      .data
-                      ?.nextCursor;
+                  const next = notificationsQuery.data?.nextCursor;
 
                   if (!next) {
                     return;
                   }
 
-                  setCursorHistory(
-                    (
-                      history,
-                    ) => [
-                      ...history,
-                      cursor,
-                    ],
-                  );
+                  setCursorHistory((history) => [...history, cursor]);
 
-                  setCursor(
-                    next,
-                  );
+                  setCursor(next);
                 }}
               >
                 Next
@@ -849,13 +535,10 @@ export function NotificationsPage() {
             <Alert
               severity="error"
               sx={{
-                mt:
-                  2,
+                mt: 2,
               }}
             >
-              {errorMessage(
-                markReadMutation.error,
-              )}
+              {errorMessage(markReadMutation.error)}
             </Alert>
           ) : null}
         </Box>
@@ -865,41 +548,31 @@ export function NotificationsPage() {
             ==================================================== */}
 
         <Paper
-          elevation={
-            0
-          }
+          elevation={0}
           sx={{
-            p:
-              2.5,
+            p: 2.5,
 
-            border:
-              '1px solid',
+            border: "1px solid",
 
-            borderColor:
-              'divider',
+            borderColor: "divider",
           }}
         >
           <Box
             sx={{
-              mb:
-                2,
+              mb: 2,
 
-              display:
-                'flex',
+              display: "flex",
 
-              alignItems:
-                'center',
+              alignItems: "center",
 
-              gap:
-                1,
+              gap: 1,
             }}
           >
             <SettingsRounded />
 
             <Typography
               sx={{
-                fontWeight:
-                  850,
+                fontWeight: 850,
               }}
             >
               Preferences
@@ -909,61 +582,41 @@ export function NotificationsPage() {
           {preferencesQuery.isLoading ? (
             <Box
               sx={{
-                py:
-                  2,
+                py: 2,
 
-                display:
-                  'grid',
+                display: "grid",
 
-                placeItems:
-                  'center',
+                placeItems: "center",
               }}
             >
-              <CircularProgress
-                size={
-                  24
-                }
-              />
+              <CircularProgress size={24} />
             </Box>
           ) : null}
 
           {preferencesQuery.isError ? (
-            <Alert
-              severity="info"
-            >
-              Notification preferences are available when this account is linked to an active guardian profile.
+            <Alert severity="info">
+              Notification preferences are available when this account is linked
+              to an active guardian profile.
             </Alert>
           ) : null}
 
           {preferences ? (
             <Box
               sx={{
-                display:
-                  'grid',
+                display: "grid",
 
-                gap:
-                  1,
+                gap: 1,
               }}
             >
               <FormControlLabel
                 control={
                   <Switch
-                    checked={
-                      preferences.notifyBoarded
-                    }
-                    disabled={
-                      preferenceMutation
-                        .isPending
-                    }
-                    onChange={(
-                      _event,
-                      checked,
-                    ) =>
-                      preferenceMutation
-                        .mutate({
-                          notifyBoarded:
-                            checked,
-                        })
+                    checked={preferences.notifyBoarded}
+                    disabled={preferenceMutation.isPending}
+                    onChange={(_event, checked) =>
+                      preferenceMutation.mutate({
+                        notifyBoarded: checked,
+                      })
                     }
                   />
                 }
@@ -973,22 +626,12 @@ export function NotificationsPage() {
               <FormControlLabel
                 control={
                   <Switch
-                    checked={
-                      preferences.notifyDroppedOff
-                    }
-                    disabled={
-                      preferenceMutation
-                        .isPending
-                    }
-                    onChange={(
-                      _event,
-                      checked,
-                    ) =>
-                      preferenceMutation
-                        .mutate({
-                          notifyDroppedOff:
-                            checked,
-                        })
+                    checked={preferences.notifyDroppedOff}
+                    disabled={preferenceMutation.isPending}
+                    onChange={(_event, checked) =>
+                      preferenceMutation.mutate({
+                        notifyDroppedOff: checked,
+                      })
                     }
                   />
                 }
@@ -998,22 +641,12 @@ export function NotificationsPage() {
               <FormControlLabel
                 control={
                   <Switch
-                    checked={
-                      preferences.notifyTripUpdates
-                    }
-                    disabled={
-                      preferenceMutation
-                        .isPending
-                    }
-                    onChange={(
-                      _event,
-                      checked,
-                    ) =>
-                      preferenceMutation
-                        .mutate({
-                          notifyTripUpdates:
-                            checked,
-                        })
+                    checked={preferences.notifyTripUpdates}
+                    disabled={preferenceMutation.isPending}
+                    onChange={(_event, checked) =>
+                      preferenceMutation.mutate({
+                        notifyTripUpdates: checked,
+                      })
                     }
                   />
                 }
@@ -1022,20 +655,17 @@ export function NotificationsPage() {
 
               <Typography
                 sx={{
-                  mt:
-                    1,
+                  mt: 1,
 
-                  color:
-                    'text.secondary',
+                  color: "text.secondary",
 
-                  fontSize:
-                    11.5,
+                  fontSize: 11.5,
 
-                  lineHeight:
-                    1.6,
+                  lineHeight: 1.6,
                 }}
               >
-                These preferences belong to your active guardian profile and apply only to your own notifications.
+                These preferences belong to your active guardian profile and
+                apply only to your own notifications.
               </Typography>
             </Box>
           ) : null}
@@ -1044,47 +674,29 @@ export function NotificationsPage() {
             <Alert
               severity="error"
               sx={{
-                mt:
-                  2,
+                mt: 2,
               }}
             >
-              {errorMessage(
-                preferenceMutation.error,
-              )}
+              {errorMessage(preferenceMutation.error)}
             </Alert>
           ) : null}
         </Paper>
       </Box>
 
       <Snackbar
-        open={
-          successMessage !==
-          null
-        }
-        autoHideDuration={
-          3000
-        }
-        onClose={() =>
-          setSuccessMessage(
-            null,
-          )
-        }
+        open={successMessage !== null}
+        autoHideDuration={3000}
+        onClose={() => setSuccessMessage(null)}
         anchorOrigin={{
-          vertical:
-            'bottom',
+          vertical: "bottom",
 
-          horizontal:
-            'right',
+          horizontal: "right",
         }}
       >
         <Alert
           severity="success"
           variant="filled"
-          onClose={() =>
-            setSuccessMessage(
-              null,
-            )
-          }
+          onClose={() => setSuccessMessage(null)}
         >
           {successMessage}
         </Alert>

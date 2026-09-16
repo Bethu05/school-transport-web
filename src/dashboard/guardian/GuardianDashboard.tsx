@@ -6,7 +6,7 @@ import {
   CircularProgress,
   Paper,
   Typography,
-} from '@mui/material';
+} from "@mui/material";
 
 import {
   CheckCircleRounded,
@@ -15,174 +15,95 @@ import {
   MapRounded,
   NotificationsRounded,
   SchoolRounded,
-} from '@mui/icons-material';
+} from "@mui/icons-material";
 
-import {
-  useQuery,
-} from '@tanstack/react-query';
+import { useQuery } from "@tanstack/react-query";
 
-import {
-  useNavigate,
-} from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 
-import {
-  useAuth,
-} from '../../auth/AuthProvider';
+import { useAuth } from "../../auth/AuthProvider";
 
-import {
-  listMyTrackableChildren,
-} from '../../tracking/guardian-tracking.api';
+import { listMyTrackableChildren } from "../../tracking/guardian-tracking.api";
 
 import {
   listMyNotifications,
   type ParentNotification,
-} from '../../notifications/notifications.api';
+} from "../../notifications/notifications.api";
 
-function formatDateTime(
-  value:
-    string,
-): string {
-  const date =
-    new Date(
-      value,
-    );
+function formatDateTime(value: string): string {
+  const date = new Date(value);
 
-  if (
-    Number.isNaN(
-      date.getTime(),
-    )
-  ) {
+  if (Number.isNaN(date.getTime())) {
     return value;
   }
 
-  return new Intl.DateTimeFormat(
-    'en-GB',
-    {
-      dateStyle:
-        'medium',
+  return new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium",
 
-      timeStyle:
-        'short',
+    timeStyle: "short",
 
-      timeZone:
-        'Africa/Nairobi',
-    },
-  ).format(
-    date,
-  );
+    timeZone: "Africa/Nairobi",
+  }).format(date);
 }
 
-function notificationLabel(
-  notification:
-    ParentNotification,
-): string {
-  switch (
-    notification.notificationType
-  ) {
-    case 'student.boarded':
-      return 'Boarded bus';
+function notificationLabel(notification: ParentNotification): string {
+  switch (notification.notificationType) {
+    case "student.boarded":
+      return "Boarded bus";
 
-    case 'student.dropped_off':
-      return 'Dropped off';
+    case "student.dropped_off":
+      return "Dropped off";
   }
 }
 
 export function GuardianDashboard() {
-  const {
-    tenant,
-    user,
-  } =
-    useAuth();
+  const { tenant, user } = useAuth();
 
-  const navigate =
-    useNavigate();
+  const navigate = useNavigate();
 
-  const tenantId =
-    tenant?.tenantId;
+  const tenantId = tenant?.tenantId;
 
-  const childrenQuery =
-    useQuery({
-      queryKey: [
-        'guardian-dashboard-children',
-        tenantId,
-      ],
+  const childrenQuery = useQuery({
+    queryKey: ["guardian-dashboard-children", tenantId],
 
-      enabled:
-        Boolean(
-          tenantId,
-        ),
+    enabled: Boolean(tenantId),
 
-      queryFn:
-        async () => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-          return listMyTrackableChildren(
-            tenantId,
-          );
-        },
-    });
+      return listMyTrackableChildren(tenantId);
+    },
+  });
 
-  const notificationsQuery =
-    useQuery({
-      queryKey: [
-        'guardian-dashboard-notifications',
-        tenantId,
-      ],
+  const notificationsQuery = useQuery({
+    queryKey: ["guardian-dashboard-notifications", tenantId],
 
-      enabled:
-        Boolean(
-          tenantId,
-        ),
+    enabled: Boolean(tenantId),
 
-      queryFn:
-        async () => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-          return listMyNotifications(
-            tenantId,
-            {
-              limit:
-                5,
-            },
-          );
-        },
-    });
+      return listMyNotifications(tenantId, {
+        limit: 5,
+      });
+    },
+  });
 
-  const children =
-    childrenQuery.data ??
-    [];
+  const children = childrenQuery.data ?? [];
 
-  const notifications =
-    notificationsQuery
-      .data
-      ?.items ??
-    [];
+  const notifications = notificationsQuery.data?.items ?? [];
 
-  const activeJourneyCount =
-    children.filter(
-      (
-        entry,
-      ) =>
-        Boolean(
-          entry.activeTrip,
-        ),
-    ).length;
+  const activeJourneyCount = children.filter((entry) =>
+    Boolean(entry.activeTrip),
+  ).length;
 
-  const unreadCount =
-    notifications.filter(
-      (
-        notification,
-      ) =>
-        !notification.readAt,
-    ).length;
+  const unreadCount = notifications.filter(
+    (notification) => !notification.readAt,
+  ).length;
 
   return (
     <Box>
@@ -191,29 +112,21 @@ export function GuardianDashboard() {
           ==================================================== */}
 
       <Paper
-        elevation={
-          0
-        }
+        elevation={0}
         sx={{
           p: {
-            xs:
-              3,
+            xs: 3,
 
-            md:
-              4,
+            md: 4,
           },
 
-          mb:
-            2.5,
+          mb: 2.5,
 
-          border:
-            '1px solid',
+          border: "1px solid",
 
-          borderColor:
-            'divider',
+          borderColor: "divider",
 
-          background:
-            `
+          background: `
               linear-gradient(
                 135deg,
                 rgba(201,165,92,0.13),
@@ -226,32 +139,25 @@ export function GuardianDashboard() {
           size="small"
           label="Parent Portal"
           sx={{
-            color:
-              'primary.main',
+            color: "primary.main",
 
-            bgcolor:
-              'rgba(201,165,92,0.10)',
+            bgcolor: "rgba(201,165,92,0.10)",
           }}
         />
 
         <Typography
           sx={{
-            mt:
-              2,
+            mt: 2,
 
             fontSize: {
-              xs:
-                28,
+              xs: 28,
 
-              md:
-                38,
+              md: 38,
             },
 
-            fontWeight:
-              900,
+            fontWeight: 900,
 
-            letterSpacing:
-              '-0.04em',
+            letterSpacing: "-0.04em",
           }}
         >
           Your children's journeys
@@ -259,14 +165,11 @@ export function GuardianDashboard() {
 
         <Typography
           sx={{
-            mt:
-              1,
+            mt: 1,
 
-            color:
-              'text.secondary',
+            color: "text.secondary",
 
-            fontSize:
-              14,
+            fontSize: 14,
           }}
         >
           {user?.email}
@@ -274,56 +177,34 @@ export function GuardianDashboard() {
 
         <Box
           sx={{
-            mt:
-              3,
+            mt: 3,
 
-            display:
-              'flex',
+            display: "flex",
 
-            gap:
-              1,
+            gap: 1,
 
-            flexWrap:
-              'wrap',
+            flexWrap: "wrap",
           }}
         >
           <Chip
-            icon={
-              <FamilyRestroomRounded />
-            }
-            label={
-              `${children.length} linked ${
-                children.length ===
-                1
-                  ? 'child'
-                  : 'children'
-              }`
-            }
+            icon={<FamilyRestroomRounded />}
+            label={`${children.length} linked ${
+              children.length === 1 ? "child" : "children"
+            }`}
             variant="outlined"
           />
 
           <Chip
-            icon={
-              <DirectionsBusRounded />
-            }
-            label={
-              `${activeJourneyCount} active ${
-                activeJourneyCount ===
-                1
-                  ? 'journey'
-                  : 'journeys'
-              }`
-            }
+            icon={<DirectionsBusRounded />}
+            label={`${activeJourneyCount} active ${
+              activeJourneyCount === 1 ? "journey" : "journeys"
+            }`}
             variant="outlined"
           />
 
           <Chip
-            icon={
-              <NotificationsRounded />
-            }
-            label={
-              `${unreadCount} unread`
-            }
+            icon={<NotificationsRounded />}
+            label={`${unreadCount} unread`}
             variant="outlined"
           />
         </Box>
@@ -335,22 +216,17 @@ export function GuardianDashboard() {
 
       <Box
         sx={{
-          display:
-            'grid',
+          display: "grid",
 
           gridTemplateColumns: {
-            xs:
-              '1fr',
+            xs: "1fr",
 
-            lg:
-              'minmax(0, 1.45fr) minmax(300px, 0.75fr)',
+            lg: "minmax(0, 1.45fr) minmax(300px, 0.75fr)",
           },
 
-          gap:
-            2.5,
+          gap: 2.5,
 
-          alignItems:
-            'start',
+          alignItems: "start",
         }}
       >
         {/* ==================================================
@@ -360,14 +236,11 @@ export function GuardianDashboard() {
         <Box>
           <Typography
             sx={{
-              mb:
-                1.25,
+              mb: 1.25,
 
-              fontWeight:
-                850,
+              fontWeight: 850,
 
-              fontSize:
-                16,
+              fontSize: 16,
             }}
           >
             Children & journeys
@@ -375,81 +248,57 @@ export function GuardianDashboard() {
 
           {childrenQuery.isLoading ? (
             <Paper
-              elevation={
-                0
-              }
+              elevation={0}
               sx={{
-                py:
-                  6,
+                py: 6,
 
-                display:
-                  'grid',
+                display: "grid",
 
-                placeItems:
-                  'center',
+                placeItems: "center",
 
-                border:
-                  '1px solid',
+                border: "1px solid",
 
-                borderColor:
-                  'divider',
+                borderColor: "divider",
               }}
             >
-              <CircularProgress
-                size={
-                  28
-                }
-              />
+              <CircularProgress size={28} />
             </Paper>
           ) : null}
 
           {childrenQuery.isError ? (
-            <Alert
-              severity="error"
-            >
+            <Alert severity="error">
               We could not load your linked children.
             </Alert>
           ) : null}
 
           {!childrenQuery.isLoading &&
           !childrenQuery.isError &&
-          children.length ===
-            0 ? (
+          children.length === 0 ? (
             <Paper
-              elevation={
-                0
-              }
+              elevation={0}
               sx={{
-                p:
-                  4,
+                p: 4,
 
-                textAlign:
-                  'center',
+                textAlign: "center",
 
-                border:
-                  '1px solid',
+                border: "1px solid",
 
-                borderColor:
-                  'divider',
+                borderColor: "divider",
               }}
             >
               <FamilyRestroomRounded
                 sx={{
-                  fontSize:
-                    42,
+                  fontSize: 42,
 
-                  color:
-                    'text.secondary',
+                  color: "text.secondary",
                 }}
               />
 
               <Typography
                 sx={{
-                  mt:
-                    1.5,
+                  mt: 1.5,
 
-                  fontWeight:
-                    800,
+                  fontWeight: 800,
                 }}
               >
                 No linked children
@@ -457,231 +306,172 @@ export function GuardianDashboard() {
 
               <Typography
                 sx={{
-                  mt:
-                    0.5,
+                  mt: 0.5,
 
-                  color:
-                    'text.secondary',
+                  color: "text.secondary",
 
-                  fontSize:
-                    12.5,
+                  fontSize: 12.5,
                 }}
               >
-                A school administrator must link your guardian profile to a student before journey information appears here.
+                A school administrator must link your guardian profile to a
+                student before journey information appears here.
               </Typography>
             </Paper>
           ) : null}
 
           <Box
             sx={{
-              display:
-                'grid',
+              display: "grid",
 
-              gap:
-                1.5,
+              gap: 1.5,
             }}
           >
-            {children.map(
-              (
-                entry,
-              ) => {
-                const {
-                  child,
-                  activeTrip,
-                } =
-                  entry;
+            {children.map((entry) => {
+              const { child, activeTrip } = entry;
 
-                const childName =
-                  `${child.firstName} ${child.lastName}`;
+              const childName = `${child.firstName} ${child.lastName}`;
 
-                return (
-                  <Paper
-                    key={
-                      child.studentId
-                    }
-                    elevation={
-                      0
-                    }
+              return (
+                <Paper
+                  key={child.studentId}
+                  elevation={0}
+                  sx={{
+                    p: 2.5,
+
+                    border: "1px solid",
+
+                    borderColor: "divider",
+                  }}
+                >
+                  <Box
                     sx={{
-                      p:
-                        2.5,
+                      display: "flex",
 
-                      border:
-                        '1px solid',
+                      justifyContent: "space-between",
 
-                      borderColor:
-                        'divider',
+                      alignItems: {
+                        xs: "flex-start",
+
+                        sm: "center",
+                      },
+
+                      flexDirection: {
+                        xs: "column",
+
+                        sm: "row",
+                      },
+
+                      gap: 2,
                     }}
                   >
                     <Box
                       sx={{
-                        display:
-                          'flex',
+                        display: "flex",
 
-                        justifyContent:
-                          'space-between',
+                        alignItems: "center",
 
-                        alignItems: {
-                          xs:
-                            'flex-start',
-
-                          sm:
-                            'center',
-                        },
-
-                        flexDirection: {
-                          xs:
-                            'column',
-
-                          sm:
-                            'row',
-                        },
-
-                        gap:
-                          2,
+                        gap: 1.5,
                       }}
                     >
                       <Box
                         sx={{
-                          display:
-                            'flex',
+                          width: 46,
 
-                          alignItems:
-                            'center',
+                          height: 46,
 
-                          gap:
-                            1.5,
+                          display: "grid",
+
+                          placeItems: "center",
+
+                          borderRadius: "50%",
+
+                          bgcolor: "rgba(201,165,92,0.12)",
+
+                          color: "primary.main",
                         }}
                       >
-                        <Box
+                        <SchoolRounded />
+                      </Box>
+
+                      <Box>
+                        <Typography
                           sx={{
-                            width:
-                              46,
+                            fontWeight: 850,
 
-                            height:
-                              46,
-
-                            display:
-                              'grid',
-
-                            placeItems:
-                              'center',
-
-                            borderRadius:
-                              '50%',
-
-                            bgcolor:
-                              'rgba(201,165,92,0.12)',
-
-                            color:
-                              'primary.main',
+                            fontSize: 16,
                           }}
                         >
-                          <SchoolRounded />
-                        </Box>
+                          {childName}
+                        </Typography>
 
-                        <Box>
-                          <Typography
-                            sx={{
-                              fontWeight:
-                                850,
+                        <Typography
+                          sx={{
+                            mt: 0.25,
 
-                              fontSize:
-                                16,
-                            }}
-                          >
-                            {childName}
-                          </Typography>
+                            color: "text.secondary",
 
-                          <Typography
-                            sx={{
-                              mt:
-                                0.25,
+                            fontSize: 12,
+                          }}
+                        >
+                          {child.schoolName}
+                        </Typography>
 
-                              color:
-                                'text.secondary',
+                        <Typography
+                          sx={{
+                            mt: 0.25,
 
-                              fontSize:
-                                12,
-                            }}
-                          >
-                            {child.schoolName}
-                          </Typography>
+                            color: "text.secondary",
 
-                          <Typography
-                            sx={{
-                              mt:
-                                0.25,
-
-                              color:
-                                'text.secondary',
-
-                              fontSize:
-                                11,
-                            }}
-                          >
-                            {child.relationshipType}
-                            {child.isPrimary
-                              ? ' · Primary guardian'
-                              : ''}
-                          </Typography>
-                        </Box>
-                      </Box>
-
-                      <Box
-                        sx={{
-                          display:
-                            'flex',
-
-                          alignItems:
-                            'center',
-
-                          gap:
-                            1,
-
-                          flexWrap:
-                            'wrap',
-                        }}
-                      >
-                        {activeTrip ? (
-                          <>
-                            <Chip
-                              icon={
-                                <CheckCircleRounded />
-                              }
-                              color="success"
-                              label="Journey active"
-                              size="small"
-                            />
-
-                            <Button
-                              variant="contained"
-                              size="small"
-                              startIcon={
-                                <MapRounded />
-                              }
-                              onClick={() =>
-                                navigate(
-                                  '/tracking',
-                                )
-                              }
-                            >
-                              Track bus
-                            </Button>
-                          </>
-                        ) : (
-                          <Chip
-                            variant="outlined"
-                            label="No active journey"
-                            size="small"
-                          />
-                        )}
+                            fontSize: 11,
+                          }}
+                        >
+                          {child.relationshipType}
+                          {child.isPrimary ? " · Primary guardian" : ""}
+                        </Typography>
                       </Box>
                     </Box>
-                  </Paper>
-                );
-              },
-            )}
+
+                    <Box
+                      sx={{
+                        display: "flex",
+
+                        alignItems: "center",
+
+                        gap: 1,
+
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      {activeTrip ? (
+                        <>
+                          <Chip
+                            icon={<CheckCircleRounded />}
+                            color="success"
+                            label="Journey active"
+                            size="small"
+                          />
+
+                          <Button
+                            variant="contained"
+                            size="small"
+                            startIcon={<MapRounded />}
+                            onClick={() => navigate("/tracking")}
+                          >
+                            Track bus
+                          </Button>
+                        </>
+                      ) : (
+                        <Chip
+                          variant="outlined"
+                          label="No active journey"
+                          size="small"
+                        />
+                      )}
+                    </Box>
+                  </Box>
+                </Paper>
+              );
+            })}
           </Box>
         </Box>
 
@@ -690,94 +480,64 @@ export function GuardianDashboard() {
             ================================================== */}
 
         <Paper
-          elevation={
-            0
-          }
+          elevation={0}
           sx={{
-            p:
-              2.5,
+            p: 2.5,
 
-            border:
-              '1px solid',
+            border: "1px solid",
 
-            borderColor:
-              'divider',
+            borderColor: "divider",
           }}
         >
           <Box
             sx={{
-              display:
-                'flex',
+              display: "flex",
 
-              justifyContent:
-                'space-between',
+              justifyContent: "space-between",
 
-              alignItems:
-                'center',
+              alignItems: "center",
 
-              gap:
-                1,
+              gap: 1,
             }}
           >
             <Box
               sx={{
-                display:
-                  'flex',
+                display: "flex",
 
-                alignItems:
-                  'center',
+                alignItems: "center",
 
-                gap:
-                  1,
+                gap: 1,
               }}
             >
-              <NotificationsRounded
-                color="primary"
-              />
+              <NotificationsRounded color="primary" />
 
               <Typography
                 sx={{
-                  fontWeight:
-                    850,
+                  fontWeight: 850,
 
-                  fontSize:
-                    16,
+                  fontSize: 16,
                 }}
               >
                 Journey alerts
               </Typography>
             </Box>
 
-            {unreadCount >
-            0 ? (
-              <Chip
-                size="small"
-                color="primary"
-                label={
-                  `${unreadCount} new`
-                }
-              />
+            {unreadCount > 0 ? (
+              <Chip size="small" color="primary" label={`${unreadCount} new`} />
             ) : null}
           </Box>
 
           {notificationsQuery.isLoading ? (
             <Box
               sx={{
-                py:
-                  4,
+                py: 4,
 
-                display:
-                  'grid',
+                display: "grid",
 
-                placeItems:
-                  'center',
+                placeItems: "center",
               }}
             >
-              <CircularProgress
-                size={
-                  24
-                }
-              />
+              <CircularProgress size={24} />
             </Box>
           ) : null}
 
@@ -785,8 +545,7 @@ export function GuardianDashboard() {
             <Alert
               severity="info"
               sx={{
-                mt:
-                  2,
+                mt: 2,
               }}
             >
               Journey alerts are unavailable for this guardian profile.
@@ -795,132 +554,92 @@ export function GuardianDashboard() {
 
           {!notificationsQuery.isLoading &&
           !notificationsQuery.isError &&
-          notifications.length ===
-            0 ? (
+          notifications.length === 0 ? (
             <Typography
               sx={{
-                mt:
-                  2,
+                mt: 2,
 
-                color:
-                  'text.secondary',
+                color: "text.secondary",
 
-                fontSize:
-                  12.5,
+                fontSize: 12.5,
 
-                lineHeight:
-                  1.7,
+                lineHeight: 1.7,
               }}
             >
-              Boarding and drop-off alerts will appear here as your child's journeys progress.
+              Boarding and drop-off alerts will appear here as your child's
+              journeys progress.
             </Typography>
           ) : null}
 
           <Box
             sx={{
-              mt:
-                2,
+              mt: 2,
 
-              display:
-                'grid',
+              display: "grid",
 
-              gap:
-                1.25,
+              gap: 1.25,
             }}
           >
-            {notifications.map(
-              (
-                notification,
-              ) => (
-                <Box
-                  key={
-                    notification.id
-                  }
+            {notifications.map((notification) => (
+              <Box
+                key={notification.id}
+                sx={{
+                  p: 1.5,
+
+                  borderRadius: 1.5,
+
+                  bgcolor: notification.readAt ? "transparent" : "action.hover",
+
+                  border: "1px solid",
+
+                  borderColor: "divider",
+                }}
+              >
+                <Typography
                   sx={{
-                    p:
-                      1.5,
+                    fontWeight: notification.readAt ? 700 : 850,
 
-                    borderRadius:
-                      1.5,
-
-                    bgcolor:
-                      notification.readAt
-                        ? 'transparent'
-                        : 'action.hover',
-
-                    border:
-                      '1px solid',
-
-                    borderColor:
-                      'divider',
+                    fontSize: 12.5,
                   }}
                 >
-                  <Typography
-                    sx={{
-                      fontWeight:
-                        notification.readAt
-                          ? 700
-                          : 850,
+                  {notificationLabel(notification)}
+                </Typography>
 
-                      fontSize:
-                        12.5,
-                    }}
-                  >
-                    {notificationLabel(
-                      notification,
-                    )}
-                  </Typography>
+                <Typography
+                  sx={{
+                    mt: 0.35,
 
-                  <Typography
-                    sx={{
-                      mt:
-                        0.35,
+                    color: "text.secondary",
 
-                      color:
-                        'text.secondary',
+                    fontSize: 11.5,
 
-                      fontSize:
-                        11.5,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {notification.body}
+                </Typography>
 
-                      lineHeight:
-                        1.5,
-                    }}
-                  >
-                    {notification.body}
-                  </Typography>
+                <Typography
+                  sx={{
+                    mt: 0.5,
 
-                  <Typography
-                    sx={{
-                      mt:
-                        0.5,
+                    color: "text.secondary",
 
-                      color:
-                        'text.secondary',
-
-                      fontSize:
-                        10.5,
-                    }}
-                  >
-                    {formatDateTime(
-                      notification.createdAt,
-                    )}
-                  </Typography>
-                </Box>
-              ),
-            )}
+                    fontSize: 10.5,
+                  }}
+                >
+                  {formatDateTime(notification.createdAt)}
+                </Typography>
+              </Box>
+            ))}
           </Box>
 
           <Button
             fullWidth
             sx={{
-              mt:
-                2,
+              mt: 2,
             }}
-            onClick={() =>
-              navigate(
-                '/notifications',
-              )
-            }
+            onClick={() => navigate("/notifications")}
           >
             View all notifications
           </Button>

@@ -1,58 +1,31 @@
-import {
-  useState,
-} from 'react';
+import { useState } from "react";
 
-import {
-  Alert,
-  Box,
-  Button,
-  Paper,
-  Snackbar,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Button, Paper, Snackbar, Typography } from "@mui/material";
 
-import {
-  WarningAmberRounded,
-} from '@mui/icons-material';
+import { WarningAmberRounded } from "@mui/icons-material";
 
-import {
-  useMutation,
-} from '@tanstack/react-query';
+import { useMutation } from "@tanstack/react-query";
 
-import {
-  IncidentFormDialog,
-} from '../../incidents/IncidentFormDialog';
+import { IncidentFormDialog } from "../../incidents/IncidentFormDialog";
 
-import type {
-  CreateIncidentInput,
-} from '../../incidents/incidents.api';
+import type { CreateIncidentInput } from "../../incidents/incidents.api";
 
 import {
   reportMyDriverIncident,
   type ReportDriverIncidentInput,
-} from './driver-me.api';
-
+} from "./driver-me.api";
 
 interface DriverSafetyReportCardProps {
-  tenantId:
-    string | undefined;
+  tenantId: string | undefined;
 
-  enabled:
-    boolean;
+  enabled: boolean;
 }
 
-
-function errorMessage(
-  error:
-    unknown,
-): string {
-  return (
-    error instanceof Error
-      ? error.message
-      : 'The incident could not be reported.'
-  );
+function errorMessage(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "The incident could not be reported.";
 }
-
 
 /**
  * Driver safety reporting UI.
@@ -74,176 +47,104 @@ export function DriverSafetyReportCard({
   tenantId,
   enabled,
 }: DriverSafetyReportCardProps) {
-  const [
-    open,
-    setOpen,
-  ] =
-    useState(
-      false,
-    );
+  const [open, setOpen] = useState(false);
 
-  const [
-    formKey,
-    setFormKey,
-  ] =
-    useState(
-      0,
-    );
+  const [formKey, setFormKey] = useState(0);
 
-  const [
-    mutationError,
-    setMutationError,
-  ] =
-    useState<
-      string | null
-    >(
-      null,
-    );
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
-  const [
-    successMessage,
-    setSuccessMessage,
-  ] =
-    useState<
-      string | null
-    >(
-      null,
-    );
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const reportMutation = useMutation({
+    mutationFn: async (input: ReportDriverIncidentInput) => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-  const reportMutation =
-    useMutation({
-      mutationFn:
-        async (
-          input:
-            ReportDriverIncidentInput,
-        ) => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+      return reportMyDriverIncident(
+        tenantId,
 
-          return reportMyDriverIncident(
-            tenantId,
+        input,
 
-            input,
+        crypto.randomUUID(),
+      );
+    },
 
-            crypto.randomUUID(),
-          );
-        },
+    onSuccess: () => {
+      setOpen(false);
 
-      onSuccess:
-        () => {
-          setOpen(
-            false,
-          );
+      setMutationError(null);
 
-          setMutationError(
-            null,
-          );
+      setSuccessMessage("Safety incident reported successfully.");
+    },
 
-          setSuccessMessage(
-            'Safety incident reported successfully.',
-          );
-        },
-
-      onError:
-        (
-          error,
-        ) => {
-          setMutationError(
-            errorMessage(
-              error,
-            ),
-          );
-        },
-    });
-
+    onError: (error) => {
+      setMutationError(errorMessage(error));
+    },
+  });
 
   if (!enabled) {
     return null;
   }
 
-
   return (
     <>
       <Paper
-        elevation={
-          0
-        }
+        elevation={0}
         sx={{
-          mt:
-            2.5,
+          mt: 2.5,
 
           p: {
-            xs:
-              3,
+            xs: 3,
 
-            md:
-              3.5,
+            md: 3.5,
           },
 
-          border:
-            '1px solid',
+          border: "1px solid",
 
-          borderColor:
-            'divider',
+          borderColor: "divider",
         }}
       >
         <Box
           sx={{
-            display:
-              'flex',
+            display: "flex",
 
-            alignItems:
-              'flex-start',
+            alignItems: "flex-start",
 
-            justifyContent:
-              'space-between',
+            justifyContent: "space-between",
 
             flexDirection: {
-              xs:
-                'column',
+              xs: "column",
 
-              sm:
-                'row',
+              sm: "row",
             },
 
-            gap:
-              2,
+            gap: 2,
           }}
         >
           <Box
             sx={{
-              display:
-                'flex',
+              display: "flex",
 
-              gap:
-                1.5,
+              gap: 1.5,
 
-              alignItems:
-                'flex-start',
+              alignItems: "flex-start",
             }}
           >
             <WarningAmberRounded
               sx={{
-                mt:
-                  0.2,
+                mt: 0.2,
 
-                color:
-                  'warning.main',
+                color: "warning.main",
               }}
             />
 
             <Box>
               <Typography
                 sx={{
-                  fontSize:
-                    18,
+                  fontSize: 18,
 
-                  fontWeight:
-                    850,
+                  fontWeight: 850,
                 }}
               >
                 Safety reporting
@@ -251,25 +152,19 @@ export function DriverSafetyReportCard({
 
               <Typography
                 sx={{
-                  mt:
-                    0.7,
+                  mt: 0.7,
 
-                  maxWidth:
-                    650,
+                  maxWidth: 650,
 
-                  color:
-                    'text.secondary',
+                  color: "text.secondary",
 
-                  fontSize:
-                    13,
+                  fontSize: 13,
 
-                  lineHeight:
-                    1.65,
+                  lineHeight: 1.65,
                 }}
               >
-                Report a safety or operational incident
-                for your currently assigned journey.
-                The trip, school and vehicle are linked
+                Report a safety or operational incident for your currently
+                assigned journey. The trip, school and vehicle are linked
                 securely by the platform.
               </Typography>
             </Box>
@@ -280,26 +175,14 @@ export function DriverSafetyReportCard({
 
             color="warning"
 
-            startIcon={
-              <WarningAmberRounded />
-            }
+            startIcon={<WarningAmberRounded />}
 
             onClick={() => {
-              setMutationError(
-                null,
-              );
+              setMutationError(null);
 
-              setFormKey(
-                (
-                  value,
-                ) =>
-                  value +
-                  1,
-              );
+              setFormKey((value) => value + 1);
 
-              setOpen(
-                true,
-              );
+              setOpen(true);
             }}
           >
             Report safety incident
@@ -307,111 +190,59 @@ export function DriverSafetyReportCard({
         </Box>
       </Paper>
 
-
       <IncidentFormDialog
-        key={
-          `driver-safety-${formKey}`
-        }
+        key={`driver-safety-${formKey}`}
 
-        open={
-          open
-        }
+        open={open}
 
-        incident={
-          null
-        }
+        incident={null}
 
-        saving={
-          reportMutation
-            .isPending
-        }
+        saving={reportMutation.isPending}
 
-        error={
-          open
-            ? mutationError
-            : null
-        }
+        error={open ? mutationError : null}
 
-        canUpdate={
-          false
-        }
+        canUpdate={false}
 
         onClose={() => {
-          if (
-            !reportMutation
-              .isPending
-          ) {
-            setOpen(
-              false,
-            );
+          if (!reportMutation.isPending) {
+            setOpen(false);
 
-            setMutationError(
-              null,
-            );
+            setMutationError(null);
           }
         }}
 
-        onSubmit={
-          async (
-            input,
-          ) => {
-            const createInput =
-              input as
-                CreateIncidentInput;
+        onSubmit={async (input) => {
+          const createInput = input as CreateIncidentInput;
 
-            await reportMutation
-              .mutateAsync({
-                severity:
-                  createInput
-                    .severity,
+          await reportMutation.mutateAsync({
+            severity: createInput.severity,
 
-                type:
-                  createInput
-                    .type,
+            type: createInput.type,
 
-                description:
-                  createInput
-                    .description,
-              });
-          }
-        }
+            description: createInput.description,
+          });
+        }}
       />
 
-
       <Snackbar
-        open={
-          successMessage !==
-          null
-        }
+        open={successMessage !== null}
 
-        autoHideDuration={
-          3500
-        }
+        autoHideDuration={3500}
 
         anchorOrigin={{
-          vertical:
-            'bottom',
+          vertical: "bottom",
 
-          horizontal:
-            'right',
+          horizontal: "right",
         }}
 
-        onClose={() =>
-          setSuccessMessage(
-            null,
-          )
-        }
+        onClose={() => setSuccessMessage(null)}
       >
         <Alert
           severity="success"
 
           variant="filled"
 
-          onClose={() =>
-            setSuccessMessage(
-              null,
-            )
-          }
+          onClose={() => setSuccessMessage(null)}
         >
           {successMessage}
         </Alert>

@@ -7,7 +7,7 @@ import {
   Divider,
   Paper,
   Typography,
-} from '@mui/material';
+} from "@mui/material";
 
 import {
   AccessTimeRounded,
@@ -19,30 +19,20 @@ import {
   PlayArrowRounded,
   RouteRounded,
   SignpostRounded,
-} from '@mui/icons-material';
+} from "@mui/icons-material";
 
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import {
-  useAuth,
-} from '../../auth/AuthProvider';
+import { useAuth } from "../../auth/AuthProvider";
 
 import {
   FRONTEND_PERMISSIONS,
   hasFrontendPermission,
-} from '../../auth/frontend-permissions';
+} from "../../auth/frontend-permissions";
 
-import {
-  DriverSafetyReportCard,
-} from './DriverSafetyReportCard';
+import { DriverSafetyReportCard } from "./DriverSafetyReportCard";
 
-import {
-  DriverJourneyProgressCard,
-} from './DriverJourneyProgressCard';
+import { DriverJourneyProgressCard } from "./DriverJourneyProgressCard";
 
 import {
   beginMyBoarding,
@@ -51,65 +41,50 @@ import {
   startMyTrip,
   type DriverAssignedTrip,
   type DriverTripStatus,
-} from './driver-me.api';
+} from "./driver-me.api";
 
-
-function statusLabel(
-  status: DriverTripStatus,
-): string {
+function statusLabel(status: DriverTripStatus): string {
   switch (status) {
-    case 'scheduled':
-      return 'Scheduled';
+    case "scheduled":
+      return "Scheduled";
 
-    case 'boarding':
-      return 'Boarding';
+    case "boarding":
+      return "Boarding";
 
-    case 'in_progress':
-      return 'In progress';
+    case "in_progress":
+      return "In progress";
 
-    case 'completed':
-      return 'Completed';
+    case "completed":
+      return "Completed";
   }
 }
 
-
-function actionLabel(
-  status: DriverTripStatus,
-): string | null {
+function actionLabel(status: DriverTripStatus): string | null {
   switch (status) {
-    case 'scheduled':
-      return 'Begin boarding';
+    case "scheduled":
+      return "Begin boarding";
 
-    case 'boarding':
-      return 'Start trip';
+    case "boarding":
+      return "Start trip";
 
-    case 'in_progress':
-      return 'Complete trip';
+    case "in_progress":
+      return "Complete trip";
 
-    case 'completed':
+    case "completed":
       return null;
   }
 }
 
-
-function formatDate(
-  value: string | null,
-): string {
+function formatDate(value: string | null): string {
   if (!value) {
-    return '—';
+    return "—";
   }
 
-  return new Intl.DateTimeFormat(
-    'en-GB',
-    {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    },
-  ).format(
-    new Date(value),
-  );
+  return new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
 }
-
 
 function Detail({
   label,
@@ -123,15 +98,15 @@ function Detail({
   return (
     <Box
       sx={{
-        display: 'flex',
+        display: "flex",
         gap: 1.2,
-        alignItems: 'flex-start',
+        alignItems: "flex-start",
       }}
     >
       <Box
         sx={{
-          color: 'primary.main',
-          display: 'flex',
+          color: "primary.main",
+          display: "flex",
           mt: 0.2,
         }}
       >
@@ -141,10 +116,10 @@ function Detail({
       <Box>
         <Typography
           sx={{
-            color: 'text.secondary',
+            color: "text.secondary",
             fontSize: 10.5,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
             fontWeight: 700,
           }}
         >
@@ -165,118 +140,66 @@ function Detail({
   );
 }
 
-
 export function DriverDashboard() {
-  const {
+  const { permissions, tenant, user } = useAuth();
+
+  const queryClient = useQueryClient();
+
+  const tenantId = tenant?.tenantId;
+
+  const canReportAssignedTripIncident = hasFrontendPermission(
     permissions,
-    tenant,
-    user,
-  } = useAuth();
 
-  const queryClient =
-    useQueryClient();
+    FRONTEND_PERMISSIONS.INCIDENTS_REPORT_ASSIGNED_TRIP,
+  );
 
-  const tenantId =
-    tenant?.tenantId;
+  const tripQuery = useQuery({
+    queryKey: ["my-driver-trip", tenantId],
 
+    enabled: Boolean(tenantId),
 
-  const canReportAssignedTripIncident =
-    hasFrontendPermission(
-      permissions,
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-      FRONTEND_PERMISSIONS
-        .INCIDENTS_REPORT_ASSIGNED_TRIP,
-    );
+      return getMyAssignedTrip(tenantId);
+    },
+  });
 
-  const tripQuery =
-    useQuery({
-      queryKey: [
-        'my-driver-trip',
-        tenantId,
-      ],
+  const lifecycle = useMutation({
+    mutationFn: async (trip: DriverAssignedTrip) => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-      enabled:
-        Boolean(tenantId),
+      if (trip.status === "scheduled") {
+        return beginMyBoarding(tenantId);
+      }
 
-      queryFn:
-        async () => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+      if (trip.status === "boarding") {
+        return startMyTrip(tenantId);
+      }
 
-          return getMyAssignedTrip(
-            tenantId,
-          );
-        },
-    });
+      if (trip.status === "in_progress") {
+        return completeMyTrip(tenantId);
+      }
 
+      return trip;
+    },
 
-  const lifecycle =
-    useMutation({
-      mutationFn:
-        async (
-          trip: DriverAssignedTrip,
-        ) => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["my-driver-trip", tenantId],
+      });
 
-          if (
-            trip.status ===
-            'scheduled'
-          ) {
-            return beginMyBoarding(
-              tenantId,
-            );
-          }
+      await queryClient.invalidateQueries({
+        queryKey: ["my-driver-journey-progress", tenantId],
+      });
+    },
+  });
 
-          if (
-            trip.status ===
-            'boarding'
-          ) {
-            return startMyTrip(
-              tenantId,
-            );
-          }
-
-          if (
-            trip.status ===
-            'in_progress'
-          ) {
-            return completeMyTrip(
-              tenantId,
-            );
-          }
-
-          return trip;
-        },
-
-      onSuccess:
-        async () => {
-          await queryClient.invalidateQueries({
-            queryKey: [
-              'my-driver-trip',
-              tenantId,
-            ],
-          });
-
-          await queryClient.invalidateQueries({
-            queryKey: [
-              'my-driver-journey-progress',
-              tenantId,
-            ],
-          });
-        },
-    });
-
-
-  const trip =
-    tripQuery.data;
-
+  const trip = tripQuery.data;
 
   return (
     <Box>
@@ -290,20 +213,19 @@ export function DriverDashboard() {
 
           mb: 2.5,
 
-          border: '1px solid',
-          borderColor: 'divider',
+          border: "1px solid",
+          borderColor: "divider",
 
           background:
-            'linear-gradient(135deg, rgba(201,165,92,0.14), transparent 70%)',
+            "linear-gradient(135deg, rgba(201,165,92,0.14), transparent 70%)",
         }}
       >
         <Chip
           size="small"
           label="Driver Portal"
           sx={{
-            color: 'primary.main',
-            bgcolor:
-              'rgba(201,165,92,0.10)',
+            color: "primary.main",
+            bgcolor: "rgba(201,165,92,0.10)",
           }}
         />
 
@@ -316,8 +238,7 @@ export function DriverDashboard() {
             },
 
             fontWeight: 900,
-            letterSpacing:
-              '-0.04em',
+            letterSpacing: "-0.04em",
           }}
         >
           My assigned journey
@@ -326,7 +247,7 @@ export function DriverDashboard() {
         <Typography
           sx={{
             mt: 1,
-            color: 'text.secondary',
+            color: "text.secondary",
             fontSize: 13,
           }}
         >
@@ -334,45 +255,38 @@ export function DriverDashboard() {
         </Typography>
       </Paper>
 
-
       {tripQuery.isLoading ? (
         <Paper
           elevation={0}
           sx={{
             p: 6,
-            border: '1px solid',
-            borderColor: 'divider',
-            textAlign: 'center',
+            border: "1px solid",
+            borderColor: "divider",
+            textAlign: "center",
           }}
         >
           <CircularProgress />
         </Paper>
       ) : null}
 
-
       {tripQuery.isError ? (
-        <Alert severity="error">
-          Could not load your assigned journey.
-        </Alert>
+        <Alert severity="error">Could not load your assigned journey.</Alert>
       ) : null}
 
-
-      {!tripQuery.isLoading &&
-      !tripQuery.isError &&
-      trip === null ? (
+      {!tripQuery.isLoading && !tripQuery.isError && trip === null ? (
         <Paper
           elevation={0}
           sx={{
             p: 5,
-            border: '1px solid',
-            borderColor: 'divider',
-            textAlign: 'center',
+            border: "1px solid",
+            borderColor: "divider",
+            textAlign: "center",
           }}
         >
           <CheckCircleRounded
             sx={{
               fontSize: 44,
-              color: 'success.main',
+              color: "success.main",
             }}
           />
 
@@ -388,16 +302,14 @@ export function DriverDashboard() {
         </Paper>
       ) : null}
 
-
       {trip ? (
         <Box
           sx={{
-            display: 'grid',
+            display: "grid",
 
             gridTemplateColumns: {
-              xs: '1fr',
-              lg:
-                '1.4fr 0.7fr',
+              xs: "1fr",
+              lg: "1.4fr 0.7fr",
             },
 
             gap: 2.5,
@@ -411,32 +323,27 @@ export function DriverDashboard() {
                 md: 4,
               },
 
-              border: '1px solid',
-              borderColor: 'divider',
+              border: "1px solid",
+              borderColor: "divider",
             }}
           >
             <Box
               sx={{
-                display: 'flex',
-                justifyContent:
-                  'space-between',
-                alignItems:
-                  'flex-start',
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
                 gap: 2,
-                flexWrap: 'wrap',
+                flexWrap: "wrap",
               }}
             >
               <Box>
                 <Typography
                   sx={{
-                    color:
-                      'text.secondary',
+                    color: "text.secondary",
                     fontSize: 11,
                     fontWeight: 700,
-                    textTransform:
-                      'uppercase',
-                    letterSpacing:
-                      '0.08em',
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
                   }}
                 >
                   Assigned Driver
@@ -454,17 +361,8 @@ export function DriverDashboard() {
               </Box>
 
               <Chip
-                label={
-                  statusLabel(
-                    trip.status,
-                  )
-                }
-                color={
-                  trip.status ===
-                  'in_progress'
-                    ? 'success'
-                    : 'primary'
-                }
+                label={statusLabel(trip.status)}
+                color={trip.status === "in_progress" ? "success" : "primary"}
               />
             </Box>
 
@@ -476,14 +374,11 @@ export function DriverDashboard() {
 
             <Typography
               sx={{
-                color:
-                  'text.secondary',
+                color: "text.secondary",
                 fontSize: 11,
                 fontWeight: 700,
-                textTransform:
-                  'uppercase',
-                letterSpacing:
-                  '0.08em',
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
               }}
             >
               Assigned Route
@@ -503,11 +398,11 @@ export function DriverDashboard() {
               sx={{
                 mt: 3,
 
-                display: 'grid',
+                display: "grid",
 
                 gridTemplateColumns: {
-                  xs: '1fr',
-                  sm: '1fr 1fr',
+                  xs: "1fr",
+                  sm: "1fr 1fr",
                 },
 
                 gap: 2.5,
@@ -515,106 +410,69 @@ export function DriverDashboard() {
             >
               <Detail
                 label="Vehicle"
-                value={
-                  trip.vehicleRegistrationNumber ??
-                  'Not assigned'
-                }
-                icon={
-                  <DirectionsBusRounded />
-                }
+                value={trip.vehicleRegistrationNumber ?? "Not assigned"}
+                icon={<DirectionsBusRounded />}
               />
 
               <Detail
                 label="Stops"
-                value={
-                  `${trip.stopCount} stops`
-                }
-                icon={
-                  <SignpostRounded />
-                }
+                value={`${trip.stopCount} stops`}
+                icon={<SignpostRounded />}
               />
 
               <Detail
                 label="Scheduled start"
-                value={
-                  formatDate(
-                    trip.scheduledStartAt,
-                  )
-                }
-                icon={
-                  <AccessTimeRounded />
-                }
+                value={formatDate(trip.scheduledStartAt)}
+                icon={<AccessTimeRounded />}
               />
 
               <Detail
                 label="Scheduled end"
-                value={
-                  formatDate(
-                    trip.scheduledEndAt,
-                  )
-                }
-                icon={
-                  <AccessTimeRounded />
-                }
+                value={formatDate(trip.scheduledEndAt)}
+                icon={<AccessTimeRounded />}
               />
             </Box>
 
-
-            {actionLabel(
-              trip.status,
-            ) ? (
+            {actionLabel(trip.status) ? (
               <Button
                 variant="contained"
                 size="large"
 
-                disabled={
-                  lifecycle.isPending
-                }
+                disabled={lifecycle.isPending}
 
                 startIcon={
-                  trip.status ===
-                  'scheduled' ? (
+                  trip.status === "scheduled" ? (
                     <LoginRounded />
-                  ) : trip.status ===
-                    'boarding' ? (
+                  ) : trip.status === "boarding" ? (
                     <PlayArrowRounded />
                   ) : (
                     <FlagRounded />
                   )
                 }
 
-                onClick={() =>
-                  lifecycle.mutate(
-                    trip,
-                  )
-                }
+                onClick={() => lifecycle.mutate(trip)}
 
                 sx={{
                   mt: 4,
                 }}
               >
-                {lifecycle.isPending
-                  ? 'Updating...'
-                  : actionLabel(
-                      trip.status,
-                    )}
+                {lifecycle.isPending ? "Updating..." : actionLabel(trip.status)}
               </Button>
             ) : null}
           </Paper>
-
 
           <Paper
             elevation={0}
             sx={{
               p: 3,
-              border: '1px solid',
-              borderColor: 'divider',
+              border: "1px solid",
+              borderColor: "divider",
             }}
           >
             <PersonRounded
               sx={{
                 fontSize: 30,
-                color: 'primary.main',
+                color: "primary.main",
               }}
             />
 
@@ -636,81 +494,47 @@ export function DriverDashboard() {
 
             <Detail
               label="Driver"
-              value={
-                trip.driverName
-              }
-              icon={
-                <PersonRounded />
-              }
+              value={trip.driverName}
+              icon={<PersonRounded />}
             />
 
             <Box sx={{ mt: 2.5 }}>
               <Detail
                 label="Route"
-                value={
-                  trip.routeName
-                }
-                icon={
-                  <RouteRounded />
-                }
+                value={trip.routeName}
+                icon={<RouteRounded />}
               />
             </Box>
 
             <Box sx={{ mt: 2.5 }}>
               <Detail
                 label="Vehicle"
-                value={
-                  trip.vehicleRegistrationNumber ??
-                  'Not assigned'
-                }
-                icon={
-                  <DirectionsBusRounded />
-                }
+                value={trip.vehicleRegistrationNumber ?? "Not assigned"}
+                icon={<DirectionsBusRounded />}
               />
             </Box>
 
             <Box sx={{ mt: 2.5 }}>
               <Detail
                 label="Status"
-                value={
-                  statusLabel(
-                    trip.status,
-                  )
-                }
-                icon={
-                  <CheckCircleRounded />
-                }
+                value={statusLabel(trip.status)}
+                icon={<CheckCircleRounded />}
               />
             </Box>
           </Paper>
         </Box>
       ) : null}
 
-
       <DriverJourneyProgressCard
-        tenantId={
-          tenantId
-        }
+        tenantId={tenantId}
 
-        enabled={
-          Boolean(
-            trip,
-          )
-        }
+        enabled={Boolean(trip)}
       />
 
-
       <DriverSafetyReportCard
-        tenantId={
-          tenantId
-        }
+        tenantId={tenantId}
 
-        enabled={
-          Boolean(
-            trip &&
-            canReportAssignedTripIncident,
-          )
-        }
+        enabled={Boolean(trip && canReportAssignedTripIncident)}
       />
     </Box>
   );

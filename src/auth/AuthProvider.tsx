@@ -17,12 +17,9 @@ import {
   useMemo,
   useState,
   type ReactNode,
-} from 'react';
+} from "react";
 
-import {
-  clearAccessToken,
-  getAccessToken,
-} from '../api/client';
+import { clearAccessToken, getAccessToken } from "../api/client";
 
 import {
   getAuthContext,
@@ -31,51 +28,39 @@ import {
   type ActiveTenant,
   type AuthenticatedUser,
   type LoginRequest,
-} from './auth.api';
+} from "./auth.api";
 
 interface AuthContextValue {
-  user:
-    | AuthenticatedUser
-    | null;
+  user: AuthenticatedUser | null;
 
   /**
    * Active tenant and backend-verified
    * membership role.
    */
-  tenant:
-    | ActiveTenant
-    | null;
+  tenant: ActiveTenant | null;
 
   /**
    * Effective permissions returned by the backend for the
    * authenticated user's active tenant membership.
    */
-  permissions:
-    readonly string[];
+  permissions: readonly string[];
 
   loading: boolean;
 
   authenticated: boolean;
 
-  login: (
-    credentials:
-      LoginRequest,
-  ) => Promise<void>;
+  login: (credentials: LoginRequest) => Promise<void>;
 
   logout: () => void;
 }
 
-const AuthContext =
-  createContext<AuthContextValue | null>(
-    null,
-  );
+const AuthContext = createContext<AuthContextValue | null>(null);
 
 interface AuthProviderProps {
   children: ReactNode;
 }
 
-const TENANT_STORAGE_KEY =
-  'school_transport_tenant_id';
+const TENANT_STORAGE_KEY = "school_transport_tenant_id";
 
 /**
  * Resolve the tenant selected for the
@@ -87,27 +72,17 @@ const TENANT_STORAGE_KEY =
  * Later this becomes a proper tenant /
  * school selector for multi-membership users.
  */
-function resolveTenantId():
-  | string
-  | null {
-  const storedTenant =
-    localStorage.getItem(
-      TENANT_STORAGE_KEY,
-    );
+function resolveTenantId(): string | null {
+  const storedTenant = localStorage.getItem(TENANT_STORAGE_KEY);
 
   if (storedTenant) {
     return storedTenant;
   }
 
-  const developmentTenant =
-    import.meta.env
-      .VITE_DEV_TENANT_ID;
+  const developmentTenant = import.meta.env.VITE_DEV_TENANT_ID;
 
   if (developmentTenant) {
-    localStorage.setItem(
-      TENANT_STORAGE_KEY,
-      developmentTenant,
-    );
+    localStorage.setItem(TENANT_STORAGE_KEY, developmentTenant);
 
     return developmentTenant;
   }
@@ -115,38 +90,14 @@ function resolveTenantId():
   return null;
 }
 
-export function AuthProvider({
-  children,
-}: AuthProviderProps) {
-  const [
-    user,
-    setUser,
-  ] =
-    useState<
-      AuthenticatedUser | null
-    >(null);
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<AuthenticatedUser | null>(null);
 
-  const [
-    tenant,
-    setTenant,
-  ] =
-    useState<
-      ActiveTenant | null
-    >(null);
+  const [tenant, setTenant] = useState<ActiveTenant | null>(null);
 
-  const [
-    permissions,
-    setPermissions,
-  ] =
-    useState<
-      readonly string[]
-    >([]);
+  const [permissions, setPermissions] = useState<readonly string[]>([]);
 
-  const [
-    loading,
-    setLoading,
-  ] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
   /**
    * Restore a previously authenticated
@@ -154,10 +105,8 @@ export function AuthProvider({
    * starts.
    */
   useEffect(() => {
-    async function restoreSession():
-      Promise<void> {
-      const token =
-        getAccessToken();
+    async function restoreSession(): Promise<void> {
+      const token = getAccessToken();
 
       if (!token) {
         setLoading(false);
@@ -166,8 +115,7 @@ export function AuthProvider({
       }
 
       try {
-        const tenantId =
-          resolveTenantId();
+        const tenantId = resolveTenantId();
 
         /**
          * Preferred session restoration:
@@ -179,22 +127,13 @@ export function AuthProvider({
          * verified user + tenant role.
          */
         if (tenantId) {
-          const context =
-            await getAuthContext(
-              tenantId,
-            );
+          const context = await getAuthContext(tenantId);
 
-          setUser(
-            context.user,
-          );
+          setUser(context.user);
 
-          setTenant(
-            context.tenant,
-          );
+          setTenant(context.tenant);
 
-          setPermissions(
-            context.permissions,
-          );
+          setPermissions(context.permissions);
 
           return;
         }
@@ -205,12 +144,9 @@ export function AuthProvider({
          * This is useful before a production
          * tenant selector exists.
          */
-        const response =
-          await getCurrentUser();
+        const response = await getCurrentUser();
 
-        setUser(
-          response.user,
-        );
+        setUser(response.user);
 
         setTenant(null);
 
@@ -240,44 +176,26 @@ export function AuthProvider({
    * Authenticate then immediately resolve
    * the active tenant context.
    */
-  async function login(
-    credentials:
-      LoginRequest,
-  ): Promise<void> {
-    await loginRequest(
-      credentials,
-    );
+  async function login(credentials: LoginRequest): Promise<void> {
+    await loginRequest(credentials);
 
-    const tenantId =
-      resolveTenantId();
+    const tenantId = resolveTenantId();
 
     if (tenantId) {
-      const context =
-        await getAuthContext(
-          tenantId,
-        );
+      const context = await getAuthContext(tenantId);
 
-      setUser(
-        context.user,
-      );
+      setUser(context.user);
 
-      setTenant(
-        context.tenant,
-      );
+      setTenant(context.tenant);
 
-      setPermissions(
-        context.permissions,
-      );
+      setPermissions(context.permissions);
 
       return;
     }
 
-    const response =
-      await getCurrentUser();
+    const response = await getCurrentUser();
 
-    setUser(
-      response.user,
-    );
+    setUser(response.user);
 
     setTenant(null);
 
@@ -298,39 +216,26 @@ export function AuthProvider({
     setPermissions([]);
   }
 
-  const value =
-    useMemo<AuthContextValue>(
-      () => ({
-        user,
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
 
-        tenant,
+      tenant,
 
-        permissions,
+      permissions,
 
-        loading,
+      loading,
 
-        authenticated:
-          user !== null,
+      authenticated: user !== null,
 
-        login,
+      login,
 
-        logout,
-      }),
-      [
-        user,
-        tenant,
-        permissions,
-        loading,
-      ],
-    );
-
-  return (
-    <AuthContext.Provider
-      value={value}
-    >
-      {children}
-    </AuthContext.Provider>
+      logout,
+    }),
+    [user, tenant, permissions, loading],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 /**
@@ -338,17 +243,11 @@ export function AuthProvider({
  * application to access authentication
  * and backend-verified tenant context.
  */
-export function useAuth():
-  AuthContextValue {
-  const context =
-    useContext(
-      AuthContext,
-    );
+export function useAuth(): AuthContextValue {
+  const context = useContext(AuthContext);
 
   if (!context) {
-    throw new Error(
-      'useAuth must be used inside AuthProvider',
-    );
+    throw new Error("useAuth must be used inside AuthProvider");
   }
 
   return context;

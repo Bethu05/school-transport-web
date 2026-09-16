@@ -1,2566 +1,1657 @@
-import {
-    useMemo,
-    useState,
-} from 'react';
+import { useMemo, useState } from "react";
 
 import {
-    Alert,
-    Box,
-    Button,
-    Chip,
-    CircularProgress,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    IconButton,
-    MenuItem,
-    Paper,
-    Snackbar,
-    TextField,
-    Tooltip,
-    Typography,
-} from '@mui/material';
+  Alert,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  MenuItem,
+  Paper,
+  Snackbar,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 
 import {
-    AddRounded,
-    AltRouteRounded,
-    BlockRounded,
-    CalendarMonthRounded,
-    DirectionsBusRounded,
-    EditRounded,
-    HowToRegRounded,
-    PlayArrowRounded,
-    CheckCircleRounded,
-    PersonRounded,
-    ScheduleRounded,
-} from '@mui/icons-material';
+  AddRounded,
+  AltRouteRounded,
+  BlockRounded,
+  CalendarMonthRounded,
+  DirectionsBusRounded,
+  EditRounded,
+  HowToRegRounded,
+  PlayArrowRounded,
+  CheckCircleRounded,
+  PersonRounded,
+  ScheduleRounded,
+} from "@mui/icons-material";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { useAuth } from "../auth/AuthProvider";
 
 import {
-    useMutation,
-    useQuery,
-    useQueryClient,
-} from '@tanstack/react-query';
+  FRONTEND_PERMISSIONS,
+  hasFrontendPermission,
+} from "../auth/frontend-permissions";
+
+import { listDrivers, type Driver } from "../drivers/drivers.api";
+
+import { listRoutes, type Route } from "../routes/routes.api";
+
+import { listVehicles, type Vehicle } from "../vehicles/vehicles.api";
 
 import {
-    useAuth,
-} from '../auth/AuthProvider';
+  cancelTrip,
+  boardTrip,
+  createTrip,
+  completeTrip,
+  listTrips,
+  scheduleTrip,
+  startTrip,
+  updateTrip,
+  type CreateTripInput,
+  type Trip,
+  type TripStatus,
+  type UpdateTripInput,
+} from "./trips.api";
 
-import {
-    FRONTEND_PERMISSIONS,
-    hasFrontendPermission,
-} from '../auth/frontend-permissions';
+import { TripEditDialog } from "./TripEditDialog";
 
-import {
-    listDrivers,
-    type Driver,
-} from '../drivers/drivers.api';
+import { TripScheduleDialog } from "./TripScheduleDialog";
 
-import {
-    listRoutes,
-    type Route,
-} from '../routes/routes.api';
+const BUSINESS_TIME_ZONE = "Africa/Nairobi";
 
-import {
-    listVehicles,
-    type Vehicle,
-} from '../vehicles/vehicles.api';
+const EMPTY_TRIPS: Trip[] = [];
 
-import {
-    cancelTrip,
-    boardTrip,
-    createTrip,
-    completeTrip,
-    listTrips,
-    scheduleTrip,
-    startTrip,
-    updateTrip,
-    type CreateTripInput,
-    type Trip,
-    type TripStatus,
-    type UpdateTripInput,
-} from './trips.api';
+const EMPTY_ROUTES: Route[] = [];
 
-import {
-    TripEditDialog,
-} from './TripEditDialog';
+const EMPTY_DRIVERS: Driver[] = [];
 
-import {
-    TripScheduleDialog,
-} from './TripScheduleDialog';
+const EMPTY_VEHICLES: Vehicle[] = [];
 
-const BUSINESS_TIME_ZONE =
-    'Africa/Nairobi';
+type TripViewFilter = "current" | "completed" | "cancelled" | "all";
 
-const EMPTY_TRIPS: Trip[] =
-    [];
-
-const EMPTY_ROUTES: Route[] =
-    [];
-
-const EMPTY_DRIVERS: Driver[] =
-    [];
-
-const EMPTY_VEHICLES: Vehicle[] =
-    [];
-
-type TripViewFilter =
-    | 'current'
-    | 'completed'
-    | 'cancelled'
-    | 'all';
-
-function errorMessage(
-    error: unknown,
-): string {
-    return error instanceof Error
-        ? error.message
-        : 'The operation could not be completed.';
+function errorMessage(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "The operation could not be completed.";
 }
-
 
 class DraftSchedulingError extends Error {
-    readonly draft: Trip;
+  readonly draft: Trip;
 
-    constructor(
-        draft: Trip,
-        cause: unknown,
-    ) {
-        super(
-            errorMessage(
-                cause,
-            ),
-        );
+  constructor(draft: Trip, cause: unknown) {
+    super(errorMessage(cause));
 
-        this.name =
-            'DraftSchedulingError';
+    this.name = "DraftSchedulingError";
 
-        this.draft =
-            draft;
-    }
+    this.draft = draft;
+  }
 }
 
-function statusLabel(
-    status: TripStatus,
-): string {
-    switch (status) {
-        case 'draft':
-            return 'Draft';
+function statusLabel(status: TripStatus): string {
+  switch (status) {
+    case "draft":
+      return "Draft";
 
-        case 'scheduled':
-            return 'Scheduled';
+    case "scheduled":
+      return "Scheduled";
 
-        case 'boarding':
-            return 'Boarding';
+    case "boarding":
+      return "Boarding";
 
-        case 'in_progress':
-            return 'In progress';
+    case "in_progress":
+      return "In progress";
 
-        case 'completed':
-            return 'Completed';
+    case "completed":
+      return "Completed";
 
-        case 'cancelled':
-            return 'Cancelled';
-    }
+    case "cancelled":
+      return "Cancelled";
+  }
 }
 
-function statusColor(
-    status: TripStatus,
-): string {
-    switch (status) {
-        case 'draft':
-            return '#85898F';
+function statusColor(status: TripStatus): string {
+  switch (status) {
+    case "draft":
+      return "#85898F";
 
-        case 'scheduled':
-            return '#376C8A';
+    case "scheduled":
+      return "#376C8A";
 
-        case 'boarding':
-            return '#B17D32';
+    case "boarding":
+      return "#B17D32";
 
-        case 'in_progress':
-            return '#5F9471';
+    case "in_progress":
+      return "#5F9471";
 
-        case 'completed':
-            return '#4F6B58';
+    case "completed":
+      return "#4F6B58";
 
-        case 'cancelled':
-            return '#A65F5A';
-    }
+    case "cancelled":
+      return "#A65F5A";
+  }
 }
 
-function businessDateToday():
-    string {
-    const parts =
-        new Intl.DateTimeFormat(
-            'en-GB',
-            {
-                timeZone:
-                    BUSINESS_TIME_ZONE,
+function businessDateToday(): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: BUSINESS_TIME_ZONE,
 
-                year:
-                    'numeric',
+    year: "numeric",
 
-                month:
-                    '2-digit',
+    month: "2-digit",
 
-                day:
-                    '2-digit',
-            },
-        ).formatToParts(
-            new Date(),
-        );
+    day: "2-digit",
+  }).formatToParts(new Date());
 
-    const year =
-        parts.find(
-            (part) =>
-                part.type ===
-                'year',
-        )?.value;
+  const year = parts.find((part) => part.type === "year")?.value;
 
-    const month =
-        parts.find(
-            (part) =>
-                part.type ===
-                'month',
-        )?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
 
-    const day =
-        parts.find(
-            (part) =>
-                part.type ===
-                'day',
-        )?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
 
-    if (
-        !year ||
-        !month ||
-        !day
-    ) {
-        return '';
-    }
+  if (!year || !month || !day) {
+    return "";
+  }
 
-    return `${year}-${month}-${day}`;
+  return `${year}-${month}-${day}`;
 }
 
-function businessDateFromTimestamp(
-    value: string,
-): string {
-    const date =
-        new Date(value);
+function businessDateFromTimestamp(value: string): string {
+  const date = new Date(value);
 
-    if (
-        Number.isNaN(
-            date.getTime(),
-        )
-    ) {
-        return '';
-    }
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
 
-    const parts =
-        new Intl.DateTimeFormat(
-            'en-GB',
-            {
-                timeZone:
-                    BUSINESS_TIME_ZONE,
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: BUSINESS_TIME_ZONE,
 
-                year:
-                    'numeric',
+    year: "numeric",
 
-                month:
-                    '2-digit',
+    month: "2-digit",
 
-                day:
-                    '2-digit',
-            },
-        ).formatToParts(
-            date,
-        );
+    day: "2-digit",
+  }).formatToParts(date);
 
-    const year =
-        parts.find(
-            (part) =>
-                part.type ===
-                'year',
-        )?.value;
+  const year = parts.find((part) => part.type === "year")?.value;
 
-    const month =
-        parts.find(
-            (part) =>
-                part.type ===
-                'month',
-        )?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
 
-    const day =
-        parts.find(
-            (part) =>
-                part.type ===
-                'day',
-        )?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
 
-    if (
-        !year ||
-        !month ||
-        !day
-    ) {
-        return '';
-    }
+  if (!year || !month || !day) {
+    return "";
+  }
 
-    return `${year}-${month}-${day}`;
+  return `${year}-${month}-${day}`;
 }
 
-function formatDate(
-    value: string,
-): string {
-    const date =
-        new Date(value);
+function formatDate(value: string): string {
+  const date = new Date(value);
 
-    if (
-        Number.isNaN(
-            date.getTime(),
-        )
-    ) {
-        return value;
-    }
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
 
-    return new Intl.DateTimeFormat(
-        'en-GB',
-        {
-            timeZone:
-                BUSINESS_TIME_ZONE,
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: BUSINESS_TIME_ZONE,
 
-            weekday:
-                'short',
+    weekday: "short",
 
-            day:
-                '2-digit',
+    day: "2-digit",
 
-            month:
-                'short',
+    month: "short",
 
-            year:
-                'numeric',
-        },
-    ).format(
-        date,
-    );
+    year: "numeric",
+  }).format(date);
 }
 
-function formatTime(
-    value:
-        | string
-        | null,
-): string {
-    if (!value) {
-        return '—';
-    }
+function formatTime(value: string | null): string {
+  if (!value) {
+    return "—";
+  }
 
-    const date =
-        new Date(value);
+  const date = new Date(value);
 
-    if (
-        Number.isNaN(
-            date.getTime(),
-        )
-    ) {
-        return value;
-    }
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
 
-    return new Intl.DateTimeFormat(
-        'en-GB',
-        {
-            timeZone:
-                BUSINESS_TIME_ZONE,
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: BUSINESS_TIME_ZONE,
 
-            hour:
-                '2-digit',
+    hour: "2-digit",
 
-            minute:
-                '2-digit',
+    minute: "2-digit",
 
-            hour12:
-                false,
-        },
-    ).format(
-        date,
-    );
+    hour12: false,
+  }).format(date);
 }
 
-function tripNeedsAttention(
-    trip: Trip,
-): boolean {
-    if (
-        trip.status ===
-        'completed' ||
-        trip.status ===
-        'cancelled'
-    ) {
-        return false;
-    }
+function tripNeedsAttention(trip: Trip): boolean {
+  if (trip.status === "completed" || trip.status === "cancelled") {
+    return false;
+  }
 
-    return (
-        !trip.vehicleId ||
-        !trip.driverId
-    );
+  return !trip.vehicleId || !trip.driverId;
 }
 
-function tripCanBeEdited(
-    trip: Trip,
-): boolean {
-    return (
-        trip.status ===
-        'draft' ||
-        trip.status ===
-        'scheduled'
-    );
+function tripCanBeEdited(trip: Trip): boolean {
+  return trip.status === "draft" || trip.status === "scheduled";
 }
 
-function tripCanBeCancelled(
-    trip: Trip,
-): boolean {
-    return (
-        trip.status ===
-        'draft' ||
-        trip.status ===
-        'scheduled' ||
-        trip.status ===
-        'boarding'
-    );
+function tripCanBeCancelled(trip: Trip): boolean {
+  return (
+    trip.status === "draft" ||
+    trip.status === "scheduled" ||
+    trip.status === "boarding"
+  );
 }
 
-function tripMatchesView(
-    trip: Trip,
-    view:
-        TripViewFilter,
-): boolean {
-    switch (view) {
-        case 'current':
-            return (
-                trip.status !==
-                'completed' &&
-                trip.status !==
-                'cancelled'
-            );
+function tripMatchesView(trip: Trip, view: TripViewFilter): boolean {
+  switch (view) {
+    case "current":
+      return trip.status !== "completed" && trip.status !== "cancelled";
 
-        case 'completed':
-            return (
-                trip.status ===
-                'completed'
-            );
+    case "completed":
+      return trip.status === "completed";
 
-        case 'cancelled':
-            return (
-                trip.status ===
-                'cancelled'
-            );
+    case "cancelled":
+      return trip.status === "cancelled";
 
-        case 'all':
-            return true;
-    }
+    case "all":
+      return true;
+  }
 }
 
 export function TripsPage() {
-    const {
-        permissions,
-        tenant,
-    } = useAuth();
+  const { permissions, tenant } = useAuth();
 
-    const queryClient =
-        useQueryClient();
+  const queryClient = useQueryClient();
 
-    /**
-     * Historical records are deliberately hidden by default.
-     *
-     * The database keeps them permanently, but operators should
-     * normally see only trips that still matter operationally.
-     */
-    const [
-        viewFilter,
-        setViewFilter,
-    ] =
-        useState<TripViewFilter>(
-            'current',
+  /**
+   * Historical records are deliberately hidden by default.
+   *
+   * The database keeps them permanently, but operators should
+   * normally see only trips that still matter operationally.
+   */
+  const [viewFilter, setViewFilter] = useState<TripViewFilter>("current");
+
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+
+  const [scheduleDialogKey, setScheduleDialogKey] = useState(0);
+
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
+
+  const [cancelTarget, setCancelTarget] = useState<Trip | null>(null);
+
+  const [mutationError, setMutationError] = useState<string | null>(null);
+
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const tenantId = tenant?.tenantId;
+
+  const canCreateTrips = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.TRIPS_CREATE,
+  );
+
+  const canScheduleTrips = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.TRIPS_SCHEDULE,
+  );
+
+  const canUpdateTrips = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.TRIPS_UPDATE,
+  );
+
+  const canBoardTrips = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.TRIPS_BOARD,
+  );
+
+  const canStartTrips = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.TRIPS_START,
+  );
+
+  const canCompleteTrips = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.TRIPS_COMPLETE,
+  );
+
+  const canCancelTrips = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.TRIPS_CANCEL,
+  );
+
+  /**
+   * The current scheduling dialog creates a draft and then
+   * immediately schedules it, so both permissions are required.
+   */
+  const canCreateAndScheduleTrips = canCreateTrips && canScheduleTrips;
+
+  // ============================================================
+  // DATA
+  // ============================================================
+
+  const tripsQuery = useQuery({
+    queryKey: ["trips", tenantId],
+
+    enabled: Boolean(tenantId),
+
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
+
+      return listTrips(tenantId);
+    },
+  });
+
+  const routesQuery = useQuery({
+    queryKey: ["routes", tenantId],
+
+    enabled: Boolean(tenantId),
+
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
+
+      return listRoutes(tenantId);
+    },
+  });
+
+  const driversQuery = useQuery({
+    queryKey: ["drivers", tenantId],
+
+    enabled: Boolean(tenantId),
+
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
+
+      return listDrivers(tenantId);
+    },
+  });
+
+  const vehiclesQuery = useQuery({
+    queryKey: ["vehicles", tenantId, "trip-scheduling"],
+
+    enabled: Boolean(tenantId),
+
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
+
+      return listVehicles(tenantId, {
+        page: 1,
+
+        limit: 100,
+      });
+    },
+  });
+
+  async function refreshTrips(): Promise<void> {
+    await queryClient.invalidateQueries({
+      queryKey: ["trips"],
+    });
+  }
+
+  // ============================================================
+  // CREATE + SCHEDULE
+  // ============================================================
+
+  const scheduleMutation = useMutation({
+    mutationFn: async (input: CreateTripInput) => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
+
+      const draft = await createTrip(tenantId, input);
+
+      try {
+        return await scheduleTrip(tenantId, draft.id);
+      } catch (error) {
+        throw new DraftSchedulingError(draft, error);
+      }
+    },
+
+    onSuccess: async () => {
+      await refreshTrips();
+
+      setScheduleOpen(false);
+
+      setMutationError(null);
+
+      /**
+       * A newly scheduled trip is operational, so make sure
+       * the user returns to the default current view.
+       */
+      setViewFilter("current");
+
+      setSuccessMessage("Trip scheduled successfully.");
+    },
+
+    onError: async (error) => {
+      await refreshTrips();
+
+      if (error instanceof DraftSchedulingError) {
+        setScheduleOpen(false);
+
+        setEditingTrip(error.draft);
+
+        setMutationError(`Draft saved. ${error.message}`);
+
+        setSuccessMessage(
+          "Trip kept as a draft so it can be amended and scheduled again.",
         );
 
-    const [
-        scheduleOpen,
-        setScheduleOpen,
-    ] =
-        useState(false);
+        return;
+      }
 
-    const [
-        scheduleDialogKey,
-        setScheduleDialogKey,
-    ] =
-        useState(0);
+      setMutationError(errorMessage(error));
+    },
+  });
 
-    const [
-        editingTrip,
-        setEditingTrip,
-    ] =
-        useState<
-            Trip | null
-        >(null);
+  // ============================================================
+  // EDIT
+  // ============================================================
 
-    const [
-        cancelTarget,
-        setCancelTarget,
-    ] =
-        useState<
-            Trip | null
-        >(null);
+  const updateMutation = useMutation({
+    mutationFn: async ({
+      tripId,
+      input,
+    }: {
+      tripId: string;
 
-    const [
-        mutationError,
-        setMutationError,
-    ] =
-        useState<
-            string | null
-        >(null);
+      input: UpdateTripInput;
+    }) => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-    const [
-        successMessage,
-        setSuccessMessage,
-    ] =
-        useState<
-            string | null
-        >(null);
+      return updateTrip(tenantId, tripId, input);
+    },
 
-    const tenantId =
-        tenant?.tenantId;
+    onSuccess: async () => {
+      await refreshTrips();
 
-    const canCreateTrips =
-        hasFrontendPermission(
-            permissions,
-            FRONTEND_PERMISSIONS.TRIPS_CREATE,
-        );
+      setEditingTrip(null);
 
-    const canScheduleTrips =
-        hasFrontendPermission(
-            permissions,
-            FRONTEND_PERMISSIONS.TRIPS_SCHEDULE,
-        );
+      setMutationError(null);
 
-    const canUpdateTrips =
-        hasFrontendPermission(
-            permissions,
-            FRONTEND_PERMISSIONS.TRIPS_UPDATE,
-        );
+      setSuccessMessage("Trip updated successfully.");
+    },
 
-    const canBoardTrips =
-        hasFrontendPermission(
-            permissions,
-            FRONTEND_PERMISSIONS.TRIPS_BOARD,
-        );
+    onError: (error) => {
+      setMutationError(errorMessage(error));
+    },
+  });
 
-    const canStartTrips =
-        hasFrontendPermission(
-            permissions,
-            FRONTEND_PERMISSIONS.TRIPS_START,
-        );
+  // ============================================================
+  // OPERATIONAL LIFECYCLE
+  //
+  // scheduled   -> boarding
+  // boarding    -> in_progress
+  // in_progress -> completed
+  //
+  // Backend lifecycle validation remains authoritative.
+  // ============================================================
 
-    const canCompleteTrips =
-        hasFrontendPermission(
-            permissions,
-            FRONTEND_PERMISSIONS.TRIPS_COMPLETE,
-        );
+  const lifecycleMutation = useMutation({
+    mutationFn: async ({
+      tripId,
+      action,
+    }: {
+      tripId: string;
 
-    const canCancelTrips =
-        hasFrontendPermission(
-            permissions,
-            FRONTEND_PERMISSIONS.TRIPS_CANCEL,
-        );
+      action: "schedule" | "board" | "start" | "complete";
+    }) => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-    /**
-     * The current scheduling dialog creates a draft and then
-     * immediately schedules it, so both permissions are required.
-     */
-    const canCreateAndScheduleTrips =
-        canCreateTrips &&
-        canScheduleTrips;
+      switch (action) {
+        case "schedule":
+          return scheduleTrip(tenantId, tripId);
 
+        case "board":
+          return boardTrip(tenantId, tripId);
 
-    // ============================================================
-    // DATA
-    // ============================================================
+        case "start":
+          return startTrip(tenantId, tripId);
 
-    const tripsQuery =
-        useQuery({
-            queryKey: [
-                'trips',
-                tenantId,
-            ],
+        case "complete":
+          return completeTrip(tenantId, tripId);
+      }
+    },
 
-            enabled:
-                Boolean(
-                    tenantId,
-                ),
+    onSuccess: async (_trip, variables) => {
+      await refreshTrips();
 
-            queryFn:
-                async () => {
-                    if (!tenantId) {
-                        throw new Error(
-                            'No active tenant',
-                        );
-                    }
+      setMutationError(null);
 
-                    return listTrips(
-                        tenantId,
-                    );
-                },
-        });
+      switch (variables.action) {
+        case "schedule":
+          setSuccessMessage("Trip scheduled successfully.");
+          break;
 
-    const routesQuery =
-        useQuery({
-            queryKey: [
-                'routes',
-                tenantId,
-            ],
+        case "board":
+          setSuccessMessage("Trip moved to boarding.");
+          break;
 
-            enabled:
-                Boolean(
-                    tenantId,
-                ),
+        case "start":
+          setSuccessMessage("Trip started successfully.");
+          break;
 
-            queryFn:
-                async () => {
-                    if (!tenantId) {
-                        throw new Error(
-                            'No active tenant',
-                        );
-                    }
+        case "complete":
+          setSuccessMessage("Trip completed successfully.");
+          break;
+      }
+    },
 
-                    return listRoutes(
-                        tenantId,
-                    );
-                },
-        });
+    onError: (error) => {
+      setMutationError(errorMessage(error));
+    },
+  });
 
-    const driversQuery =
-        useQuery({
-            queryKey: [
-                'drivers',
-                tenantId,
-            ],
+  // ============================================================
+  // CANCEL
+  // ============================================================
 
-            enabled:
-                Boolean(
-                    tenantId,
-                ),
+  const cancelMutation = useMutation({
+    mutationFn: async (tripId: string) => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-            queryFn:
-                async () => {
-                    if (!tenantId) {
-                        throw new Error(
-                            'No active tenant',
-                        );
-                    }
+      return cancelTrip(tenantId, tripId);
+    },
 
-                    return listDrivers(
-                        tenantId,
-                    );
-                },
-        });
+    onSuccess: async () => {
+      await refreshTrips();
 
-    const vehiclesQuery =
-        useQuery({
-            queryKey: [
-                'vehicles',
-                tenantId,
-                'trip-scheduling',
-            ],
+      setCancelTarget(null);
 
-            enabled:
-                Boolean(
-                    tenantId,
-                ),
+      setMutationError(null);
 
-            queryFn:
-                async () => {
-                    if (!tenantId) {
-                        throw new Error(
-                            'No active tenant',
-                        );
-                    }
+      /**
+       * Cancelled records disappear automatically from
+       * the default Current view.
+       *
+       * The user can retrieve them using the View filter.
+       */
+      setSuccessMessage("Trip cancelled successfully.");
+    },
 
-                    return listVehicles(
-                        tenantId,
-                        {
-                            page:
-                                1,
+    onError: (error) => {
+      setMutationError(errorMessage(error));
+    },
+  });
 
-                            limit:
-                                100,
-                        },
-                    );
-                },
-        });
+  // ============================================================
+  // DERIVED DATA
+  // ============================================================
 
-    async function refreshTrips():
-        Promise<void> {
-        await queryClient.invalidateQueries(
-            {
-                queryKey: [
-                    'trips',
-                ],
-            },
-        );
+  const trips = tripsQuery.data ?? EMPTY_TRIPS;
+
+  const routes = routesQuery.data ?? EMPTY_ROUTES;
+
+  const drivers = driversQuery.data ?? EMPTY_DRIVERS;
+
+  const vehicles = vehiclesQuery.data?.items ?? EMPTY_VEHICLES;
+
+  const today = businessDateToday();
+
+  const currentTrips = useMemo(
+    () =>
+      trips.filter(
+        (trip) => trip.status !== "completed" && trip.status !== "cancelled",
+      ),
+    [trips],
+  );
+
+  const visibleTrips = useMemo(
+    () =>
+      trips
+        .filter((trip) => tripMatchesView(trip, viewFilter))
+        .sort(
+          (first, second) =>
+            new Date(first.scheduledStartAt).getTime() -
+            new Date(second.scheduledStartAt).getTime(),
+        ),
+    [trips, viewFilter],
+  );
+
+  const summary = useMemo(
+    () => ({
+      current: currentTrips.length,
+
+      today: trips.filter(
+        (trip) =>
+          trip.status !== "cancelled" &&
+          businessDateFromTimestamp(trip.scheduledStartAt) === today,
+      ).length,
+
+      scheduled: trips.filter((trip) => trip.status === "scheduled").length,
+
+      drafts: trips.filter((trip) => trip.status === "draft").length,
+
+      actionRequired: trips.filter(tripNeedsAttention).length,
+    }),
+    [trips, currentTrips, today],
+  );
+
+  const historicalCount = trips.filter(
+    (trip) => trip.status === "completed" || trip.status === "cancelled",
+  ).length;
+
+  const schedulingResourcesLoading =
+    routesQuery.isLoading || vehiclesQuery.isLoading || driversQuery.isLoading;
+
+  const schedulingResourcesError =
+    routesQuery.isError || vehiclesQuery.isError || driversQuery.isError;
+
+  const eligibleRoutes = routes.filter(
+    (route) => route.status === "active" && route.stopCount > 0,
+  );
+
+  const activeDrivers = drivers.filter((driver) => driver.status === "active");
+
+  const activeVehicles = vehicles.filter(
+    (vehicle) => vehicle.status === "active",
+  );
+
+  const canOpenScheduler =
+    canCreateAndScheduleTrips &&
+    !schedulingResourcesLoading &&
+    !schedulingResourcesError &&
+    eligibleRoutes.length > 0 &&
+    activeVehicles.length > 0 &&
+    activeDrivers.length > 0;
+
+  function openScheduler(): void {
+    setMutationError(null);
+
+    setScheduleDialogKey((current) => current + 1);
+
+    setScheduleOpen(true);
+  }
+
+  function openEditor(trip: Trip): void {
+    setMutationError(null);
+
+    setEditingTrip(trip);
+  }
+
+  function openCancel(trip: Trip): void {
+    setMutationError(null);
+
+    setCancelTarget(trip);
+  }
+
+  function emptyMessage(): string {
+    switch (viewFilter) {
+      case "current":
+        return "There are no current trips.";
+
+      case "completed":
+        return "There are no completed trips.";
+
+      case "cancelled":
+        return "There are no cancelled trips.";
+
+      case "all":
+        return "There are no trips.";
     }
-
-    // ============================================================
-    // CREATE + SCHEDULE
-    // ============================================================
-
-    const scheduleMutation =
-        useMutation({
-            mutationFn:
-                async (
-                    input:
-                        CreateTripInput,
-                ) => {
-                    if (!tenantId) {
-                        throw new Error(
-                            'No active tenant',
-                        );
-                    }
-
-                    const draft =
-                        await createTrip(
-                            tenantId,
-                            input,
-                        );
-
-                    try {
-                        return await scheduleTrip(
-                            tenantId,
-                            draft.id,
-                        );
-                    } catch (error) {
-                        throw new DraftSchedulingError(
-                            draft,
-                            error,
-                        );
-                    }
-                },
-
-            onSuccess:
-                async () => {
-                    await refreshTrips();
-
-                    setScheduleOpen(
-                        false,
-                    );
-
-                    setMutationError(
-                        null,
-                    );
-
-                    /**
-                     * A newly scheduled trip is operational, so make sure
-                     * the user returns to the default current view.
-                     */
-                    setViewFilter(
-                        'current',
-                    );
-
-                    setSuccessMessage(
-                        'Trip scheduled successfully.',
-                    );
-                },
-
-            onError:
-                async (
-                    error,
-                ) => {
-                    await refreshTrips();
-
-                    if (
-                        error instanceof
-                        DraftSchedulingError
-                    ) {
-                        setScheduleOpen(
-                            false,
-                        );
-
-                        setEditingTrip(
-                            error.draft,
-                        );
-
-                        setMutationError(
-                            `Draft saved. ${error.message}`,
-                        );
-
-                        setSuccessMessage(
-                            'Trip kept as a draft so it can be amended and scheduled again.',
-                        );
-
-                        return;
-                    }
-
-                    setMutationError(
-                        errorMessage(
-                            error,
-                        ),
-                    );
-                },
-        });
-
-    // ============================================================
-    // EDIT
-    // ============================================================
-
-    const updateMutation =
-        useMutation({
-            mutationFn:
-                async ({
-                    tripId,
-                    input,
-                }: {
-                    tripId:
-                    string;
-
-                    input:
-                    UpdateTripInput;
-                }) => {
-                    if (!tenantId) {
-                        throw new Error(
-                            'No active tenant',
-                        );
-                    }
-
-                    return updateTrip(
-                        tenantId,
-                        tripId,
-                        input,
-                    );
-                },
-
-            onSuccess:
-                async () => {
-                    await refreshTrips();
-
-                    setEditingTrip(
-                        null,
-                    );
-
-                    setMutationError(
-                        null,
-                    );
-
-                    setSuccessMessage(
-                        'Trip updated successfully.',
-                    );
-                },
-
-            onError:
-                (
-                    error,
-                ) => {
-                    setMutationError(
-                        errorMessage(
-                            error,
-                        ),
-                    );
-                },
-        });
-
-    // ============================================================
-    // OPERATIONAL LIFECYCLE
-    //
-    // scheduled   -> boarding
-    // boarding    -> in_progress
-    // in_progress -> completed
-    //
-    // Backend lifecycle validation remains authoritative.
-    // ============================================================
-
-    const lifecycleMutation =
-        useMutation({
-            mutationFn:
-                async ({
-                    tripId,
-                    action,
-                }: {
-                    tripId:
-                        string;
-
-                    action:
-                        | 'schedule'
-                        | 'board'
-                        | 'start'
-                        | 'complete';
-                }) => {
-                    if (!tenantId) {
-                        throw new Error(
-                            'No active tenant',
-                        );
-                    }
-
-                    switch (action) {
-                        case 'schedule':
-                            return scheduleTrip(
-                                tenantId,
-                                tripId,
-                            );
-
-                        case 'board':
-                            return boardTrip(
-                                tenantId,
-                                tripId,
-                            );
-
-                        case 'start':
-                            return startTrip(
-                                tenantId,
-                                tripId,
-                            );
-
-                        case 'complete':
-                            return completeTrip(
-                                tenantId,
-                                tripId,
-                            );
-                    }
-                },
-
-            onSuccess:
-                async (
-                    _trip,
-                    variables,
-                ) => {
-                    await refreshTrips();
-
-                    setMutationError(
-                        null,
-                    );
-
-                    switch (
-                        variables.action
-                    ) {
-                        case 'schedule':
-                            setSuccessMessage(
-                                'Trip scheduled successfully.',
-                            );
-                            break;
-
-                        case 'board':
-                            setSuccessMessage(
-                                'Trip moved to boarding.',
-                            );
-                            break;
-
-                        case 'start':
-                            setSuccessMessage(
-                                'Trip started successfully.',
-                            );
-                            break;
-
-                        case 'complete':
-                            setSuccessMessage(
-                                'Trip completed successfully.',
-                            );
-                            break;
-                    }
-                },
-
-            onError:
-                (
-                    error,
-                ) => {
-                    setMutationError(
-                        errorMessage(
-                            error,
-                        ),
-                    );
-                },
-        });
-
-    // ============================================================
-    // CANCEL
-    // ============================================================
-
-    const cancelMutation =
-        useMutation({
-            mutationFn:
-                async (
-                    tripId:
-                        string,
-                ) => {
-                    if (!tenantId) {
-                        throw new Error(
-                            'No active tenant',
-                        );
-                    }
-
-                    return cancelTrip(
-                        tenantId,
-                        tripId,
-                    );
-                },
-
-            onSuccess:
-                async () => {
-                    await refreshTrips();
-
-                    setCancelTarget(
-                        null,
-                    );
-
-                    setMutationError(
-                        null,
-                    );
-
-                    /**
-                     * Cancelled records disappear automatically from
-                     * the default Current view.
-                     *
-                     * The user can retrieve them using the View filter.
-                     */
-                    setSuccessMessage(
-                        'Trip cancelled successfully.',
-                    );
-                },
-
-            onError:
-                (
-                    error,
-                ) => {
-                    setMutationError(
-                        errorMessage(
-                            error,
-                        ),
-                    );
-                },
-        });
-
-    // ============================================================
-    // DERIVED DATA
-    // ============================================================
-
-    const trips =
-        tripsQuery.data ??
-        EMPTY_TRIPS;
-
-    const routes =
-        routesQuery.data ??
-        EMPTY_ROUTES;
-
-    const drivers =
-        driversQuery.data ??
-        EMPTY_DRIVERS;
-
-    const vehicles =
-        vehiclesQuery.data
-            ?.items ??
-        EMPTY_VEHICLES;
-
-    const today =
-        businessDateToday();
-
-    const currentTrips =
-        useMemo(
-            () =>
-                trips.filter(
-                    (trip) =>
-                        trip.status !==
-                        'completed' &&
-                        trip.status !==
-                        'cancelled',
-                ),
-            [
-                trips,
-            ],
-        );
-
-    const visibleTrips =
-        useMemo(
-            () =>
-                trips
-                    .filter(
-                        (trip) =>
-                            tripMatchesView(
-                                trip,
-                                viewFilter,
-                            ),
-                    )
-                    .sort(
-                        (
-                            first,
-                            second,
-                        ) =>
-                            new Date(
-                                first.scheduledStartAt,
-                            ).getTime() -
-                            new Date(
-                                second.scheduledStartAt,
-                            ).getTime(),
-                    ),
-            [
-                trips,
-                viewFilter,
-            ],
-        );
-
-    const summary =
-        useMemo(
-            () => ({
-                current:
-                    currentTrips.length,
-
-                today:
-                    trips.filter(
-                        (trip) =>
-                            trip.status !==
-                            'cancelled' &&
-                            businessDateFromTimestamp(
-                                trip.scheduledStartAt,
-                            ) ===
-                            today,
-                    ).length,
-
-                scheduled:
-                    trips.filter(
-                        (trip) =>
-                            trip.status ===
-                            'scheduled',
-                    ).length,
-
-                drafts:
-                    trips.filter(
-                        (trip) =>
-                            trip.status ===
-                            'draft',
-                    ).length,
-
-                actionRequired:
-                    trips.filter(
-                        tripNeedsAttention,
-                    ).length,
-            }),
-            [
-                trips,
-                currentTrips,
-                today,
-            ],
-        );
-
-    const historicalCount =
-        trips.filter(
-            (trip) =>
-                trip.status ===
-                'completed' ||
-                trip.status ===
-                'cancelled',
-        ).length;
-
-    const schedulingResourcesLoading =
-        routesQuery.isLoading ||
-        vehiclesQuery.isLoading ||
-        driversQuery.isLoading;
-
-    const schedulingResourcesError =
-        routesQuery.isError ||
-        vehiclesQuery.isError ||
-        driversQuery.isError;
-
-    const eligibleRoutes =
-        routes.filter(
-            (route) =>
-                route.status ===
-                'active' &&
-                route.stopCount >
-                0,
-        );
-
-    const activeDrivers =
-        drivers.filter(
-            (driver) =>
-                driver.status ===
-                'active',
-        );
-
-    const activeVehicles =
-        vehicles.filter(
-            (vehicle) =>
-                vehicle.status ===
-                'active',
-        );
-
-    const canOpenScheduler =
-        canCreateAndScheduleTrips &&
-        !schedulingResourcesLoading &&
-        !schedulingResourcesError &&
-        eligibleRoutes.length >
-        0 &&
-        activeVehicles.length >
-        0 &&
-        activeDrivers.length >
-        0;
-
-    function openScheduler():
-        void {
-        setMutationError(
-            null,
-        );
-
-        setScheduleDialogKey(
-            (current) =>
-                current + 1,
-        );
-
-        setScheduleOpen(
-            true,
-        );
-    }
-
-    function openEditor(
-        trip: Trip,
-    ): void {
-        setMutationError(
-            null,
-        );
-
-        setEditingTrip(
-            trip,
-        );
-    }
-
-    function openCancel(
-        trip: Trip,
-    ): void {
-        setMutationError(
-            null,
-        );
-
-        setCancelTarget(
-            trip,
-        );
-    }
-
-    function emptyMessage():
-        string {
-        switch (viewFilter) {
-            case 'current':
-                return 'There are no current trips.';
-
-            case 'completed':
-                return 'There are no completed trips.';
-
-            case 'cancelled':
-                return 'There are no cancelled trips.';
-
-            case 'all':
-                return 'There are no trips.';
-        }
-    }
-
-    return (
-        <Box>
-            {/* ======================================================
+  }
+
+  return (
+    <Box>
+      {/* ======================================================
           HEADER
           ====================================================== */}
 
-            <Box
-                sx={{
-                    mb: 3,
+      <Box
+        sx={{
+          mb: 3,
 
-                    display:
-                        'flex',
+          display: "flex",
 
-                    alignItems: {
-                        xs:
-                            'stretch',
+          alignItems: {
+            xs: "stretch",
 
-                        sm:
-                            'center',
-                    },
+            sm: "center",
+          },
 
-                    justifyContent:
-                        'space-between',
+          justifyContent: "space-between",
 
-                    flexDirection: {
-                        xs:
-                            'column',
+          flexDirection: {
+            xs: "column",
 
-                        sm:
-                            'row',
-                    },
+            sm: "row",
+          },
 
-                    gap: 2,
-                }}
-            >
-                <Box>
-                    <Typography
-                        component="h1"
-                        sx={{
-                            fontSize:
-                                26,
+          gap: 2,
+        }}
+      >
+        <Box>
+          <Typography
+            component="h1"
+            sx={{
+              fontSize: 26,
 
-                            fontWeight:
-                                850,
+              fontWeight: 850,
 
-                            letterSpacing:
-                                '-0.03em',
-                        }}
-                    >
-                        Trips
-                    </Typography>
+              letterSpacing: "-0.03em",
+            }}
+          >
+            Trips
+          </Typography>
 
-                    <Typography
-                        sx={{
-                            mt: 0.5,
+          <Typography
+            sx={{
+              mt: 0.5,
 
-                            color:
-                                'text.secondary',
+              color: "text.secondary",
 
-                            fontSize:
-                                13.5,
-                        }}
-                    >
-                        Schedule and manage dated transport operations.
-                    </Typography>
-                </Box>
+              fontSize: 13.5,
+            }}
+          >
+            Schedule and manage dated transport operations.
+          </Typography>
+        </Box>
 
-                {canCreateAndScheduleTrips ? (
-                    <Button
-                        variant="contained"
-                        startIcon={
-                            <AddRounded />
-                        }
-                        disabled={
-                            !canOpenScheduler
-                        }
-                        onClick={
-                            openScheduler
-                        }
-                    >
-                        Schedule trip
-                    </Button>
-                ) : null}
-            </Box>
+        {canCreateAndScheduleTrips ? (
+          <Button
+            variant="contained"
+            startIcon={<AddRounded />}
+            disabled={!canOpenScheduler}
+            onClick={openScheduler}
+          >
+            Schedule trip
+          </Button>
+        ) : null}
+      </Box>
 
-            {/* ======================================================
+      {/* ======================================================
           SUMMARY
           ====================================================== */}
 
+      <Box
+        sx={{
+          mb: 3,
+
+          display: "grid",
+
+          gridTemplateColumns: {
+            xs: "repeat(2, minmax(0, 1fr))",
+
+            md: "repeat(5, minmax(0, 1fr))",
+          },
+
+          gap: 1.5,
+        }}
+      >
+        {[
+          {
+            label: "Current trips",
+
+            value: summary.current,
+
+            icon: <AltRouteRounded />,
+          },
+
+          {
+            label: "Today",
+
+            value: summary.today,
+
+            icon: <CalendarMonthRounded />,
+          },
+
+          {
+            label: "Scheduled",
+
+            value: summary.scheduled,
+
+            icon: <ScheduleRounded />,
+          },
+
+          {
+            label: "Drafts",
+
+            value: summary.drafts,
+
+            icon: <EditRounded />,
+          },
+
+          {
+            label: "Action required",
+
+            value: summary.actionRequired,
+
+            icon: <DirectionsBusRounded />,
+          },
+        ].map((item) => (
+          <Paper
+            key={item.label}
+            elevation={0}
+            sx={{
+              p: 2.25,
+
+              border: "1px solid",
+
+              borderColor: "divider",
+            }}
+          >
             <Box
-                sx={{
-                    mb: 3,
+              sx={{
+                display: "flex",
 
-                    display:
-                        'grid',
+                alignItems: "center",
 
-                    gridTemplateColumns: {
-                        xs:
-                            'repeat(2, minmax(0, 1fr))',
-
-                        md:
-                            'repeat(5, minmax(0, 1fr))',
-                    },
-
-                    gap: 1.5,
-                }}
+                gap: 1.25,
+              }}
             >
-                {[
-                    {
-                        label:
-                            'Current trips',
+              <Box
+                sx={{
+                  width: 38,
 
-                        value:
-                            summary.current,
+                  height: 38,
 
-                        icon:
-                            <AltRouteRounded />,
-                    },
+                  display: "grid",
 
-                    {
-                        label:
-                            'Today',
+                  placeItems: "center",
 
-                        value:
-                            summary.today,
+                  borderRadius: 2,
 
-                        icon:
-                            <CalendarMonthRounded />,
-                    },
+                  bgcolor: "action.hover",
 
-                    {
-                        label:
-                            'Scheduled',
+                  color: "primary.main",
+                }}
+              >
+                {item.icon}
+              </Box>
 
-                        value:
-                            summary.scheduled,
+              <Box>
+                <Typography
+                  sx={{
+                    fontSize: 22,
 
-                        icon:
-                            <ScheduleRounded />,
-                    },
+                    fontWeight: 850,
+                  }}
+                >
+                  {item.value}
+                </Typography>
 
-                    {
-                        label:
-                            'Drafts',
+                <Typography
+                  sx={{
+                    color: "text.secondary",
 
-                        value:
-                            summary.drafts,
-
-                        icon:
-                            <EditRounded />,
-                    },
-
-                    {
-                        label:
-                            'Action required',
-
-                        value:
-                            summary.actionRequired,
-
-                        icon:
-                            <DirectionsBusRounded />,
-                    },
-                ].map(
-                    (item) => (
-                        <Paper
-                            key={
-                                item.label
-                            }
-                            elevation={0}
-                            sx={{
-                                p: 2.25,
-
-                                border:
-                                    '1px solid',
-
-                                borderColor:
-                                    'divider',
-                            }}
-                        >
-                            <Box
-                                sx={{
-                                    display:
-                                        'flex',
-
-                                    alignItems:
-                                        'center',
-
-                                    gap: 1.25,
-                                }}
-                            >
-                                <Box
-                                    sx={{
-                                        width: 38,
-
-                                        height: 38,
-
-                                        display:
-                                            'grid',
-
-                                        placeItems:
-                                            'center',
-
-                                        borderRadius:
-                                            2,
-
-                                        bgcolor:
-                                            'action.hover',
-
-                                        color:
-                                            'primary.main',
-                                    }}
-                                >
-                                    {item.icon}
-                                </Box>
-
-                                <Box>
-                                    <Typography
-                                        sx={{
-                                            fontSize:
-                                                22,
-
-                                            fontWeight:
-                                                850,
-                                        }}
-                                    >
-                                        {item.value}
-                                    </Typography>
-
-                                    <Typography
-                                        sx={{
-                                            color:
-                                                'text.secondary',
-
-                                            fontSize:
-                                                11.5,
-                                        }}
-                                    >
-                                        {item.label}
-                                    </Typography>
-                                </Box>
-                            </Box>
-                        </Paper>
-                    ),
-                )}
+                    fontSize: 11.5,
+                  }}
+                >
+                  {item.label}
+                </Typography>
+              </Box>
             </Box>
+          </Paper>
+        ))}
+      </Box>
 
-            {/* ======================================================
+      {/* ======================================================
           HISTORY / STATUS FILTER
           ====================================================== */}
 
-            <Paper
-                elevation={0}
-                sx={{
-                    mb: 2,
+      <Paper
+        elevation={0}
+        sx={{
+          mb: 2,
 
-                    p: 2,
+          p: 2,
 
-                    display:
-                        'flex',
+          display: "flex",
 
-                    alignItems: {
-                        xs:
-                            'stretch',
+          alignItems: {
+            xs: "stretch",
 
-                        sm:
-                            'center',
-                    },
+            sm: "center",
+          },
 
-                    justifyContent:
-                        'space-between',
+          justifyContent: "space-between",
 
-                    flexDirection: {
-                        xs:
-                            'column',
+          flexDirection: {
+            xs: "column",
 
-                        sm:
-                            'row',
-                    },
+            sm: "row",
+          },
 
-                    gap: 1.5,
+          gap: 1.5,
 
-                    border:
-                        '1px solid',
+          border: "1px solid",
 
-                    borderColor:
-                        'divider',
-                }}
-            >
-                <Box>
-                    <Typography
-                        sx={{
-                            fontSize:
-                                12.5,
+          borderColor: "divider",
+        }}
+      >
+        <Box>
+          <Typography
+            sx={{
+              fontSize: 12.5,
 
-                            fontWeight:
-                                750,
-                        }}
-                    >
-                        Trip history
-                    </Typography>
+              fontWeight: 750,
+            }}
+          >
+            Trip history
+          </Typography>
 
-                    <Typography
-                        sx={{
-                            mt: 0.3,
+          <Typography
+            sx={{
+              mt: 0.3,
 
-                            color:
-                                'text.secondary',
+              color: "text.secondary",
 
-                            fontSize:
-                                11,
-                        }}
-                    >
-                        Completed and cancelled trips are hidden by default.
-                        {historicalCount >
-                            0
-                            ? ` ${historicalCount} historical ${historicalCount ===
-                                1
-                                ? 'trip is'
-                                : 'trips are'
-                            } available.`
-                            : ''}
-                    </Typography>
-                </Box>
+              fontSize: 11,
+            }}
+          >
+            Completed and cancelled trips are hidden by default.
+            {historicalCount > 0
+              ? ` ${historicalCount} historical ${
+                  historicalCount === 1 ? "trip is" : "trips are"
+                } available.`
+              : ""}
+          </Typography>
+        </Box>
 
-                <TextField
-                    select
-                    size="small"
-                    label="View"
-                    value={
-                        viewFilter
-                    }
-                    onChange={(
-                        event,
-                    ) =>
-                        setViewFilter(
-                            event.target
-                                .value as TripViewFilter,
-                        )
-                    }
-                    sx={{
-                        minWidth:
-                            170,
-                    }}
-                >
-                    <MenuItem
-                        value="current"
-                    >
-                        Current
-                    </MenuItem>
+        <TextField
+          select
+          size="small"
+          label="View"
+          value={viewFilter}
+          onChange={(event) =>
+            setViewFilter(event.target.value as TripViewFilter)
+          }
+          sx={{
+            minWidth: 170,
+          }}
+        >
+          <MenuItem value="current">Current</MenuItem>
 
-                    <MenuItem
-                        value="completed"
-                    >
-                        Completed
-                    </MenuItem>
+          <MenuItem value="completed">Completed</MenuItem>
 
-                    <MenuItem
-                        value="cancelled"
-                    >
-                        Cancelled
-                    </MenuItem>
+          <MenuItem value="cancelled">Cancelled</MenuItem>
 
-                    <MenuItem
-                        value="all"
-                    >
-                        All trips
-                    </MenuItem>
-                </TextField>
-            </Paper>
+          <MenuItem value="all">All trips</MenuItem>
+        </TextField>
+      </Paper>
 
-            {/* ======================================================
+      {/* ======================================================
           RESOURCE WARNINGS
           ====================================================== */}
 
-            {schedulingResourcesError ? (
-                <Alert
-                    severity="warning"
-                    sx={{
-                        mb: 2,
-                    }}
-                >
-                    Some scheduling information could not be loaded. Existing
-                    trips can still be viewed, but scheduling and reassignment may
-                    not be available until routes, vehicles and drivers load.
-                </Alert>
-            ) : null}
+      {schedulingResourcesError ? (
+        <Alert
+          severity="warning"
+          sx={{
+            mb: 2,
+          }}
+        >
+          Some scheduling information could not be loaded. Existing trips can
+          still be viewed, but scheduling and reassignment may not be available
+          until routes, vehicles and drivers load.
+        </Alert>
+      ) : null}
 
-            {canCreateAndScheduleTrips &&
-                !schedulingResourcesLoading &&
-                !schedulingResourcesError &&
-                !canOpenScheduler ? (
-                <Alert
-                    severity="info"
-                    sx={{
-                        mb: 2,
-                    }}
-                >
-                    To schedule a trip you need an active route with at least one
-                    stop, an active vehicle and an active driver.
-                </Alert>
-            ) : null}
+      {canCreateAndScheduleTrips &&
+      !schedulingResourcesLoading &&
+      !schedulingResourcesError &&
+      !canOpenScheduler ? (
+        <Alert
+          severity="info"
+          sx={{
+            mb: 2,
+          }}
+        >
+          To schedule a trip you need an active route with at least one stop, an
+          active vehicle and an active driver.
+        </Alert>
+      ) : null}
 
-            {/* ======================================================
+      {/* ======================================================
           QUERY STATES
           ====================================================== */}
 
-            {tripsQuery.isLoading ? (
-                <Paper
-                    elevation={0}
-                    sx={{
-                        py: 8,
+      {tripsQuery.isLoading ? (
+        <Paper
+          elevation={0}
+          sx={{
+            py: 8,
 
-                        display:
-                            'grid',
+            display: "grid",
 
-                        placeItems:
-                            'center',
+            placeItems: "center",
 
-                        border:
-                            '1px solid',
+            border: "1px solid",
 
-                        borderColor:
-                            'divider',
-                    }}
-                >
-                    <CircularProgress
-                        size={32}
-                    />
-                </Paper>
-            ) : null}
+            borderColor: "divider",
+          }}
+        >
+          <CircularProgress size={32} />
+        </Paper>
+      ) : null}
 
-            {tripsQuery.isError ? (
-                <Alert
-                    severity="error"
-                >
-                    {errorMessage(
-                        tripsQuery.error,
-                    )}
-                </Alert>
-            ) : null}
+      {tripsQuery.isError ? (
+        <Alert severity="error">{errorMessage(tripsQuery.error)}</Alert>
+      ) : null}
 
-            {!tripsQuery.isLoading &&
-                !tripsQuery.isError &&
-                visibleTrips.length ===
-                0 ? (
-                <Paper
-                    elevation={0}
-                    sx={{
-                        py: 8,
+      {!tripsQuery.isLoading &&
+      !tripsQuery.isError &&
+      visibleTrips.length === 0 ? (
+        <Paper
+          elevation={0}
+          sx={{
+            py: 8,
 
-                        px: 3,
+            px: 3,
 
-                        textAlign:
-                            'center',
+            textAlign: "center",
 
-                        border:
-                            '1px solid',
+            border: "1px solid",
 
-                        borderColor:
-                            'divider',
-                    }}
-                >
-                    <ScheduleRounded
-                        sx={{
-                            fontSize:
-                                44,
+            borderColor: "divider",
+          }}
+        >
+          <ScheduleRounded
+            sx={{
+              fontSize: 44,
 
-                            color:
-                                'primary.main',
-                        }}
-                    />
+              color: "primary.main",
+            }}
+          />
 
-                    <Typography
-                        sx={{
-                            mt: 2,
+          <Typography
+            sx={{
+              mt: 2,
 
-                            fontWeight:
-                                800,
-                        }}
-                    >
-                        {emptyMessage()}
-                    </Typography>
-                </Paper>
-            ) : null}
+              fontWeight: 800,
+            }}
+          >
+            {emptyMessage()}
+          </Typography>
+        </Paper>
+      ) : null}
 
-            {/* ======================================================
+      {/* ======================================================
           TRIP LIST
           ====================================================== */}
 
-            {!tripsQuery.isLoading &&
-                !tripsQuery.isError &&
-                visibleTrips.length >
-                0 ? (
-                <Paper
-                    elevation={0}
+      {!tripsQuery.isLoading &&
+      !tripsQuery.isError &&
+      visibleTrips.length > 0 ? (
+        <Paper
+          elevation={0}
+          sx={{
+            overflow: "hidden",
+
+            border: "1px solid",
+
+            borderColor: "divider",
+          }}
+        >
+          <Box
+            sx={{
+              px: 2.5,
+
+              py: 1.5,
+
+              display: {
+                xs: "none",
+
+                lg: "grid",
+              },
+
+              gridTemplateColumns: "1.05fr 1.3fr .95fr .95fr .8fr 330px",
+
+              gap: 2,
+
+              bgcolor: "action.hover",
+
+              borderBottom: "1px solid",
+
+              borderColor: "divider",
+            }}
+          >
+            {[
+              "Date / time",
+              "Route",
+              "Vehicle",
+              "Driver",
+              "Status",
+              "Actions",
+            ].map((heading) => (
+              <Typography
+                key={heading}
+                sx={{
+                  color: "text.secondary",
+
+                  fontSize: 10,
+
+                  fontWeight: 800,
+
+                  textTransform: "uppercase",
+
+                  letterSpacing: "0.08em",
+                }}
+              >
+                {heading}
+              </Typography>
+            ))}
+          </Box>
+
+          {visibleTrips.map((trip, index) => {
+            const showEdit = canUpdateTrips && tripCanBeEdited(trip);
+
+            const showSchedule = canScheduleTrips && trip.status === "draft";
+
+            const showBoard = canBoardTrips && trip.status === "scheduled";
+
+            const showStart = canStartTrips && trip.status === "boarding";
+
+            const showComplete =
+              canCompleteTrips && trip.status === "in_progress";
+
+            const showCancel = canCancelTrips && tripCanBeCancelled(trip);
+
+            return (
+              <Box
+                key={trip.id}
+                sx={{
+                  px: 2.5,
+
+                  py: 2,
+
+                  display: "grid",
+
+                  gridTemplateColumns: {
+                    xs: "1fr",
+
+                    lg: "1.05fr 1.3fr .95fr .95fr .8fr 330px",
+                  },
+
+                  gap: {
+                    xs: 1.3,
+
+                    lg: 2,
+                  },
+
+                  alignItems: "center",
+
+                  borderBottom:
+                    index === visibleTrips.length - 1 ? "none" : "1px solid",
+
+                  borderColor: "divider",
+
+                  "&:hover": {
+                    bgcolor: "action.hover",
+                  },
+                }}
+              >
+                <Box>
+                  <Typography
                     sx={{
-                        overflow:
-                            'hidden',
+                      fontSize: 12.5,
 
-                        border:
-                            '1px solid',
-
-                        borderColor:
-                            'divider',
+                      fontWeight: 800,
                     }}
+                  >
+                    {formatDate(trip.scheduledStartAt)}
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      mt: 0.25,
+
+                      color: "text.secondary",
+
+                      fontSize: 11.5,
+                    }}
+                  >
+                    {formatTime(trip.scheduledStartAt)}
+                    {" – "}
+                    {formatTime(trip.scheduledEndAt)}
+                  </Typography>
+                </Box>
+
+                <Box>
+                  <Typography
+                    sx={{
+                      fontSize: 12.5,
+
+                      fontWeight: 750,
+                    }}
+                  >
+                    {trip.routeName}
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      mt: 0.25,
+
+                      color: "text.secondary",
+
+                      fontSize: 11.5,
+                    }}
+                  >
+                    {trip.routeCode ?? `${trip.stopCount} stops`}
+                  </Typography>
+                </Box>
+
+                <Box
+                  sx={{
+                    display: "flex",
+
+                    alignItems: "center",
+
+                    gap: 0.75,
+                  }}
                 >
-                    <Box
-                        sx={{
-                            px: 2.5,
+                  <DirectionsBusRounded
+                    sx={{
+                      fontSize: 17,
 
-                            py: 1.5,
+                      color: "text.secondary",
+                    }}
+                  />
 
-                            display: {
-                                xs:
-                                    'none',
+                  <Typography
+                    sx={{
+                      fontSize: 12,
+                    }}
+                  >
+                    {trip.vehicleRegistrationNumber ?? "Not assigned"}
+                  </Typography>
+                </Box>
 
-                                lg:
-                                    'grid',
-                            },
+                <Box
+                  sx={{
+                    display: "flex",
 
-                            gridTemplateColumns:
-                                '1.05fr 1.3fr .95fr .95fr .8fr 330px',
+                    alignItems: "center",
 
-                            gap: 2,
+                    gap: 0.75,
+                  }}
+                >
+                  <PersonRounded
+                    sx={{
+                      fontSize: 17,
 
-                            bgcolor:
-                                'action.hover',
+                      color: "text.secondary",
+                    }}
+                  />
 
-                            borderBottom:
-                                '1px solid',
+                  <Typography
+                    sx={{
+                      fontSize: 12,
+                    }}
+                  >
+                    {trip.driverName ?? "Not assigned"}
+                  </Typography>
+                </Box>
 
-                            borderColor:
-                                'divider',
-                        }}
+                <Box>
+                  <Chip
+                    size="small"
+                    label={statusLabel(trip.status)}
+                    sx={{
+                      bgcolor: `${statusColor(trip.status)}18`,
+
+                      color: statusColor(trip.status),
+
+                      fontWeight: 750,
+                    }}
+                  />
+
+                  {tripNeedsAttention(trip) ? (
+                    <Typography
+                      sx={{
+                        mt: 0.5,
+
+                        color: "warning.main",
+
+                        fontSize: 10.5,
+
+                        fontWeight: 700,
+                      }}
                     >
-                        {[
-                            'Date / time',
-                            'Route',
-                            'Vehicle',
-                            'Driver',
-                            'Status',
-                            'Actions',
-                        ].map(
-                            (heading) => (
-                                <Typography
-                                    key={
-                                        heading
-                                    }
-                                    sx={{
-                                        color:
-                                            'text.secondary',
-
-                                        fontSize:
-                                            10,
-
-                                        fontWeight:
-                                            800,
-
-                                        textTransform:
-                                            'uppercase',
-
-                                        letterSpacing:
-                                            '0.08em',
-                                    }}
-                                >
-                                    {heading}
-                                </Typography>
-                            ),
-                        )}
-                    </Box>
-
-                    {visibleTrips.map(
-                        (
-                            trip,
-                            index,
-                        ) => {
-                            const showEdit =
-                                canUpdateTrips &&
-                                tripCanBeEdited(
-                                    trip,
-                                );
-
-                            const showSchedule =
-                                canScheduleTrips &&
-                                trip.status ===
-                                'draft';
-
-                            const showBoard =
-                                canBoardTrips &&
-                                trip.status ===
-                                'scheduled';
-
-                            const showStart =
-                                canStartTrips &&
-                                trip.status ===
-                                'boarding';
-
-                            const showComplete =
-                                canCompleteTrips &&
-                                trip.status ===
-                                'in_progress';
-
-                            const showCancel =
-                                canCancelTrips &&
-                                tripCanBeCancelled(
-                                    trip,
-                                );
-
-                            return (
-                                <Box
-                                    key={
-                                        trip.id
-                                    }
-                                    sx={{
-                                        px: 2.5,
-
-                                        py: 2,
-
-                                        display:
-                                            'grid',
-
-                                        gridTemplateColumns: {
-                                            xs:
-                                                '1fr',
-
-                                            lg:
-                                                '1.05fr 1.3fr .95fr .95fr .8fr 330px',
-                                        },
-
-                                        gap: {
-                                            xs:
-                                                1.3,
-
-                                            lg:
-                                                2,
-                                        },
-
-                                        alignItems:
-                                            'center',
-
-                                        borderBottom:
-                                            index ===
-                                                visibleTrips.length -
-                                                1
-                                                ? 'none'
-                                                : '1px solid',
-
-                                        borderColor:
-                                            'divider',
-
-                                        '&:hover': {
-                                            bgcolor:
-                                                'action.hover',
-                                        },
-                                    }}
-                                >
-                                    <Box>
-                                        <Typography
-                                            sx={{
-                                                fontSize:
-                                                    12.5,
-
-                                                fontWeight:
-                                                    800,
-                                            }}
-                                        >
-                                            {formatDate(
-                                                trip.scheduledStartAt,
-                                            )}
-                                        </Typography>
-
-                                        <Typography
-                                            sx={{
-                                                mt: 0.25,
-
-                                                color:
-                                                    'text.secondary',
-
-                                                fontSize:
-                                                    11.5,
-                                            }}
-                                        >
-                                            {formatTime(
-                                                trip.scheduledStartAt,
-                                            )}
-                                            {' – '}
-                                            {formatTime(
-                                                trip.scheduledEndAt,
-                                            )}
-                                        </Typography>
-                                    </Box>
-
-                                    <Box>
-                                        <Typography
-                                            sx={{
-                                                fontSize:
-                                                    12.5,
-
-                                                fontWeight:
-                                                    750,
-                                            }}
-                                        >
-                                            {trip.routeName}
-                                        </Typography>
-
-                                        <Typography
-                                            sx={{
-                                                mt: 0.25,
-
-                                                color:
-                                                    'text.secondary',
-
-                                                fontSize:
-                                                    11.5,
-                                            }}
-                                        >
-                                            {trip.routeCode ??
-                                                `${trip.stopCount} stops`}
-                                        </Typography>
-                                    </Box>
-
-                                    <Box
-                                        sx={{
-                                            display:
-                                                'flex',
-
-                                            alignItems:
-                                                'center',
-
-                                            gap: 0.75,
-                                        }}
-                                    >
-                                        <DirectionsBusRounded
-                                            sx={{
-                                                fontSize:
-                                                    17,
-
-                                                color:
-                                                    'text.secondary',
-                                            }}
-                                        />
-
-                                        <Typography
-                                            sx={{
-                                                fontSize:
-                                                    12,
-                                            }}
-                                        >
-                                            {trip.vehicleRegistrationNumber ??
-                                                'Not assigned'}
-                                        </Typography>
-                                    </Box>
-
-                                    <Box
-                                        sx={{
-                                            display:
-                                                'flex',
-
-                                            alignItems:
-                                                'center',
-
-                                            gap: 0.75,
-                                        }}
-                                    >
-                                        <PersonRounded
-                                            sx={{
-                                                fontSize:
-                                                    17,
-
-                                                color:
-                                                    'text.secondary',
-                                            }}
-                                        />
-
-                                        <Typography
-                                            sx={{
-                                                fontSize:
-                                                    12,
-                                            }}
-                                        >
-                                            {trip.driverName ??
-                                                'Not assigned'}
-                                        </Typography>
-                                    </Box>
-
-                                    <Box>
-                                        <Chip
-                                            size="small"
-                                            label={
-                                                statusLabel(
-                                                    trip.status,
-                                                )
-                                            }
-                                            sx={{
-                                                bgcolor:
-                                                    `${statusColor(
-                                                        trip.status,
-                                                    )}18`,
-
-                                                color:
-                                                    statusColor(
-                                                        trip.status,
-                                                    ),
-
-                                                fontWeight:
-                                                    750,
-                                            }}
-                                        />
-
-                                        {tripNeedsAttention(
-                                            trip,
-                                        ) ? (
-                                            <Typography
-                                                sx={{
-                                                    mt: 0.5,
-
-                                                    color:
-                                                        'warning.main',
-
-                                                    fontSize:
-                                                        10.5,
-
-                                                    fontWeight:
-                                                        700,
-                                                }}
-                                            >
-                                                Action required
-                                            </Typography>
-                                        ) : null}
-                                    </Box>
-
-                                    <Box
-                                        sx={{
-                                            display:
-                                                'flex',
-
-                                            alignItems:
-                                                'center',
-
-                                            gap: 0.4,
-                                        }}
-                                    >
-                                        {showEdit ? (
-                                            <Tooltip
-                                                title="Edit trip"
-                                            >
-                                                <IconButton
-                                                    size="small"
-                                                    aria-label="Edit trip"
-                                                    onClick={() =>
-                                                        openEditor(
-                                                            trip,
-                                                        )
-                                                    }
-                                                >
-                                                    <EditRounded
-                                                        fontSize="small"
-                                                    />
-                                                </IconButton>
-                                            </Tooltip>
-                                        ) : null}
-
-                                        {showSchedule ? (
-                                            <Button
-                                                size="small"
-                                                variant="outlined"
-                                                startIcon={
-                                                    <ScheduleRounded />
-                                                }
-                                                disabled={
-                                                    lifecycleMutation.isPending
-                                                }
-                                                onClick={() => {
-                                                    setMutationError(
-                                                        null,
-                                                    );
-
-                                                    lifecycleMutation.mutate({
-                                                        tripId:
-                                                            trip.id,
-
-                                                        action:
-                                                            'schedule',
-                                                    });
-                                                }}
-                                            >
-                                                Schedule
-                                            </Button>
-                                        ) : null}
-
-                                        {showBoard ? (
-                                            <Button
-                                                size="small"
-                                                variant="contained"
-                                                startIcon={
-                                                    <HowToRegRounded />
-                                                }
-                                                disabled={
-                                                    lifecycleMutation.isPending
-                                                }
-                                                onClick={() => {
-                                                    setMutationError(
-                                                        null,
-                                                    );
-
-                                                    lifecycleMutation.mutate({
-                                                        tripId:
-                                                            trip.id,
-
-                                                        action:
-                                                            'board',
-                                                    });
-                                                }}
-                                            >
-                                                Board
-                                            </Button>
-                                        ) : null}
-
-                                        {showStart ? (
-                                            <Button
-                                                size="small"
-                                                variant="contained"
-                                                startIcon={
-                                                    <PlayArrowRounded />
-                                                }
-                                                disabled={
-                                                    lifecycleMutation.isPending
-                                                }
-                                                onClick={() => {
-                                                    setMutationError(
-                                                        null,
-                                                    );
-
-                                                    lifecycleMutation.mutate({
-                                                        tripId:
-                                                            trip.id,
-
-                                                        action:
-                                                            'start',
-                                                    });
-                                                }}
-                                            >
-                                                Start
-                                            </Button>
-                                        ) : null}
-
-                                        {showComplete ? (
-                                            <Button
-                                                size="small"
-                                                variant="contained"
-                                                startIcon={
-                                                    <CheckCircleRounded />
-                                                }
-                                                disabled={
-                                                    lifecycleMutation.isPending
-                                                }
-                                                onClick={() => {
-                                                    setMutationError(
-                                                        null,
-                                                    );
-
-                                                    lifecycleMutation.mutate({
-                                                        tripId:
-                                                            trip.id,
-
-                                                        action:
-                                                            'complete',
-                                                    });
-                                                }}
-                                            >
-                                                Complete
-                                            </Button>
-                                        ) : null}
-
-                                        {showCancel ? (
-                                            <Tooltip
-                                                title="Cancel trip"
-                                            >
-                                                <IconButton
-                                                    size="small"
-                                                    aria-label="Cancel trip"
-                                                    onClick={() =>
-                                                        openCancel(
-                                                            trip,
-                                                        )
-                                                    }
-                                                    sx={{
-                                                        color:
-                                                            'error.main',
-                                                    }}
-                                                >
-                                                    <BlockRounded
-                                                        fontSize="small"
-                                                    />
-                                                </IconButton>
-                                            </Tooltip>
-                                        ) : null}
-
-                                        {!showEdit &&
-                                            !showCancel ? (
-                                            <Typography
-                                                sx={{
-                                                    color:
-                                                        'text.secondary',
-
-                                                    fontSize:
-                                                        12,
-                                                }}
-                                            >
-                                                —
-                                            </Typography>
-                                        ) : null}
-                                    </Box>
-                                </Box>
-                            );
-                        },
-                    )}
-                </Paper>
-            ) : null}
-
-            {/* ======================================================
+                      Action required
+                    </Typography>
+                  ) : null}
+                </Box>
+
+                <Box
+                  sx={{
+                    display: "flex",
+
+                    alignItems: "center",
+
+                    gap: 0.4,
+                  }}
+                >
+                  {showEdit ? (
+                    <Tooltip title="Edit trip">
+                      <IconButton
+                        size="small"
+                        aria-label="Edit trip"
+                        onClick={() => openEditor(trip)}
+                      >
+                        <EditRounded fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  ) : null}
+
+                  {showSchedule ? (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<ScheduleRounded />}
+                      disabled={lifecycleMutation.isPending}
+                      onClick={() => {
+                        setMutationError(null);
+
+                        lifecycleMutation.mutate({
+                          tripId: trip.id,
+
+                          action: "schedule",
+                        });
+                      }}
+                    >
+                      Schedule
+                    </Button>
+                  ) : null}
+
+                  {showBoard ? (
+                    <Button
+                      size="small"
+                      variant="contained"
+                      startIcon={<HowToRegRounded />}
+                      disabled={lifecycleMutation.isPending}
+                      onClick={() => {
+                        setMutationError(null);
+
+                        lifecycleMutation.mutate({
+                          tripId: trip.id,
+
+                          action: "board",
+                        });
+                      }}
+                    >
+                      Board
+                    </Button>
+                  ) : null}
+
+                  {showStart ? (
+                    <Button
+                      size="small"
+                      variant="contained"
+                      startIcon={<PlayArrowRounded />}
+                      disabled={lifecycleMutation.isPending}
+                      onClick={() => {
+                        setMutationError(null);
+
+                        lifecycleMutation.mutate({
+                          tripId: trip.id,
+
+                          action: "start",
+                        });
+                      }}
+                    >
+                      Start
+                    </Button>
+                  ) : null}
+
+                  {showComplete ? (
+                    <Button
+                      size="small"
+                      variant="contained"
+                      startIcon={<CheckCircleRounded />}
+                      disabled={lifecycleMutation.isPending}
+                      onClick={() => {
+                        setMutationError(null);
+
+                        lifecycleMutation.mutate({
+                          tripId: trip.id,
+
+                          action: "complete",
+                        });
+                      }}
+                    >
+                      Complete
+                    </Button>
+                  ) : null}
+
+                  {showCancel ? (
+                    <Tooltip title="Cancel trip">
+                      <IconButton
+                        size="small"
+                        aria-label="Cancel trip"
+                        onClick={() => openCancel(trip)}
+                        sx={{
+                          color: "error.main",
+                        }}
+                      >
+                        <BlockRounded fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  ) : null}
+
+                  {!showEdit && !showCancel ? (
+                    <Typography
+                      sx={{
+                        color: "text.secondary",
+
+                        fontSize: 12,
+                      }}
+                    >
+                      —
+                    </Typography>
+                  ) : null}
+                </Box>
+              </Box>
+            );
+          })}
+        </Paper>
+      ) : null}
+
+      {/* ======================================================
           SCHEDULE DIALOG
           ====================================================== */}
 
-            <TripScheduleDialog
-                key={
-                    scheduleDialogKey
-                }
-                open={
-                    scheduleOpen
-                }
-                routes={
-                    routes
-                }
-                vehicles={
-                    vehicles
-                }
-                drivers={
-                    drivers
-                }
-                saving={
-                    scheduleMutation.isPending
-                }
-                error={
-                    scheduleOpen
-                        ? mutationError
-                        : null
-                }
-                onClose={() => {
-                    if (
-                        !scheduleMutation.isPending
-                    ) {
-                        setScheduleOpen(
-                            false,
-                        );
+      <TripScheduleDialog
+        key={scheduleDialogKey}
+        open={scheduleOpen}
+        routes={routes}
+        vehicles={vehicles}
+        drivers={drivers}
+        saving={scheduleMutation.isPending}
+        error={scheduleOpen ? mutationError : null}
+        onClose={() => {
+          if (!scheduleMutation.isPending) {
+            setScheduleOpen(false);
 
-                        setMutationError(
-                            null,
-                        );
-                    }
-                }}
-                onSchedule={
-                    async (
-                        input,
-                    ) => {
-                        await scheduleMutation.mutateAsync(
-                            input,
-                        );
-                    }
-                }
-            />
+            setMutationError(null);
+          }
+        }}
+        onSchedule={async (input) => {
+          await scheduleMutation.mutateAsync(input);
+        }}
+      />
 
-            {/* ======================================================
+      {/* ======================================================
           EDIT DIALOG
           ====================================================== */}
 
-            <TripEditDialog
-                key={
-                    editingTrip?.id ??
-                    'trip-edit'
-                }
-                open={
-                    editingTrip !==
-                    null
-                }
-                trip={
-                    editingTrip
-                }
-                routes={
-                    routes
-                }
-                vehicles={
-                    vehicles
-                }
-                drivers={
-                    drivers
-                }
-                saving={
-                    updateMutation.isPending
-                }
-                error={
-                    editingTrip
-                        ? mutationError
-                        : null
-                }
-                onClose={() => {
-                    if (
-                        !updateMutation.isPending
-                    ) {
-                        setEditingTrip(
-                            null,
-                        );
+      <TripEditDialog
+        key={editingTrip?.id ?? "trip-edit"}
+        open={editingTrip !== null}
+        trip={editingTrip}
+        routes={routes}
+        vehicles={vehicles}
+        drivers={drivers}
+        saving={updateMutation.isPending}
+        error={editingTrip ? mutationError : null}
+        onClose={() => {
+          if (!updateMutation.isPending) {
+            setEditingTrip(null);
 
-                        setMutationError(
-                            null,
-                        );
-                    }
-                }}
-                onSave={
-                    async (
-                        input,
-                    ) => {
-                        if (
-                            !editingTrip
-                        ) {
-                            return;
-                        }
+            setMutationError(null);
+          }
+        }}
+        onSave={async (input) => {
+          if (!editingTrip) {
+            return;
+          }
 
-                        await updateMutation.mutateAsync(
-                            {
-                                tripId:
-                                    editingTrip.id,
+          await updateMutation.mutateAsync({
+            tripId: editingTrip.id,
 
-                                input,
-                            },
-                        );
-                    }
-                }
-            />
+            input,
+          });
+        }}
+      />
 
-            {/* ======================================================
+      {/* ======================================================
           CANCEL
           ====================================================== */}
 
-            <Dialog
-                open={
-                    cancelTarget !==
-                    null
-                }
-                onClose={() => {
-                    if (
-                        !cancelMutation.isPending
-                    ) {
-                        setCancelTarget(
-                            null,
-                        );
+      <Dialog
+        open={cancelTarget !== null}
+        onClose={() => {
+          if (!cancelMutation.isPending) {
+            setCancelTarget(null);
 
-                        setMutationError(
-                            null,
-                        );
-                    }
-                }}
-                fullWidth
-                maxWidth="xs"
+            setMutationError(null);
+          }
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle
+          sx={{
+            fontWeight: 850,
+          }}
+        >
+          Cancel trip?
+        </DialogTitle>
+
+        <DialogContent>
+          {cancelMutation.isError && mutationError ? (
+            <Alert
+              severity="error"
+              sx={{
+                mb: 2,
+              }}
             >
-                <DialogTitle
-                    sx={{
-                        fontWeight:
-                            850,
-                    }}
-                >
-                    Cancel trip?
-                </DialogTitle>
+              {mutationError}
+            </Alert>
+          ) : null}
 
-                <DialogContent>
-                    {cancelMutation.isError &&
-                        mutationError ? (
-                        <Alert
-                            severity="error"
-                            sx={{
-                                mb: 2,
-                            }}
-                        >
-                            {mutationError}
-                        </Alert>
-                    ) : null}
+          <Typography
+            sx={{
+              color: "text.secondary",
 
-                    <Typography
-                        sx={{
-                            color:
-                                'text.secondary',
+              fontSize: 13,
 
-                            fontSize:
-                                13,
+              lineHeight: 1.7,
+            }}
+          >
+            {cancelTarget
+              ? `Cancel ${cancelTarget.routeName} scheduled for ${formatDate(
+                  cancelTarget.scheduledStartAt,
+                )} at ${formatTime(cancelTarget.scheduledStartAt)}?`
+              : ""}
+          </Typography>
 
-                            lineHeight:
-                                1.7,
-                        }}
-                    >
-                        {cancelTarget
-                            ? `Cancel ${cancelTarget.routeName} scheduled for ${formatDate(
-                                cancelTarget.scheduledStartAt,
-                            )} at ${formatTime(
-                                cancelTarget.scheduledStartAt,
-                            )}?`
-                            : ''}
-                    </Typography>
+          <Typography
+            sx={{
+              mt: 1.5,
 
-                    <Typography
-                        sx={{
-                            mt: 1.5,
+              color: "text.secondary",
 
-                            color:
-                                'text.secondary',
+              fontSize: 12,
 
-                            fontSize:
-                                12,
+              lineHeight: 1.7,
+            }}
+          >
+            The record will remain in Trip History and can be viewed by
+            selecting Cancelled or All trips.
+          </Typography>
+        </DialogContent>
 
-                            lineHeight:
-                                1.7,
-                        }}
-                    >
-                        The record will remain in Trip History and can be viewed by
-                        selecting Cancelled or All trips.
-                    </Typography>
-                </DialogContent>
+        <DialogActions
+          sx={{
+            px: 3,
 
-                <DialogActions
-                    sx={{
-                        px: 3,
+            pb: 3,
+          }}
+        >
+          <Button
+            disabled={cancelMutation.isPending}
+            onClick={() => {
+              setCancelTarget(null);
 
-                        pb: 3,
-                    }}
-                >
-                    <Button
-                        disabled={
-                            cancelMutation.isPending
-                        }
-                        onClick={() => {
-                            setCancelTarget(
-                                null,
-                            );
+              setMutationError(null);
+            }}
+          >
+            Keep trip
+          </Button>
 
-                            setMutationError(
-                                null,
-                            );
-                        }}
-                    >
-                        Keep trip
-                    </Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={cancelMutation.isPending || !cancelTarget}
+            onClick={() => {
+              if (cancelTarget) {
+                cancelMutation.mutate(cancelTarget.id);
+              }
+            }}
+          >
+            {cancelMutation.isPending ? "Cancelling..." : "Cancel trip"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-                    <Button
-                        variant="contained"
-                        color="error"
-                        disabled={
-                            cancelMutation.isPending ||
-                            !cancelTarget
-                        }
-                        onClick={() => {
-                            if (
-                                cancelTarget
-                            ) {
-                                cancelMutation.mutate(
-                                    cancelTarget.id,
-                                );
-                            }
-                        }}
-                    >
-                        {cancelMutation.isPending
-                            ? 'Cancelling...'
-                            : 'Cancel trip'}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+      <Snackbar
+        open={successMessage !== null}
+        autoHideDuration={3500}
+        onClose={() => setSuccessMessage(null)}
+        anchorOrigin={{
+          vertical: "bottom",
 
-            <Snackbar
-                open={
-                    successMessage !==
-                    null
-                }
-                autoHideDuration={
-                    3500
-                }
-                onClose={() =>
-                    setSuccessMessage(
-                        null,
-                    )
-                }
-                anchorOrigin={{
-                    vertical:
-                        'bottom',
-
-                    horizontal:
-                        'right',
-                }}
-            >
-                <Alert
-                    severity="success"
-                    variant="filled"
-                    onClose={() =>
-                        setSuccessMessage(
-                            null,
-                        )
-                    }
-                >
-                    {successMessage}
-                </Alert>
-            </Snackbar>
-        </Box>
-    );
+          horizontal: "right",
+        }}
+      >
+        <Alert
+          severity="success"
+          variant="filled"
+          onClose={() => setSuccessMessage(null)}
+        >
+          {successMessage}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
 }

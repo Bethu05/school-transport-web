@@ -1,17 +1,15 @@
-import {
-  apiRequest,
-} from '../api/client';
+import { apiRequest } from "../api/client";
 
 export const GUARDIAN_RELATIONSHIP_TYPES = [
-  'mother',
-  'father',
-  'parent',
-  'guardian',
-  'grandparent',
-  'sibling',
-  'relative',
-  'carer',
-  'other',
+  "mother",
+  "father",
+  "parent",
+  "guardian",
+  "grandparent",
+  "sibling",
+  "relative",
+  "carer",
+  "other",
 ] as const;
 
 export type GuardianRelationshipType =
@@ -28,29 +26,23 @@ export interface StudentGuardian {
 
   guardianId: string;
 
-  relationshipType:
-    GuardianRelationshipType;
+  relationshipType: GuardianRelationshipType;
 
   isPrimary: boolean;
 
   receiveNotifications: boolean;
 
-  guardianUserId:
-    string | null;
+  guardianUserId: string | null;
 
   guardianFirstName: string;
 
   guardianLastName: string;
 
-  guardianEmail:
-    string | null;
+  guardianEmail: string | null;
 
-  guardianPhone:
-    string | null;
+  guardianPhone: string | null;
 
-  guardianStatus:
-    | 'active'
-    | 'inactive';
+  guardianStatus: "active" | "inactive";
 
   notifyBoarded: boolean;
 
@@ -66,8 +58,7 @@ export interface StudentGuardian {
 export interface LinkStudentGuardianInput {
   guardianId: string;
 
-  relationshipType:
-    GuardianRelationshipType;
+  relationshipType: GuardianRelationshipType;
 
   isPrimary?: boolean;
 
@@ -75,8 +66,7 @@ export interface LinkStudentGuardianInput {
 }
 
 export interface UpdateStudentGuardianInput {
-  relationshipType?:
-    GuardianRelationshipType;
+  relationshipType?: GuardianRelationshipType;
 
   isPrimary?: boolean;
 
@@ -90,14 +80,9 @@ export function listStudentGuardians(
   tenantId: string,
   studentId: string,
 ): Promise<StudentGuardian[]> {
-  return apiRequest<
-    StudentGuardian[]
-  >(
-    `/students/${studentId}/guardians`,
-    {
-      tenantId,
-    },
-  );
+  return apiRequest<StudentGuardian[]>(`/students/${studentId}/guardians`, {
+    tenantId,
+  });
 }
 
 /**
@@ -106,22 +91,15 @@ export function listStudentGuardians(
 export function linkStudentGuardian(
   tenantId: string,
   studentId: string,
-  input:
-    LinkStudentGuardianInput,
+  input: LinkStudentGuardianInput,
 ): Promise<StudentGuardian> {
-  return apiRequest<StudentGuardian>(
-    `/students/${studentId}/guardians`,
-    {
-      tenantId,
+  return apiRequest<StudentGuardian>(`/students/${studentId}/guardians`, {
+    tenantId,
 
-      method: 'POST',
+    method: "POST",
 
-      body:
-        JSON.stringify(
-          input,
-        ),
-    },
-  );
+    body: JSON.stringify(input),
+  });
 }
 
 /**
@@ -133,20 +111,16 @@ export function updateStudentGuardian(
   tenantId: string,
   studentId: string,
   guardianId: string,
-  input:
-    UpdateStudentGuardianInput,
+  input: UpdateStudentGuardianInput,
 ): Promise<StudentGuardian> {
   return apiRequest<StudentGuardian>(
     `/students/${studentId}/guardians/${guardianId}`,
     {
       tenantId,
 
-      method: 'PATCH',
+      method: "PATCH",
 
-      body:
-        JSON.stringify(
-          input,
-        ),
+      body: JSON.stringify(input),
     },
   );
 }
@@ -161,12 +135,9 @@ export function unlinkStudentGuardian(
   studentId: string,
   guardianId: string,
 ): Promise<void> {
-  return apiRequest<void>(
-    `/students/${studentId}/guardians/${guardianId}`,
-    {
-      tenantId,
+  return apiRequest<void>(`/students/${studentId}/guardians/${guardianId}`, {
+    tenantId,
 
-      method: 'DELETE',
-    },
-  );
+    method: "DELETE",
+  });
 }

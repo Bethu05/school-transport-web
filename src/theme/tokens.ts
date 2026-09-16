@@ -8,117 +8,117 @@
 
 export const colors = {
   brand: {
-    midnight: '#0B1F2A',
-    navy: '#123B52',
+    midnight: "#0B1F2A",
+    navy: "#123B52",
 
-    teal: '#087F79',
-    tealLight: '#24A69D',
-    tealDark: '#05635E',
+    teal: "#087F79",
+    tealLight: "#24A69D",
+    tealDark: "#05635E",
 
-    champagneGold: '#D4A84F',
-    lightGold: '#F0CF7A',
-    bronze: '#A97828',
-    deepBronze: '#805916',
+    champagneGold: "#D4A84F",
+    lightGold: "#F0CF7A",
+    bronze: "#A97828",
+    deepBronze: "#805916",
   },
 
   neutral: {
-    graphite950: '#121417',
-    graphite900: '#17191D',
-    graphite875: '#181A1D',
-    graphite850: '#181B1F',
-    graphite825: '#191C20',
-    graphite800: '#1D2024',
-    graphite775: '#202328',
-    graphite750: '#22252A',
-    graphite700: '#272A30',
+    graphite950: "#121417",
+    graphite900: "#17191D",
+    graphite875: "#181A1D",
+    graphite850: "#181B1F",
+    graphite825: "#191C20",
+    graphite800: "#1D2024",
+    graphite775: "#202328",
+    graphite750: "#22252A",
+    graphite700: "#272A30",
 
-    charcoal: '#1A1C20',
+    charcoal: "#1A1C20",
 
-    white: '#FFFFFF',
+    white: "#FFFFFF",
 
-    ivory: '#F2F7F7',
-    paper: '#FFFFFF',
-    warmPaper: '#F7FBFB',
-    warmCanvas: '#EEF5F5',
+    ivory: "#F2F7F7",
+    paper: "#FFFFFF",
+    warmPaper: "#F7FBFB",
+    warmCanvas: "#EEF5F5",
 
-    warmMap: '#DDECEC',
-    warmMapSoft: '#F4FAFA',
+    warmMap: "#DDECEC",
+    warmMapSoft: "#F4FAFA",
 
-    warmHeroMid: '#EAF6F5',
-    warmHeroEnd: '#D6ECE9',
+    warmHeroMid: "#EAF6F5",
+    warmHeroEnd: "#D6ECE9",
 
-    darkHeroEnd: '#103A3C',
+    darkHeroEnd: "#103A3C",
   },
 
   status: {
-    success: '#238568',
-    warning: '#D4932F',
-    danger: '#C95757',
-    inactive: '#85898F',
-    muted: '#8C8070',
+    success: "#238568",
+    warning: "#D4932F",
+    danger: "#C95757",
+    inactive: "#85898F",
+    muted: "#8C8070",
   },
 
   trip: {
-    active: '#65A77C',
-    delayed: '#C36A63',
-    lowPriority: '#718775',
+    active: "#65A77C",
+    delayed: "#C36A63",
+    lowPriority: "#718775",
   },
 
   dashboard: {
-    tripsAccent: '#1AA99A',
-    vehiclesAccent: '#3B82F6',
-    driversAccent: '#8B5CF6',
-    studentsAccent: '#E0A83D',
+    tripsAccent: "#1AA99A",
+    vehiclesAccent: "#3B82F6",
+    driversAccent: "#8B5CF6",
+    studentsAccent: "#E0A83D",
 
-    readinessMuted: '#8E806B',
-    previewText: '#9B8352',
+    readinessMuted: "#8E806B",
+    previewText: "#9B8352",
 
-    heroTextDark: '#62D4C7',
-    heroTextLight: '#087F79',
+    heroTextDark: "#62D4C7",
+    heroTextLight: "#087F79",
 
-    liveMapLabel: '#24A69D',
+    liveMapLabel: "#24A69D",
 
-    mapMarkerPrimary: '#087F79',
-    mapMarkerSecondary: '#3B82F6',
-    mapMarkerMuted: '#807565',
+    mapMarkerPrimary: "#087F79",
+    mapMarkerSecondary: "#3B82F6",
+    mapMarkerMuted: "#807565",
   },
 } as const;
 
 export const alpha = {
-  gold09: 'rgba(201,165,92,0.09)',
-  gold10: 'rgba(201,165,92,0.10)',
-  gold11: 'rgba(201,165,92,0.11)',
-  gold15: 'rgba(201,165,92,0.15)',
-  gold16: 'rgba(201,165,92,0.16)',
-  gold17: 'rgba(201,165,92,0.17)',
+  gold09: "rgba(201,165,92,0.09)",
+  gold10: "rgba(201,165,92,0.10)",
+  gold11: "rgba(201,165,92,0.11)",
+  gold15: "rgba(201,165,92,0.15)",
+  gold16: "rgba(201,165,92,0.16)",
+  gold17: "rgba(201,165,92,0.17)",
 
-  heroGold18: 'rgba(222,190,112,0.18)',
-  heroBronze17: 'rgba(135,105,49,0.17)',
+  heroGold18: "rgba(222,190,112,0.18)",
+  heroBronze17: "rgba(135,105,49,0.17)",
 
-  heroGlow24: 'rgba(214,184,111,0.24)',
-  heroGlow0: 'rgba(214,184,111,0)',
+  heroGlow24: "rgba(214,184,111,0.24)",
+  heroGlow0: "rgba(214,184,111,0)",
 
-  lightGold25: 'rgba(225,196,122,0.25)',
-  lightGold18: 'rgba(225,196,122,0.18)',
+  lightGold25: "rgba(225,196,122,0.25)",
+  lightGold18: "rgba(225,196,122,0.18)",
 
-  bronze20: 'rgba(158,123,54,0.20)',
+  bronze20: "rgba(158,123,54,0.20)",
 
-  success10: 'rgba(95,148,113,0.10)',
-  success20: 'rgba(95,148,113,0.20)',
+  success10: "rgba(95,148,113,0.10)",
+  success20: "rgba(95,148,113,0.20)",
 
-  danger10: 'rgba(195,94,88,0.10)',
-  warning10: 'rgba(194,138,61,0.10)',
+  danger10: "rgba(195,94,88,0.10)",
+  warning10: "rgba(194,138,61,0.10)",
 
-  white055: 'rgba(255,255,255,0.055)',
-  white065: 'rgba(255,255,255,0.065)',
-  white08: 'rgba(255,255,255,0.08)',
+  white055: "rgba(255,255,255,0.055)",
+  white065: "rgba(255,255,255,0.065)",
+  white08: "rgba(255,255,255,0.08)",
 
-  warmBorder10: 'rgba(58,49,34,0.10)',
-  warmLine10: 'rgba(84,73,55,0.10)',
-  warmLine09: 'rgba(84,73,55,0.09)',
+  warmBorder10: "rgba(58,49,34,0.10)",
+  warmLine10: "rgba(84,73,55,0.10)",
+  warmLine09: "rgba(84,73,55,0.09)",
 
-  mapMarker15: 'rgba(157,130,77,0.15)',
-  mapWarm20: 'rgba(120,93,43,0.20)',
+  mapMarker15: "rgba(157,130,77,0.15)",
+  mapWarm20: "rgba(120,93,43,0.20)",
 } as const;
 
 export const gradients = {
@@ -184,11 +184,9 @@ export const gradients = {
 } as const;
 
 export const shadows = {
-  metricCardDark:
-    '0 18px 38px rgba(0,0,0,0.25)',
+  metricCardDark: "0 18px 38px rgba(0,0,0,0.25)",
 
-  metricCardLight:
-    '0 18px 36px rgba(78,62,33,0.09)',
+  metricCardLight: "0 18px 36px rgba(78,62,33,0.09)",
 } as const;
 
 /**
@@ -209,5 +207,4 @@ export const tokens = {
   shadows,
 } as const;
 
-export type DesignTokens =
-  typeof tokens;
+export type DesignTokens = typeof tokens;

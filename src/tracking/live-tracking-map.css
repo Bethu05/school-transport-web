@@ -1,68 +1,242 @@
 .tracking-map {
   width: 100%;
-  min-height: 320px;
-  background: #eef1f4;
-  z-index: 0;
+  min-height: 300px;
+  background: #e9eef2;
 }
 
-.tracking-map .leaflet-container {
-  font-family: inherit;
+/* ==========================================================
+   MAPLIBRE CONTROLS
+   ========================================================== */
+
+.tracking-map .maplibregl-ctrl-group {
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
 }
 
-.tracking-map-marker-wrapper {
-  border: 0;
-  background: transparent;
+.tracking-map .maplibregl-ctrl button {
+  width: 34px;
+  height: 34px;
 }
 
-.tracking-map-marker {
+/* ==========================================================
+   VEHICLE MARKER
+   ========================================================== */
+
+.tracking-map-vehicle {
+  position: relative;
+  width: 54px;
+  height: 54px;
   display: grid;
+  place-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tracking-map-vehicle__pulse {
+  position: absolute;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  background: rgba(13, 148, 136, 0.2);
+  animation: tracking-vehicle-pulse 1.8s ease-out infinite;
+}
+
+.tracking-map-vehicle__body {
+  position: relative;
+  z-index: 2;
   width: 38px;
   height: 38px;
+  display: grid;
   place-items: center;
-  border: 3px solid #d7b46a;
-  border-radius: 50%;
-  background: #102538;
-  box-shadow:
-    0 6px 18px
-    rgb(16 37 56 / 30%);
+  border: 3px solid #ffffff;
+  border-radius: 999px;
+  background: #0f766e;
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.28);
+  transform-origin: center;
+  transition: transform 420ms ease;
 }
 
-.tracking-map-marker__bus {
-  color: #ffffff;
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
+.tracking-map-vehicle__body svg {
+  display: block;
 }
+
+.tracking-map-vehicle__label {
+  position: absolute;
+  top: 48px;
+  left: 50%;
+  z-index: 3;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 4px 8px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #0f172a;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  box-shadow: 0 5px 14px rgba(15, 23, 42, 0.14);
+}
+
+@keyframes tracking-vehicle-pulse {
+  0% {
+    opacity: 0.85;
+    transform: scale(0.7);
+  }
+
+  70% {
+    opacity: 0;
+    transform: scale(1.45);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.45);
+  }
+}
+
+/* ==========================================================
+   STOP MARKER
+   ========================================================== */
+
+.tracking-map-stop {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tracking-map-stop__pin {
+  position: relative;
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 3px solid #ffffff;
+  border-radius: 999px;
+  background: #172554;
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.24);
+}
+
+.tracking-map-stop__pin svg {
+  display: block;
+}
+
+.tracking-map-stop__label {
+  position: absolute;
+  top: 34px;
+  left: 50%;
+  z-index: 3;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 3px 7px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #334155;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 9.5px;
+  font-weight: 750;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+}
+
+/* ==========================================================
+   POPUPS
+   ========================================================== */
 
 .tracking-map-popup {
-  min-width: 145px;
-  line-height: 1.5;
+  min-width: 155px;
+  color: #0f172a;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 12px;
+}
+
+.tracking-map-popup strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 13px;
+  font-weight: 850;
 }
 
 .tracking-map-popup__secondary {
   margin-top: 3px;
-  color: #66717c;
+  color: #64748b;
   font-size: 11px;
+  line-height: 1.35;
 }
 
-.leaflet-tooltip {
-  border: 0;
+.tracking-map .maplibregl-popup-content {
+  padding: 12px 14px;
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.2);
+}
+
+/* ==========================================================
+   ACCESSIBILITY
+   ========================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .tracking-map-vehicle__pulse {
+    animation: none;
+  }
+
+  .tracking-map-vehicle__body {
+    transition: none;
+  }
+}
+
+/* ==========================================================
+   SELECTED VEHICLE
+   ========================================================== */
+
+.tracking-map-vehicle--selected .tracking-map-vehicle__body {
+  outline: 3px solid rgba(15, 118, 110, 0.3);
+  outline-offset: 4px;
+}
+
+.tracking-map-vehicle--selected .tracking-map-vehicle__label {
+  border-color: rgba(15, 118, 110, 0.55);
+  font-weight: 900;
+}
+
+/* ==========================================================
+   LIVE VEHICLE SPEED BADGE
+
+   Kept separate from .tracking-map-vehicle__body so the
+   speed remains upright while the bus rotates with heading.
+   ========================================================== */
+
+.tracking-map-vehicle__speed {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  z-index: 4;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 4px 7px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
   border-radius: 7px;
-  box-shadow:
-    0 4px 14px
-    rgb(0 0 0 / 14%);
-  font-size: 11px;
-  font-weight: 700;
+  background: rgba(255, 255, 255, 0.96);
+  color: #0f172a;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+  pointer-events: none;
 }
 
-.tracking-map-marker--stop {
-  width: 34px;
-  height: 34px;
-  border-color: #102538;
-  background: #d7b46a;
-}
-
-.tracking-map-marker--stop .tracking-map-marker__bus {
-  color: #102538;
-  font-size: 8px;
+.tracking-map-vehicle--selected .tracking-map-vehicle__speed {
+  border-color: rgba(15, 118, 110, 0.6);
 }

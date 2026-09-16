@@ -1,42 +1,25 @@
-import {
-  Box,
-  Button,
-  Container,
-  Paper,
-  Typography,
-} from '@mui/material';
+import { Box, Button, Container, Paper, Typography } from "@mui/material";
 
-import {
-  DirectionsBusRounded,
-  LoginRounded,
-} from '@mui/icons-material';
+import { DirectionsBusRounded, LoginRounded } from "@mui/icons-material";
 
-import {
-  useNavigate,
-} from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 
-import {
-  useAuth,
-} from '../auth/AuthProvider';
+import { useAuth } from "../auth/AuthProvider";
 
 export function HomePage() {
-  const navigate =
-    useNavigate();
+  const navigate = useNavigate();
 
-  const {
-    authenticated,
-  } = useAuth();
+  const { authenticated } = useAuth();
 
   return (
     <Box
       sx={{
-        minHeight: '100vh',
+        minHeight: "100vh",
 
-        display: 'flex',
-        alignItems: 'center',
+        display: "flex",
+        alignItems: "center",
 
-        bgcolor:
-          'background.default',
+        bgcolor: "background.default",
       }}
     >
       <Container maxWidth="lg">
@@ -48,14 +31,12 @@ export function HomePage() {
               md: 8,
             },
 
-            border:
-              '1px solid',
+            border: "1px solid",
 
-            borderColor:
-              'divider',
+            borderColor: "divider",
 
-            overflow: 'hidden',
-            position: 'relative',
+            overflow: "hidden",
+            position: "relative",
           }}
         >
           <Box
@@ -68,16 +49,14 @@ export function HomePage() {
                 width: 56,
                 height: 56,
 
-                display: 'grid',
-                placeItems: 'center',
+                display: "grid",
+                placeItems: "center",
 
                 borderRadius: 2,
 
-                bgcolor:
-                  'primary.main',
+                bgcolor: "primary.main",
 
-                color:
-                  'primary.contrastText',
+                color: "primary.contrastText",
 
                 mb: 3,
               }}
@@ -97,12 +76,10 @@ export function HomePage() {
 
                 lineHeight: 1.05,
 
-                letterSpacing:
-                  '-0.045em',
+                letterSpacing: "-0.045em",
               }}
             >
-              Smarter school
-              transport operations.
+              Smarter school transport operations.
             </Typography>
 
             <Typography
@@ -111,8 +88,7 @@ export function HomePage() {
 
                 maxWidth: 620,
 
-                color:
-                  'text.secondary',
+                color: "text.secondary",
 
                 fontSize: {
                   xs: 16,
@@ -122,38 +98,24 @@ export function HomePage() {
                 lineHeight: 1.75,
               }}
             >
-              One platform for
-              schools, transport
-              teams, drivers and
-              parents to manage
-              safer, more visible
-              student journeys.
+              One platform for schools, transport teams, drivers and parents to
+              manage safer, more visible student journeys.
             </Typography>
 
             <Button
               variant="contained"
               size="large"
 
-              startIcon={
-                <LoginRounded />
-              }
+              startIcon={<LoginRounded />}
 
-              onClick={() =>
-                navigate(
-                  authenticated
-                    ? '/dashboard'
-                    : '/login',
-                )
-              }
+              onClick={() => navigate(authenticated ? "/dashboard" : "/login")}
 
               sx={{
                 mt: 4,
                 px: 3,
               }}
             >
-              {authenticated
-                ? 'Open dashboard'
-                : 'Sign in'}
+              {authenticated ? "Open dashboard" : "Sign in"}
             </Button>
           </Box>
         </Paper>

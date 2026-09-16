@@ -1,90 +1,56 @@
-import {
-  apiRequest,
-} from '../api/client';
+import { apiRequest } from "../api/client";
 
-export type IncidentSeverity =
-  | 'low'
-  | 'medium'
-  | 'high'
-  | 'critical';
+export type IncidentSeverity = "low" | "medium" | "high" | "critical";
 
-export type IncidentStatus =
-  | 'open'
-  | 'resolved'
-  | 'closed';
+export type IncidentStatus = "open" | "resolved" | "closed";
 
 export interface Incident {
   id: string;
   tenantId: string;
 
-  schoolId:
-    | string
-    | null;
+  schoolId: string | null;
 
-  tripId:
-    | string
-    | null;
+  tripId: string | null;
 
-  vehicleId:
-    | string
-    | null;
+  vehicleId: string | null;
 
-  studentId:
-    | string
-    | null;
+  studentId: string | null;
 
-  severity:
-    IncidentSeverity;
+  severity: IncidentSeverity;
 
   type: string;
 
-  description:
-    string;
+  description: string;
 
-  reportedByUserId:
-    string;
+  reportedByUserId: string;
 
-  status:
-    IncidentStatus;
+  status: IncidentStatus;
 
-  createdAt:
-    string;
+  createdAt: string;
 
-  updatedAt:
-    string;
+  updatedAt: string;
 
-  closedAt:
-    | string
-    | null;
+  closedAt: string | null;
 }
 
 export interface IncidentListResponse {
-  items:
-    Incident[];
+  items: Incident[];
 
-  nextCursor:
-    | string
-    | null;
+  nextCursor: string | null;
 }
 
 export interface ListIncidentsQuery {
-  status?:
-    IncidentStatus;
+  status?: IncidentStatus;
 
-  severity?:
-    IncidentSeverity;
+  severity?: IncidentSeverity;
 
-  schoolId?:
-    string;
+  schoolId?: string;
 
-  tripId?:
-    string;
+  tripId?: string;
 
-  cursor?:
-    string;
+  cursor?: string;
 
-  limit?:
-    number;
+  limit?: number;
 }
 
 export interface CreateIncidentInput {
@@ -100,162 +66,101 @@ export interface CreateIncidentInput {
   vehicleId?: string;
   studentId?: string;
 
-  severity:
-    IncidentSeverity;
+  severity: IncidentSeverity;
 
-  type:
-    string;
+  type: string;
 
-  description:
-    string;
+  description: string;
 }
 
 export interface UpdateIncidentInput {
-  severity?:
-    IncidentSeverity;
+  severity?: IncidentSeverity;
 
-  type?:
-    string;
+  type?: string;
 
-  description?:
-    string;
+  description?: string;
 
-  status?:
-    IncidentStatus;
+  status?: IncidentStatus;
 }
 
-function buildQuery(
-  query:
-    ListIncidentsQuery,
-): string {
-  const params =
-    new URLSearchParams();
+function buildQuery(query: ListIncidentsQuery): string {
+  const params = new URLSearchParams();
 
   if (query.status) {
-    params.set(
-      'status',
-      query.status,
-    );
+    params.set("status", query.status);
   }
 
   if (query.severity) {
-    params.set(
-      'severity',
-      query.severity,
-    );
+    params.set("severity", query.severity);
   }
 
   if (query.schoolId) {
-    params.set(
-      'schoolId',
-      query.schoolId,
-    );
+    params.set("schoolId", query.schoolId);
   }
 
   if (query.tripId) {
-    params.set(
-      'tripId',
-      query.tripId,
-    );
+    params.set("tripId", query.tripId);
   }
 
   if (query.cursor) {
-    params.set(
-      'cursor',
-      query.cursor,
-    );
+    params.set("cursor", query.cursor);
   }
 
   if (query.limit) {
-    params.set(
-      'limit',
-      String(
-        query.limit,
-      ),
-    );
+    params.set("limit", String(query.limit));
   }
 
-  const value =
-    params.toString();
+  const value = params.toString();
 
-  return value
-    ? `?${value}`
-    : '';
+  return value ? `?${value}` : "";
 }
 
 export function listIncidents(
   tenantId: string,
-  query:
-    ListIncidentsQuery = {},
+  query: ListIncidentsQuery = {},
 ): Promise<IncidentListResponse> {
-  return apiRequest<IncidentListResponse>(
-    `/incidents${buildQuery(
-      query,
-    )}`,
-    {
-      tenantId,
-    },
-  );
+  return apiRequest<IncidentListResponse>(`/incidents${buildQuery(query)}`, {
+    tenantId,
+  });
 }
 
 export function getIncident(
   tenantId: string,
   incidentId: string,
 ): Promise<Incident> {
-  return apiRequest<Incident>(
-    `/incidents/${incidentId}`,
-    {
-      tenantId,
-    },
-  );
+  return apiRequest<Incident>(`/incidents/${incidentId}`, {
+    tenantId,
+  });
 }
 
 export function createIncident(
   tenantId: string,
-  input:
-    CreateIncidentInput,
-  idempotencyKey:
-    string,
+  input: CreateIncidentInput,
+  idempotencyKey: string,
 ): Promise<Incident> {
-  return apiRequest<Incident>(
-    '/incidents',
-    {
-      method:
-        'POST',
+  return apiRequest<Incident>("/incidents", {
+    method: "POST",
 
-      tenantId,
+    tenantId,
 
-      headers: {
-        'Idempotency-Key':
-          idempotencyKey,
-      },
-
-      body:
-        JSON.stringify(
-          input,
-        ),
+    headers: {
+      "Idempotency-Key": idempotencyKey,
     },
-  );
+
+    body: JSON.stringify(input),
+  });
 }
 
 export function updateIncident(
   tenantId: string,
   incidentId: string,
-  input:
-    UpdateIncidentInput,
+  input: UpdateIncidentInput,
 ): Promise<Incident> {
-  return apiRequest<Incident>(
-    `/incidents/${incidentId}`,
-    {
-      method:
-        'PATCH',
+  return apiRequest<Incident>(`/incidents/${incidentId}`, {
+    method: "PATCH",
 
-      tenantId,
+    tenantId,
 
-      body:
-        JSON.stringify(
-          input,
-        ),
-    },
-  );
+    body: JSON.stringify(input),
+  });
 }

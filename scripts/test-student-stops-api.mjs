@@ -1,134 +1,84 @@
-const apiUrl = (
-  process.env.VITE_API_URL ??
-  'http://localhost:3000'
-).replace(/\/$/, '');
+const apiUrl = (process.env.VITE_API_URL ?? "http://localhost:3000").replace(
+  /\/$/,
+  "",
+);
 
-const email =
-  process.env.VITE_DEV_ADMIN_EMAIL;
+const email = process.env.VITE_DEV_ADMIN_EMAIL;
 
-const password =
-  process.env.VITE_DEV_PASSWORD;
+const password = process.env.VITE_DEV_PASSWORD;
 
-const tenantId =
-  process.env.VITE_DEV_TENANT_ID;
+const tenantId = process.env.VITE_DEV_TENANT_ID;
 
-const checkpointId =
-  Date.now();
+const checkpointId = Date.now();
 
-function required(
-  name,
-  value,
-) {
+function required(name, value) {
   if (!value) {
-    throw new Error(
-      `${name} is required`,
-    );
+    throw new Error(`${name} is required`);
   }
 
   return value;
 }
 
-required(
-  'VITE_DEV_ADMIN_EMAIL',
-  email,
-);
+required("VITE_DEV_ADMIN_EMAIL", email);
 
-required(
-  'VITE_DEV_PASSWORD',
-  password,
-);
+required("VITE_DEV_PASSWORD", password);
 
-required(
-  'VITE_DEV_TENANT_ID',
-  tenantId,
-);
+required("VITE_DEV_TENANT_ID", tenantId);
 
-async function readJson(
-  response,
-) {
-  const text =
-    await response.text();
+async function readJson(response) {
+  const text = await response.text();
 
   if (!response.ok) {
-    throw new Error(
-      `${response.status} ${response.statusText}\n${text}`,
-    );
+    throw new Error(`${response.status} ${response.statusText}\n${text}`);
   }
 
-  return text
-    ? JSON.parse(text)
-    : undefined;
+  return text ? JSON.parse(text) : undefined;
 }
 
-console.log(
-  'Student Stops API checkpoint',
-);
+console.log("Student Stops API checkpoint");
 
-console.log(
-  '----------------------------',
-);
+console.log("----------------------------");
 
 /**
  * ========================================================
  * LOGIN
  * ========================================================
  */
-const loginResponse =
-  await fetch(
-    `${apiUrl}/auth/login`,
-    {
-      method:
-        'POST',
+const loginResponse = await fetch(`${apiUrl}/auth/login`, {
+  method: "POST",
 
-      headers: {
-        Accept:
-          'application/json',
+  headers: {
+    Accept: "application/json",
 
-        'Content-Type':
-          'application/json',
-      },
+    "Content-Type": "application/json",
+  },
 
-      body:
-        JSON.stringify({
-          email,
-          password,
-        }),
-    },
-  );
+  body: JSON.stringify({
+    email,
+    password,
+  }),
+});
 
-const login =
-  await readJson(
-    loginResponse,
-  );
+const login = await readJson(loginResponse);
 
-const token =
-  login?.accessToken;
+const token = login?.accessToken;
 
-required(
-  'accessToken',
-  token,
-);
+required("accessToken", token);
 
-console.log(
-  '✓ administrator login',
-);
+console.log("✓ administrator login");
 
 const baseHeaders = {
-  Authorization:
-    `Bearer ${token}`,
+  Authorization: `Bearer ${token}`,
 
-  'x-tenant-id':
-    tenantId,
+  "x-tenant-id": tenantId,
 
-  Accept:
-    'application/json',
+  Accept: "application/json",
 };
 
 const jsonHeaders = {
   ...baseHeaders,
 
-  'Content-Type':
-    'application/json',
+  "Content-Type": "application/json",
 };
 
 /**
@@ -136,73 +86,35 @@ const jsonHeaders = {
  * LOAD ACTIVE SCHOOL
  * ========================================================
  */
-const schoolsResponse =
-  await fetch(
-    `${apiUrl}/schools`,
-    {
-      headers:
-        baseHeaders,
-    },
-  );
+const schoolsResponse = await fetch(`${apiUrl}/schools`, {
+  headers: baseHeaders,
+});
 
-const schools =
-  await readJson(
-    schoolsResponse,
-  );
+const schools = await readJson(schoolsResponse);
 
-if (
-  !Array.isArray(
-    schools,
-  ) ||
-  schools.length ===
-    0
-) {
-  throw new Error(
-    'No active school available',
-  );
+if (!Array.isArray(schools) || schools.length === 0) {
+  throw new Error("No active school available");
 }
 
-const school =
-  schools[0];
+const school = schools[0];
 
-console.log(
-  '✓ active school loaded',
-);
+console.log("✓ active school loaded");
 
 /**
  * ========================================================
  * LOAD ACTIVE STOPS
  * ========================================================
  */
-const stopsResponse =
-  await fetch(
-    `${apiUrl}/stops?page=1&limit=100`,
-    {
-      headers:
-        baseHeaders,
-    },
-  );
+const stopsResponse = await fetch(`${apiUrl}/stops?page=1&limit=100`, {
+  headers: baseHeaders,
+});
 
-const stopsResult =
-  await readJson(
-    stopsResponse,
-  );
+const stopsResult = await readJson(stopsResponse);
 
-const stops =
-  Array.isArray(
-    stopsResult,
-  )
-    ? stopsResult
-    : stopsResult?.items;
+const stops = Array.isArray(stopsResult) ? stopsResult : stopsResult?.items;
 
-if (
-  !Array.isArray(
-    stops,
-  )
-) {
-  throw new Error(
-    'Stops response is invalid',
-  );
+if (!Array.isArray(stops)) {
+  throw new Error("Stops response is invalid");
 }
 
 /**
@@ -210,95 +122,59 @@ if (
  * - active Stop
  * - same school as Student
  */
-const eligibleStops =
-  stops.filter(
-    (stop) =>
-      stop.status ===
-        'active' &&
-      stop.schoolId ===
-        school.id,
-  );
+const eligibleStops = stops.filter(
+  (stop) => stop.status === "active" && stop.schoolId === school.id,
+);
 
-if (
-  eligibleStops.length <
-  1
-) {
+if (eligibleStops.length < 1) {
   throw new Error(
-    'At least one active Stop belonging to the checkpoint school is required',
+    "At least one active Stop belonging to the checkpoint school is required",
   );
 }
 
-const pickupStop =
-  eligibleStops[0];
+const pickupStop = eligibleStops[0];
 
 /**
  * If only one stop exists we deliberately reuse it for
  * drop-off. The relationship model allows independent
  * pickup/drop-off assignment types.
  */
-const dropoffStop =
-  eligibleStops[1] ??
-  pickupStop;
+const dropoffStop = eligibleStops[1] ?? pickupStop;
 
-console.log(
-  '✓ eligible stops loaded',
-);
+console.log("✓ eligible stops loaded");
 
 /**
  * ========================================================
  * CREATE ACTIVE CHECKPOINT STUDENT
  * ========================================================
  */
-const externalRef =
-  `WEB-STUDENT-STOPS-${checkpointId}`;
+const externalRef = `WEB-STUDENT-STOPS-${checkpointId}`;
 
-const createStudentResponse =
-  await fetch(
-    `${apiUrl}/students`,
-    {
-      method:
-        'POST',
+const createStudentResponse = await fetch(`${apiUrl}/students`, {
+  method: "POST",
 
-      headers:
-        jsonHeaders,
+  headers: jsonHeaders,
 
-      body:
-        JSON.stringify({
-          schoolId:
-            school.id,
+  body: JSON.stringify({
+    schoolId: school.id,
 
-          externalRef,
+    externalRef,
 
-          firstName:
-            'Stops',
+    firstName: "Stops",
 
-          lastName:
-            'Checkpoint',
+    lastName: "Checkpoint",
 
-          grade:
-            'Grade 4',
-        }),
-    },
-  );
+    grade: "Grade 4",
+  }),
+});
 
-const student =
-  await readJson(
-    createStudentResponse,
-  );
+const student = await readJson(createStudentResponse);
 
-if (
-  !student ||
-  student.status !==
-    'active'
-) {
-  throw new Error(
-    'Active checkpoint Student could not be created',
-  );
+if (!student || student.status !== "active") {
+  throw new Error("Active checkpoint Student could not be created");
 }
 
-console.log(
-  '✓ checkpoint student created',
-);
+console.log("✓ checkpoint student created");
 
 /**
  * ========================================================
@@ -306,270 +182,168 @@ console.log(
  * ========================================================
  */
 async function loadAssignments() {
-  const response =
-    await fetch(
-      `${apiUrl}/students/${student.id}/stops`,
-      {
-        headers:
-          baseHeaders,
-      },
-    );
+  const response = await fetch(`${apiUrl}/students/${student.id}/stops`, {
+    headers: baseHeaders,
+  });
 
-  return readJson(
-    response,
-  );
+  return readJson(response);
 }
 
-let assignments =
-  await loadAssignments();
+let assignments = await loadAssignments();
 
-if (
-  assignments.pickup !==
-    null ||
-  assignments.dropoff !==
-    null
-) {
-  throw new Error(
-    'New Student should not already have stop assignments',
-  );
+if (assignments.pickup !== null || assignments.dropoff !== null) {
+  throw new Error("New Student should not already have stop assignments");
 }
 
-console.log(
-  '✓ initial stop assignments empty',
-);
+console.log("✓ initial stop assignments empty");
 
 /**
  * ========================================================
  * SET PICKUP
  * ========================================================
  */
-const pickupResponse =
-  await fetch(
-    `${apiUrl}/students/${student.id}/stops/pickup`,
-    {
-      method:
-        'PUT',
+const pickupResponse = await fetch(
+  `${apiUrl}/students/${student.id}/stops/pickup`,
+  {
+    method: "PUT",
 
-      headers:
-        jsonHeaders,
+    headers: jsonHeaders,
 
-      body:
-        JSON.stringify({
-          stopId:
-            pickupStop.id,
-        }),
-    },
-  );
-
-await readJson(
-  pickupResponse,
+    body: JSON.stringify({
+      stopId: pickupStop.id,
+    }),
+  },
 );
 
-assignments =
-  await loadAssignments();
+await readJson(pickupResponse);
 
-if (
-  assignments.pickup?.stopId !==
-  pickupStop.id
-) {
-  throw new Error(
-    'Pickup Stop assignment was not persisted',
-  );
+assignments = await loadAssignments();
+
+if (assignments.pickup?.stopId !== pickupStop.id) {
+  throw new Error("Pickup Stop assignment was not persisted");
 }
 
-console.log(
-  '✓ pickup stop assigned',
-);
+console.log("✓ pickup stop assigned");
 
 /**
  * ========================================================
  * SET DROP-OFF
  * ========================================================
  */
-const dropoffResponse =
-  await fetch(
-    `${apiUrl}/students/${student.id}/stops/dropoff`,
-    {
-      method:
-        'PUT',
+const dropoffResponse = await fetch(
+  `${apiUrl}/students/${student.id}/stops/dropoff`,
+  {
+    method: "PUT",
 
-      headers:
-        jsonHeaders,
+    headers: jsonHeaders,
 
-      body:
-        JSON.stringify({
-          stopId:
-            dropoffStop.id,
-        }),
-    },
-  );
-
-await readJson(
-  dropoffResponse,
+    body: JSON.stringify({
+      stopId: dropoffStop.id,
+    }),
+  },
 );
 
-assignments =
-  await loadAssignments();
+await readJson(dropoffResponse);
 
-if (
-  assignments.dropoff?.stopId !==
-  dropoffStop.id
-) {
-  throw new Error(
-    'Drop-off Stop assignment was not persisted',
-  );
+assignments = await loadAssignments();
+
+if (assignments.dropoff?.stopId !== dropoffStop.id) {
+  throw new Error("Drop-off Stop assignment was not persisted");
 }
 
-console.log(
-  '✓ drop-off stop assigned',
-);
+console.log("✓ drop-off stop assigned");
 
 /**
  * ========================================================
  * VERIFY BOTH RELATIONSHIPS
  * ========================================================
  */
-if (
-  assignments.studentId !==
-  student.id
-) {
-  throw new Error(
-    'Student stop response belongs to another Student',
-  );
+if (assignments.studentId !== student.id) {
+  throw new Error("Student stop response belongs to another Student");
 }
 
-if (
-  assignments.schoolId !==
-  school.id
-) {
-  throw new Error(
-    'Student stop response belongs to another school',
-  );
+if (assignments.schoolId !== school.id) {
+  throw new Error("Student stop response belongs to another school");
 }
 
-console.log(
-  '✓ stop assignments verified',
-);
+console.log("✓ stop assignments verified");
 
 /**
  * ========================================================
  * CLEAR PICKUP
  * ========================================================
  */
-const clearPickupResponse =
-  await fetch(
-    `${apiUrl}/students/${student.id}/stops/pickup`,
-    {
-      method:
-        'DELETE',
+const clearPickupResponse = await fetch(
+  `${apiUrl}/students/${student.id}/stops/pickup`,
+  {
+    method: "DELETE",
 
-      headers:
-        baseHeaders,
-    },
-  );
-
-if (
-  !clearPickupResponse.ok
-) {
-  throw new Error(
-    `Could not clear pickup Stop: ${clearPickupResponse.status}`,
-  );
-}
-
-assignments =
-  await loadAssignments();
-
-if (
-  assignments.pickup !==
-  null
-) {
-  throw new Error(
-    'Pickup Stop assignment was not cleared',
-  );
-}
-
-console.log(
-  '✓ pickup stop cleared',
+    headers: baseHeaders,
+  },
 );
+
+if (!clearPickupResponse.ok) {
+  throw new Error(`Could not clear pickup Stop: ${clearPickupResponse.status}`);
+}
+
+assignments = await loadAssignments();
+
+if (assignments.pickup !== null) {
+  throw new Error("Pickup Stop assignment was not cleared");
+}
+
+console.log("✓ pickup stop cleared");
 
 /**
  * ========================================================
  * CLEAR DROP-OFF
  * ========================================================
  */
-const clearDropoffResponse =
-  await fetch(
-    `${apiUrl}/students/${student.id}/stops/dropoff`,
-    {
-      method:
-        'DELETE',
+const clearDropoffResponse = await fetch(
+  `${apiUrl}/students/${student.id}/stops/dropoff`,
+  {
+    method: "DELETE",
 
-      headers:
-        baseHeaders,
-    },
-  );
+    headers: baseHeaders,
+  },
+);
 
-if (
-  !clearDropoffResponse.ok
-) {
+if (!clearDropoffResponse.ok) {
   throw new Error(
     `Could not clear drop-off Stop: ${clearDropoffResponse.status}`,
   );
 }
 
-assignments =
-  await loadAssignments();
+assignments = await loadAssignments();
 
-if (
-  assignments.dropoff !==
-    null
-) {
-  throw new Error(
-    'Drop-off Stop assignment was not cleared',
-  );
+if (assignments.dropoff !== null) {
+  throw new Error("Drop-off Stop assignment was not cleared");
 }
 
-console.log(
-  '✓ drop-off stop cleared',
-);
+console.log("✓ drop-off stop cleared");
 
 /**
  * ========================================================
  * DEACTIVATE STUDENT
  * ========================================================
  */
-const deactivateResponse =
-  await fetch(
-    `${apiUrl}/students/${student.id}/deactivate`,
-    {
-      method:
-        'POST',
+const deactivateResponse = await fetch(
+  `${apiUrl}/students/${student.id}/deactivate`,
+  {
+    method: "POST",
 
-      headers:
-        baseHeaders,
-    },
-  );
+    headers: baseHeaders,
+  },
+);
 
-const deactivated =
-  await readJson(
-    deactivateResponse,
-  );
+const deactivated = await readJson(deactivateResponse);
 
-if (
-  deactivated.status !==
-  'inactive'
-) {
-  throw new Error(
-    'Checkpoint Student was not deactivated',
-  );
+if (deactivated.status !== "inactive") {
+  throw new Error("Checkpoint Student was not deactivated");
 }
 
-console.log(
-  '✓ checkpoint student deactivated',
-);
+console.log("✓ checkpoint student deactivated");
 
 console.log();
 
-console.log(
-  'Student Stops API checkpoint PASSED',
-);
+console.log("Student Stops API checkpoint PASSED");

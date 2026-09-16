@@ -1,8 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { useEffect, useMemo, useState } from "react";
 
 import {
   Alert,
@@ -11,7 +7,7 @@ import {
   CircularProgress,
   Paper,
   Typography,
-} from '@mui/material';
+} from "@mui/material";
 
 import {
   DirectionsBusRounded,
@@ -19,24 +15,18 @@ import {
   GpsFixedRounded,
   WifiRounded,
   WifiOffRounded,
-} from '@mui/icons-material';
+} from "@mui/icons-material";
 
-import {
-  useQuery,
-} from '@tanstack/react-query';
+import { useQuery } from "@tanstack/react-query";
 
 import {
   listMyTrackableChildren,
   type GuardianTrackableChild,
-} from './guardian-tracking.api';
+} from "./guardian-tracking.api";
 
-import {
-  LiveTrackingMap,
-} from './LiveTrackingMap';
+import { LiveTrackingMap } from "./LiveTrackingMap";
 
-import {
-  TrackingProgressPanel,
-} from './TrackingProgressPanel';
+import { TrackingProgressPanel } from "./TrackingProgressPanel";
 
 import {
   createTrackingSocket,
@@ -45,563 +35,287 @@ import {
   type TrackingConnectionDenied,
   type TrackingConnectionReady,
   type VehicleLocationUpdate,
-} from './tracking.realtime';
+} from "./tracking.realtime";
 
 interface GuardianTrackingPanelProps {
-  tenantId:
-    string;
+  tenantId: string;
 }
 
-const EMPTY_TRACKABLE_CHILDREN:
-  GuardianTrackableChild[] =
-  [];
+const EMPTY_TRACKABLE_CHILDREN: GuardianTrackableChild[] = [];
 
 type ConnectionStatus =
-  | 'connecting'
-  | 'connected'
-  | 'disconnected'
-  | 'denied'
-  | 'error';
+  "connecting" | "connected" | "disconnected" | "denied" | "error";
 
-function errorMessage(
-  error:
-    unknown,
-): string {
-  return error instanceof
-    Error
+function errorMessage(error: unknown): string {
+  return error instanceof Error
     ? error.message
-    : 'Live trip tracking could not be loaded.';
+    : "Live trip tracking could not be loaded.";
 }
 
-function formatDateTime(
-  value:
-    string,
-): string {
-  const date =
-    new Date(
-      value,
-    );
+function formatDateTime(value: string): string {
+  const date = new Date(value);
 
-  if (
-    Number.isNaN(
-      date.getTime(),
-    )
-  ) {
+  if (Number.isNaN(date.getTime())) {
     return value;
   }
 
-  return new Intl.DateTimeFormat(
-    'en-GB',
-    {
-      dateStyle:
-        'medium',
+  return new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium",
 
-      timeStyle:
-        'medium',
+    timeStyle: "medium",
 
-      timeZone:
-        'Africa/Nairobi',
-    },
-  ).format(
-    date,
-  );
+    timeZone: "Africa/Nairobi",
+  }).format(date);
 }
 
 export function GuardianTrackingPanel({
   tenantId,
 }: GuardianTrackingPanelProps) {
-  const [
-    connectionStatus,
-    setConnectionStatus,
-  ] =
-    useState<ConnectionStatus>(
-      'connecting',
-    );
+  const [connectionStatus, setConnectionStatus] =
+    useState<ConnectionStatus>("connecting");
 
-  const [
-    connectionError,
-    setConnectionError,
-  ] =
-    useState<
-      string | null
-    >(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
-  const [
-    locationsByTrip,
-    setLocationsByTrip,
-  ] =
-    useState<
-      Record<
-        string,
-        VehicleLocationUpdate
-      >
-    >({});
+  const [locationsByTrip, setLocationsByTrip] = useState<
+    Record<string, VehicleLocationUpdate>
+  >({});
 
-  const guardianQuery =
-    useQuery({
-      queryKey: [
-        'guardian-live-tracking',
-        tenantId,
-      ],
+  const guardianQuery = useQuery({
+    queryKey: ["guardian-live-tracking", tenantId],
 
-      queryFn:
-        () =>
-          listMyTrackableChildren(
-            tenantId,
-          ),
-    });
+    queryFn: () => listMyTrackableChildren(tenantId),
+  });
 
-  const trackableChildren =
-    guardianQuery.data ??
-    EMPTY_TRACKABLE_CHILDREN;
+  const trackableChildren = guardianQuery.data ?? EMPTY_TRACKABLE_CHILDREN;
 
-  const activeTripIds =
-    useMemo(
-      () =>
-        Array.from(
-          new Set(
-            trackableChildren
-              .map(
-                (
-                  entry,
-                ) =>
-                  entry.activeTrip
-                    ?.tripId,
-              )
-              .filter(
-                (
-                  tripId,
-                ): tripId is string =>
-                  Boolean(
-                    tripId,
-                  ),
-              ),
-          ),
+  const activeTripIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          trackableChildren
+            .map((entry) => entry.activeTrip?.tripId)
+            .filter((tripId): tripId is string => Boolean(tripId)),
         ),
-      [
-        trackableChildren,
-      ],
-    );
+      ),
+    [trackableChildren],
+  );
 
-  const childrenByTrip =
-    useMemo(
-      () => {
-        const map =
-          new Map<
-            string,
-            string[]
-          >();
+  const childrenByTrip = useMemo(() => {
+    const map = new Map<string, string[]>();
 
-        for (
-          const entry
-          of trackableChildren
-        ) {
-          const tripId =
-            entry.activeTrip
-              ?.tripId;
+    for (const entry of trackableChildren) {
+      const tripId = entry.activeTrip?.tripId;
 
-          if (!tripId) {
-            continue;
-          }
+      if (!tripId) {
+        continue;
+      }
 
-          const label =
-            `${entry.child.firstName} ${entry.child.lastName}`;
+      const label = `${entry.child.firstName} ${entry.child.lastName}`;
 
-          map.set(
-            tripId,
-            [
-              ...(
-                map.get(
-                  tripId,
-                ) ??
-                []
-              ),
-              label,
-            ],
-          );
-        }
+      map.set(tripId, [...(map.get(tripId) ?? []), label]);
+    }
 
-        return map;
+    return map;
+  }, [trackableChildren]);
+
+  const guardianMapMarkers = activeTripIds.flatMap((tripId) => {
+    const location = locationsByTrip[tripId];
+
+    if (!location) {
+      return [];
+    }
+
+    const children = childrenByTrip.get(tripId) ?? [];
+
+    return [
+      {
+        key: tripId,
+
+        label: children.length > 0 ? children.join(", ") : "School bus",
+
+        subtitle: "Active school journey",
+
+        latitude: location.latitude,
+
+        longitude: location.longitude,
+
+        speedKph: location.speedKph,
+
+        heading: location.heading,
+
+        accuracyMeters: location.accuracyMeters,
       },
-      [
-        trackableChildren,
-      ],
-    );
+    ];
+  });
 
-  const guardianMapMarkers =
-    activeTripIds.flatMap(
-      (
-        tripId,
-      ) => {
-        const location =
-          locationsByTrip[
-            tripId
-          ];
+  const guardianStopMapMarkers = activeTripIds.flatMap((tripId) => {
+    const location = locationsByTrip[tripId];
 
-        if (!location) {
-          return [];
-        }
+    const nextStop = location?.nextStop;
 
-        const children =
-          childrenByTrip.get(
-            tripId,
-          ) ??
-          [];
+    if (!nextStop) {
+      return [];
+    }
 
-        return [
-          {
-            key:
-              tripId,
+    const children = childrenByTrip.get(tripId) ?? [];
 
-            label:
-              children.length >
-              0
-                ? children.join(
-                    ', ',
-                  )
-                : 'School bus',
+    return [
+      {
+        key: `${tripId}:next-stop:${nextStop.tripStopId}`,
 
-            subtitle:
-              'Active school journey',
+        kind: "stop" as const,
 
-            latitude:
-              location.latitude,
+        label: nextStop.stopName,
 
-            longitude:
-              location.longitude,
+        subtitle:
+          children.length > 0
+            ? `Next stop for ${children.join(", ")}`
+            : "Next school stop",
 
-            speedKph:
-              location.speedKph,
+        latitude: nextStop.latitude,
 
-            heading:
-              location.heading,
-
-            accuracyMeters:
-              location.accuracyMeters,
-          },
-        ];
+        longitude: nextStop.longitude,
       },
-    );
-
-  const guardianStopMapMarkers =
-    activeTripIds.flatMap(
-      (
-        tripId,
-      ) => {
-        const location =
-          locationsByTrip[
-            tripId
-          ];
-
-        const nextStop =
-          location
-            ?.nextStop;
-
-        if (!nextStop) {
-          return [];
-        }
-
-        const children =
-          childrenByTrip.get(
-            tripId,
-          ) ??
-          [];
-
-        return [
-          {
-            key:
-              `${tripId}:next-stop:${nextStop.tripStopId}`,
-
-            kind:
-              'stop' as const,
-
-            label:
-              nextStop.stopName,
-
-            subtitle:
-              children.length >
-              0
-                ? `Next stop for ${children.join(
-                    ', ',
-                  )}`
-                : 'Next school stop',
-
-            latitude:
-              nextStop.latitude,
-
-            longitude:
-              nextStop.longitude,
-          },
-        ];
-      },
-    );
+    ];
+  });
 
   const allGuardianMapMarkers = [
     ...guardianMapMarkers,
     ...guardianStopMapMarkers,
   ];
 
-  useEffect(
-    () => {
+  useEffect(() => {
+    if (
+      guardianQuery.isLoading ||
+      guardianQuery.isError ||
+      activeTripIds.length === 0
+    ) {
+      return;
+    }
+
+    const socket = createTrackingSocket(tenantId);
+
+    socket.on("connection.ready", async (ready: TrackingConnectionReady) => {
+      if (ready.tenantId !== tenantId) {
+        return;
+      }
+
+      try {
+        for (const tripId of activeTripIds) {
+          const result = await subscribeToTrip(socket, tripId);
+
+          if (!result.ok) {
+            throw new Error(result.message ?? "Trip subscription was denied");
+          }
+        }
+
+        setConnectionStatus("connected");
+
+        setConnectionError(null);
+      } catch (error) {
+        setConnectionStatus("denied");
+
+        setConnectionError(errorMessage(error));
+      }
+    });
+
+    socket.on("connection.denied", (denied: TrackingConnectionDenied) => {
+      setConnectionStatus("denied");
+
+      setConnectionError(denied.message);
+    });
+
+    socket.on("connect_error", (error: Error) => {
+      setConnectionStatus("error");
+
+      setConnectionError(error.message);
+    });
+
+    socket.on("disconnect", () => {
+      setConnectionStatus("disconnected");
+    });
+
+    socket.on("vehicle.location.updated", (location: VehicleLocationUpdate) => {
       if (
-        guardianQuery.isLoading ||
-        guardianQuery.isError ||
-        activeTripIds.length ===
-          0
+        location.tenantId !== tenantId ||
+        !location.tripId ||
+        !activeTripIds.includes(location.tripId)
       ) {
         return;
       }
 
-      const socket =
-        createTrackingSocket(
-          tenantId,
-        );
+      setLocationsByTrip((current) => ({
+        ...current,
 
-      socket.on(
-        'connection.ready',
-        async (
-          ready:
-            TrackingConnectionReady,
-        ) => {
-          if (
-            ready.tenantId !==
-            tenantId
-          ) {
-            return;
-          }
+        [location.tripId!]: location,
+      }));
+    });
 
-          try {
-            for (
-              const tripId
-              of activeTripIds
-            ) {
-              const result =
-                await subscribeToTrip(
-                  socket,
-                  tripId,
-                );
+    socket.connect();
 
-              if (
-                !result.ok
-              ) {
-                throw new Error(
-                  result.message ??
-                  'Trip subscription was denied',
-                );
-              }
-            }
+    return () => {
+      for (const tripId of activeTripIds) {
+        void unsubscribeFromTrip(socket, tripId).catch(() => undefined);
+      }
 
-            setConnectionStatus(
-              'connected',
-            );
+      socket.removeAllListeners();
 
-            setConnectionError(
-              null,
-            );
-          } catch (
-            error
-          ) {
-            setConnectionStatus(
-              'denied',
-            );
+      socket.disconnect();
+    };
+  }, [tenantId, activeTripIds, guardianQuery.isLoading, guardianQuery.isError]);
 
-            setConnectionError(
-              errorMessage(
-                error,
-              ),
-            );
-          }
-        },
-      );
-
-      socket.on(
-        'connection.denied',
-        (
-          denied:
-            TrackingConnectionDenied,
-        ) => {
-          setConnectionStatus(
-            'denied',
-          );
-
-          setConnectionError(
-            denied.message,
-          );
-        },
-      );
-
-      socket.on(
-        'connect_error',
-        (
-          error:
-            Error,
-        ) => {
-          setConnectionStatus(
-            'error',
-          );
-
-          setConnectionError(
-            error.message,
-          );
-        },
-      );
-
-      socket.on(
-        'disconnect',
-        () => {
-          setConnectionStatus(
-            'disconnected',
-          );
-        },
-      );
-
-      socket.on(
-        'vehicle.location.updated',
-        (
-          location:
-            VehicleLocationUpdate,
-        ) => {
-          if (
-            location.tenantId !==
-              tenantId ||
-            !location.tripId ||
-            !activeTripIds.includes(
-              location.tripId,
-            )
-          ) {
-            return;
-          }
-
-          setLocationsByTrip(
-            (
-              current,
-            ) => ({
-              ...current,
-
-              [location.tripId!]:
-                location,
-            }),
-          );
-        },
-      );
-
-      socket.connect();
-
-      return () => {
-        for (
-          const tripId
-          of activeTripIds
-        ) {
-          void unsubscribeFromTrip(
-            socket,
-            tripId,
-          ).catch(
-            () =>
-              undefined,
-          );
-        }
-
-        socket.removeAllListeners();
-
-        socket.disconnect();
-      };
-    },
-    [
-      tenantId,
-      activeTripIds,
-      guardianQuery.isLoading,
-      guardianQuery.isError,
-    ],
-  );
-
-  if (
-    guardianQuery.isLoading
-  ) {
+  if (guardianQuery.isLoading) {
     return (
       <Paper
-        elevation={
-          0
-        }
+        elevation={0}
         sx={{
-          py:
-            7,
+          py: 7,
 
-          display:
-            'grid',
+          display: "grid",
 
-          placeItems:
-            'center',
+          placeItems: "center",
 
-          border:
-            '1px solid',
+          border: "1px solid",
 
-          borderColor:
-            'divider',
+          borderColor: "divider",
         }}
       >
-        <CircularProgress
-          size={
-            30
-          }
-        />
+        <CircularProgress size={30} />
       </Paper>
     );
   }
 
-  if (
-    guardianQuery.isError
-  ) {
-    return (
-      <Alert
-        severity="error"
-      >
-        {errorMessage(
-          guardianQuery.error,
-        )}
-      </Alert>
-    );
+  if (guardianQuery.isError) {
+    return <Alert severity="error">{errorMessage(guardianQuery.error)}</Alert>;
   }
 
-  if (
-    trackableChildren.length ===
-    0
-  ) {
+  if (trackableChildren.length === 0) {
     return (
       <Paper
-        elevation={
-          0
-        }
+        elevation={0}
         sx={{
-          p:
-            4,
+          p: 4,
 
-          textAlign:
-            'center',
+          textAlign: "center",
 
-          border:
-            '1px solid',
+          border: "1px solid",
 
-          borderColor:
-            'divider',
+          borderColor: "divider",
         }}
       >
         <FamilyRestroomRounded
           sx={{
-            fontSize:
-              42,
+            fontSize: 42,
 
-            color:
-              'primary.main',
+            color: "primary.main",
           }}
         />
 
         <Typography
           sx={{
-            mt:
-              1.5,
+            mt: 1.5,
 
-            fontWeight:
-              800,
+            fontWeight: 800,
           }}
         >
           No linked children
@@ -609,62 +323,47 @@ export function GuardianTrackingPanel({
 
         <Typography
           sx={{
-            mt:
-              0.5,
+            mt: 0.5,
 
-            color:
-              'text.secondary',
+            color: "text.secondary",
 
-            fontSize:
-              12.5,
+            fontSize: 12.5,
           }}
         >
-          Live parent tracking becomes available when this account is linked to an active student.
+          Live parent tracking becomes available when this account is linked to
+          an active student.
         </Typography>
       </Paper>
     );
   }
 
-  if (
-    activeTripIds.length ===
-    0
-  ) {
+  if (activeTripIds.length === 0) {
     return (
       <Paper
-        elevation={
-          0
-        }
+        elevation={0}
         sx={{
-          p:
-            4,
+          p: 4,
 
-          textAlign:
-            'center',
+          textAlign: "center",
 
-          border:
-            '1px solid',
+          border: "1px solid",
 
-          borderColor:
-            'divider',
+          borderColor: "divider",
         }}
       >
         <DirectionsBusRounded
           sx={{
-            fontSize:
-              42,
+            fontSize: 42,
 
-            color:
-              'primary.main',
+            color: "primary.main",
           }}
         />
 
         <Typography
           sx={{
-            mt:
-              1.5,
+            mt: 1.5,
 
-            fontWeight:
-              800,
+            fontWeight: 800,
           }}
         >
           No active journey
@@ -672,14 +371,11 @@ export function GuardianTrackingPanel({
 
         <Typography
           sx={{
-            mt:
-              0.5,
+            mt: 0.5,
 
-            color:
-              'text.secondary',
+            color: "text.secondary",
 
-            fontSize:
-              12.5,
+            fontSize: 12.5,
           }}
         >
           Your linked children do not currently have a live trackable trip.
@@ -692,47 +388,36 @@ export function GuardianTrackingPanel({
     <Box>
       <Box
         sx={{
-          mb:
-            3,
+          mb: 3,
 
-          display:
-            'flex',
+          display: "flex",
 
-          justifyContent:
-            'space-between',
+          justifyContent: "space-between",
 
           alignItems: {
-            xs:
-              'flex-start',
+            xs: "flex-start",
 
-            sm:
-              'center',
+            sm: "center",
           },
 
           flexDirection: {
-            xs:
-              'column',
+            xs: "column",
 
-            sm:
-              'row',
+            sm: "row",
           },
 
-          gap:
-            2,
+          gap: 2,
         }}
       >
         <Box>
           <Typography
             component="h1"
             sx={{
-              fontSize:
-                26,
+              fontSize: 26,
 
-              fontWeight:
-                850,
+              fontWeight: 850,
 
-              letterSpacing:
-                '-0.03em',
+              letterSpacing: "-0.03em",
             }}
           >
             Live Tracking
@@ -740,14 +425,11 @@ export function GuardianTrackingPanel({
 
           <Typography
             sx={{
-              mt:
-                0.5,
+              mt: 0.5,
 
-              color:
-                'text.secondary',
+              color: "text.secondary",
 
-              fontSize:
-                13.5,
+              fontSize: 13.5,
             }}
           >
             Track the current journey for your linked child.
@@ -756,33 +438,27 @@ export function GuardianTrackingPanel({
 
         <Chip
           icon={
-            connectionStatus ===
-            'connected'
-              ? <WifiRounded />
-              : <WifiOffRounded />
+            connectionStatus === "connected" ? (
+              <WifiRounded />
+            ) : (
+              <WifiOffRounded />
+            )
           }
           label={
-            connectionStatus ===
-            'connected'
-              ? 'Live trip connected'
-              : connectionStatus ===
-                  'connecting'
-                ? 'Connecting'
-                : connectionStatus ===
-                    'denied'
-                  ? 'Access denied'
-                  : 'Disconnected'
+            connectionStatus === "connected"
+              ? "Live trip connected"
+              : connectionStatus === "connecting"
+                ? "Connecting"
+                : connectionStatus === "denied"
+                  ? "Access denied"
+                  : "Disconnected"
           }
           color={
-            connectionStatus ===
-            'connected'
-              ? 'success'
-              : connectionStatus ===
-                  'denied' ||
-                connectionStatus ===
-                  'error'
-                ? 'error'
-                : 'default'
+            connectionStatus === "connected"
+              ? "success"
+              : connectionStatus === "denied" || connectionStatus === "error"
+                ? "error"
+                : "default"
           }
           variant="outlined"
         />
@@ -792,59 +468,38 @@ export function GuardianTrackingPanel({
         <Alert
           severity="error"
           sx={{
-            mb:
-              2,
+            mb: 2,
           }}
         >
           {connectionError}
         </Alert>
       ) : null}
 
-      {allGuardianMapMarkers.length >
-      0 ? (
+      {allGuardianMapMarkers.length > 0 ? (
         <Box
           sx={{
-            mb:
-              2.5,
+            mb: 2.5,
           }}
         >
-          <LiveTrackingMap
-            markers={
-              allGuardianMapMarkers
-            }
-            height={
-              360
-            }
-          />
+          <LiveTrackingMap markers={allGuardianMapMarkers} height={360} />
         </Box>
       ) : null}
 
-      {activeTripIds.some(
-        (
-          tripId,
-        ) =>
-          Boolean(
-            locationsByTrip[
-              tripId
-            ]?.nextStop,
-          ),
+      {activeTripIds.some((tripId) =>
+        Boolean(locationsByTrip[tripId]?.nextStop),
       ) ? (
         <Box
           sx={{
-            mb:
-              2.5,
+            mb: 2.5,
           }}
         >
           <Typography
             sx={{
-              mb:
-                1.25,
+              mb: 1.25,
 
-              fontWeight:
-                850,
+              fontWeight: 850,
 
-              fontSize:
-                14,
+              fontSize: 14,
             }}
           >
             Live journey progress
@@ -852,322 +507,230 @@ export function GuardianTrackingPanel({
 
           <Box
             sx={{
-              display:
-                'grid',
+              display: "grid",
 
               gridTemplateColumns: {
-                xs:
-                  '1fr',
+                xs: "1fr",
 
-                md:
-                  'repeat(2, minmax(0, 1fr))',
+                md: "repeat(2, minmax(0, 1fr))",
               },
 
-              gap:
-                1.5,
+              gap: 1.5,
             }}
           >
-            {activeTripIds.map(
-              (
-                tripId,
-              ) => {
-                const location =
-                  locationsByTrip[
-                    tripId
-                  ];
+            {activeTripIds.map((tripId) => {
+              const location = locationsByTrip[tripId];
 
-                const children =
-                  childrenByTrip.get(
-                    tripId,
-                  ) ??
-                  [];
+              const children = childrenByTrip.get(tripId) ?? [];
 
-                if (
-                  !location
-                    ?.nextStop
-                ) {
-                  return null;
-                }
+              if (!location?.nextStop) {
+                return null;
+              }
 
-                return (
-                  <TrackingProgressPanel
-                    key={
-                      tripId
-                    }
-                    label={
-                      children.length >
-                      0
-                        ? children.join(
-                            ', ',
-                          )
-                        : 'School journey'
-                    }
-                    nextStop={
-                      location.nextStop
-                    }
-                  />
-                );
-              },
-            )}
+              return (
+                <TrackingProgressPanel
+                  key={tripId}
+                  label={
+                    children.length > 0 ? children.join(", ") : "School journey"
+                  }
+                  nextStop={location.nextStop}
+                />
+              );
+            })}
           </Box>
         </Box>
       ) : null}
 
       <Box
         sx={{
-          display:
-            'grid',
+          display: "grid",
 
           gridTemplateColumns: {
-            xs:
-              '1fr',
+            xs: "1fr",
 
-            md:
-              'repeat(2, minmax(0, 1fr))',
+            md: "repeat(2, minmax(0, 1fr))",
           },
 
-          gap:
-            2,
+          gap: 2,
         }}
       >
-        {activeTripIds.map(
-          (
-            tripId,
-          ) => {
-            const location =
-              locationsByTrip[
-                tripId
-              ];
+        {activeTripIds.map((tripId) => {
+          const location = locationsByTrip[tripId];
 
-            const children =
-              childrenByTrip.get(
-                tripId,
-              ) ??
-              [];
+          const children = childrenByTrip.get(tripId) ?? [];
 
-            return (
-              <Paper
-                key={
-                  tripId
-                }
-                elevation={
-                  0
-                }
+          return (
+            <Paper
+              key={tripId}
+              elevation={0}
+              sx={{
+                p: 2.5,
+
+                border: "1px solid",
+
+                borderColor: "divider",
+              }}
+            >
+              <Box
                 sx={{
-                  p:
-                    2.5,
+                  display: "flex",
 
-                  border:
-                    '1px solid',
+                  alignItems: "center",
 
-                  borderColor:
-                    'divider',
+                  gap: 1.25,
                 }}
               >
+                <DirectionsBusRounded color="primary" />
+
+                <Box>
+                  <Typography
+                    sx={{
+                      fontWeight: 850,
+                    }}
+                  >
+                    {children.join(", ")}
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      color: "text.secondary",
+
+                      fontSize: 11.5,
+                    }}
+                  >
+                    Active school journey
+                  </Typography>
+                </Box>
+              </Box>
+
+              {!location ? (
                 <Box
                   sx={{
-                    display:
-                      'flex',
+                    mt: 3,
 
-                    alignItems:
-                      'center',
+                    py: 2,
 
-                    gap:
-                      1.25,
+                    textAlign: "center",
                   }}
                 >
-                  <DirectionsBusRounded
-                    color="primary"
+                  <GpsFixedRounded
+                    sx={{
+                      color: "text.secondary",
+                    }}
                   />
+
+                  <Typography
+                    sx={{
+                      mt: 1,
+
+                      color: "text.secondary",
+
+                      fontSize: 12.5,
+                    }}
+                  >
+                    Waiting for the next GPS update…
+                  </Typography>
+                </Box>
+              ) : (
+                <Box
+                  sx={{
+                    mt: 2.5,
+
+                    display: "grid",
+
+                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+
+                    gap: 1.5,
+                  }}
+                >
+                  <Box>
+                    <Typography
+                      sx={{
+                        color: "text.secondary",
+
+                        fontSize: 10.5,
+                      }}
+                    >
+                      Latitude
+                    </Typography>
+
+                    <Typography
+                      sx={{
+                        fontWeight: 750,
+                      }}
+                    >
+                      {location.latitude.toFixed(6)}
+                    </Typography>
+                  </Box>
 
                   <Box>
                     <Typography
                       sx={{
-                        fontWeight:
-                          850,
+                        color: "text.secondary",
+
+                        fontSize: 10.5,
                       }}
                     >
-                      {children.join(
-                        ', ',
-                      )}
+                      Longitude
                     </Typography>
 
                     <Typography
                       sx={{
-                        color:
-                          'text.secondary',
-
-                        fontSize:
-                          11.5,
+                        fontWeight: 750,
                       }}
                     >
-                      Active school journey
+                      {location.longitude.toFixed(6)}
+                    </Typography>
+                  </Box>
+
+                  <Box>
+                    <Typography
+                      sx={{
+                        color: "text.secondary",
+
+                        fontSize: 10.5,
+                      }}
+                    >
+                      Speed
+                    </Typography>
+
+                    <Typography
+                      sx={{
+                        fontWeight: 750,
+                      }}
+                    >
+                      {location.speedKph === null
+                        ? "—"
+                        : `${Math.round(location.speedKph)} km/h`}
+                    </Typography>
+                  </Box>
+
+                  <Box>
+                    <Typography
+                      sx={{
+                        color: "text.secondary",
+
+                        fontSize: 10.5,
+                      }}
+                    >
+                      Last update
+                    </Typography>
+
+                    <Typography
+                      sx={{
+                        fontWeight: 750,
+
+                        fontSize: 12,
+                      }}
+                    >
+                      {formatDateTime(location.recordedAt)}
                     </Typography>
                   </Box>
                 </Box>
-
-                {!location ? (
-                  <Box
-                    sx={{
-                      mt:
-                        3,
-
-                      py:
-                        2,
-
-                      textAlign:
-                        'center',
-                    }}
-                  >
-                    <GpsFixedRounded
-                      sx={{
-                        color:
-                          'text.secondary',
-                      }}
-                    />
-
-                    <Typography
-                      sx={{
-                        mt:
-                          1,
-
-                        color:
-                          'text.secondary',
-
-                        fontSize:
-                          12.5,
-                      }}
-                    >
-                      Waiting for the next GPS update…
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Box
-                    sx={{
-                      mt:
-                        2.5,
-
-                      display:
-                        'grid',
-
-                      gridTemplateColumns:
-                        'repeat(2, minmax(0, 1fr))',
-
-                      gap:
-                        1.5,
-                    }}
-                  >
-                    <Box>
-                      <Typography
-                        sx={{
-                          color:
-                            'text.secondary',
-
-                          fontSize:
-                            10.5,
-                        }}
-                      >
-                        Latitude
-                      </Typography>
-
-                      <Typography
-                        sx={{
-                          fontWeight:
-                            750,
-                        }}
-                      >
-                        {location.latitude.toFixed(
-                          6,
-                        )}
-                      </Typography>
-                    </Box>
-
-                    <Box>
-                      <Typography
-                        sx={{
-                          color:
-                            'text.secondary',
-
-                          fontSize:
-                            10.5,
-                        }}
-                      >
-                        Longitude
-                      </Typography>
-
-                      <Typography
-                        sx={{
-                          fontWeight:
-                            750,
-                        }}
-                      >
-                        {location.longitude.toFixed(
-                          6,
-                        )}
-                      </Typography>
-                    </Box>
-
-                    <Box>
-                      <Typography
-                        sx={{
-                          color:
-                            'text.secondary',
-
-                          fontSize:
-                            10.5,
-                        }}
-                      >
-                        Speed
-                      </Typography>
-
-                      <Typography
-                        sx={{
-                          fontWeight:
-                            750,
-                        }}
-                      >
-                        {location.speedKph ===
-                        null
-                          ? '—'
-                          : `${Math.round(
-                              location.speedKph,
-                            )} km/h`}
-                      </Typography>
-                    </Box>
-
-                    <Box>
-                      <Typography
-                        sx={{
-                          color:
-                            'text.secondary',
-
-                          fontSize:
-                            10.5,
-                        }}
-                      >
-                        Last update
-                      </Typography>
-
-                      <Typography
-                        sx={{
-                          fontWeight:
-                            750,
-
-                          fontSize:
-                            12,
-                        }}
-                      >
-                        {formatDateTime(
-                          location.recordedAt,
-                        )}
-                      </Typography>
-                    </Box>
-                  </Box>
-                )}
-              </Paper>
-            );
-          },
-        )}
+              )}
+            </Paper>
+          );
+        })}
       </Box>
     </Box>
   );

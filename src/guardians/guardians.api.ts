@@ -1,10 +1,6 @@
-import {
-  apiRequest,
-} from '../api/client';
+import { apiRequest } from "../api/client";
 
-export type GuardianStatus =
-  | 'active'
-  | 'inactive';
+export type GuardianStatus = "active" | "inactive";
 
 export interface Guardian {
   id: string;
@@ -71,62 +67,40 @@ export function listGuardians(
   tenantId: string,
   query: ListGuardiansQuery,
 ): Promise<PaginatedGuardians> {
-  const params =
-    new URLSearchParams();
+  const params = new URLSearchParams();
 
   if (query.page) {
-    params.set(
-      'page',
-      String(query.page),
-    );
+    params.set("page", String(query.page));
   }
 
   if (query.limit) {
-    params.set(
-      'limit',
-      String(query.limit),
-    );
+    params.set("limit", String(query.limit));
   }
 
   if (query.search?.trim()) {
-    params.set(
-      'search',
-      query.search.trim(),
-    );
+    params.set("search", query.search.trim());
   }
 
   if (query.status) {
-    params.set(
-      'status',
-      query.status,
-    );
+    params.set("status", query.status);
   }
 
-  return apiRequest<PaginatedGuardians>(
-    `/guardians?${params.toString()}`,
-    {
-      tenantId,
-    },
-  );
+  return apiRequest<PaginatedGuardians>(`/guardians?${params.toString()}`, {
+    tenantId,
+  });
 }
 
 export function createGuardian(
   tenantId: string,
   input: CreateGuardianInput,
 ): Promise<Guardian> {
-  return apiRequest<Guardian>(
-    '/guardians',
-    {
-      method: 'POST',
+  return apiRequest<Guardian>("/guardians", {
+    method: "POST",
 
-      tenantId,
+    tenantId,
 
-      body:
-        JSON.stringify(
-          input,
-        ),
-    },
-  );
+    body: JSON.stringify(input),
+  });
 }
 
 export function updateGuardian(
@@ -134,45 +108,33 @@ export function updateGuardian(
   guardianId: string,
   input: UpdateGuardianInput,
 ): Promise<Guardian> {
-  return apiRequest<Guardian>(
-    `/guardians/${guardianId}`,
-    {
-      method: 'PATCH',
+  return apiRequest<Guardian>(`/guardians/${guardianId}`, {
+    method: "PATCH",
 
-      tenantId,
+    tenantId,
 
-      body:
-        JSON.stringify(
-          input,
-        ),
-    },
-  );
+    body: JSON.stringify(input),
+  });
 }
 
 export function activateGuardian(
   tenantId: string,
   guardianId: string,
 ): Promise<Guardian> {
-  return apiRequest<Guardian>(
-    `/guardians/${guardianId}/activate`,
-    {
-      method: 'POST',
+  return apiRequest<Guardian>(`/guardians/${guardianId}/activate`, {
+    method: "POST",
 
-      tenantId,
-    },
-  );
+    tenantId,
+  });
 }
 
 export function deactivateGuardian(
   tenantId: string,
   guardianId: string,
 ): Promise<Guardian> {
-  return apiRequest<Guardian>(
-    `/guardians/${guardianId}/deactivate`,
-    {
-      method: 'POST',
+  return apiRequest<Guardian>(`/guardians/${guardianId}/deactivate`, {
+    method: "POST",
 
-      tenantId,
-    },
-  );
+    tenantId,
+  });
 }

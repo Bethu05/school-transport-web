@@ -1,45 +1,29 @@
-import {
-  apiRequest,
-} from '../api/client';
+import { apiRequest } from "../api/client";
 
-export type DriverStatus =
-  | 'active'
-  | 'inactive'
-  | 'suspended';
+export type DriverStatus = "active" | "inactive" | "suspended";
 
 export interface Driver {
   id: string;
 
   tenantId: string;
 
-  schoolId:
-    | string
-    | null;
+  schoolId: string | null;
 
   firstName: string;
 
   lastName: string;
 
-  phone:
-    | string
-    | null;
+  phone: string | null;
 
-  email:
-    | string
-    | null;
+  email: string | null;
 
   licenseNumber: string;
 
-  licenseClass:
-    | string
-    | null;
+  licenseClass: string | null;
 
-  licenseExpiryDate:
-    | string
-    | null;
+  licenseExpiryDate: string | null;
 
-  status:
-    DriverStatus;
+  status: DriverStatus;
 
   createdAt: string;
 
@@ -114,53 +98,28 @@ export interface UpdateDriverInput {
   status?: DriverStatus;
 }
 
-function buildQueryString(
-  query:
-    ListDriversQuery,
-): string {
-  const parameters =
-    new URLSearchParams();
+function buildQueryString(query: ListDriversQuery): string {
+  const parameters = new URLSearchParams();
 
   if (query.page) {
-    parameters.set(
-      'page',
-      String(
-        query.page,
-      ),
-    );
+    parameters.set("page", String(query.page));
   }
 
   if (query.limit) {
-    parameters.set(
-      'limit',
-      String(
-        query.limit,
-      ),
-    );
+    parameters.set("limit", String(query.limit));
   }
 
-  if (
-    query.search?.trim()
-  ) {
-    parameters.set(
-      'search',
-      query.search.trim(),
-    );
+  if (query.search?.trim()) {
+    parameters.set("search", query.search.trim());
   }
 
   if (query.status) {
-    parameters.set(
-      'status',
-      query.status,
-    );
+    parameters.set("status", query.status);
   }
 
-  const value =
-    parameters.toString();
+  const value = parameters.toString();
 
-  return value
-    ? `?${value}`
-    : '';
+  return value ? `?${value}` : "";
 }
 
 /**
@@ -168,51 +127,33 @@ function buildQueryString(
  */
 export function listDriversPage(
   tenantId: string,
-  query:
-    ListDriversQuery = {},
+  query: ListDriversQuery = {},
 ): Promise<PaginatedDrivers> {
-  return apiRequest<PaginatedDrivers>(
-    `/drivers${buildQueryString(
-      query,
-    )}`,
-    {
-      tenantId,
-    },
-  );
+  return apiRequest<PaginatedDrivers>(`/drivers${buildQueryString(query)}`, {
+    tenantId,
+  });
 }
 
 /**
  * Compatibility helper for Trips and existing consumers
  * that still expect a plain Driver[].
  */
-export async function listDrivers(
-  tenantId: string,
-): Promise<Driver[]> {
-  const drivers:
-    Driver[] = [];
+export async function listDrivers(tenantId: string): Promise<Driver[]> {
+  const drivers: Driver[] = [];
 
   let page = 1;
 
   const limit = 100;
 
   while (true) {
-    const response =
-      await listDriversPage(
-        tenantId,
-        {
-          page,
-          limit,
-        },
-      );
+    const response = await listDriversPage(tenantId, {
+      page,
+      limit,
+    });
 
-    drivers.push(
-      ...response.items,
-    );
+    drivers.push(...response.items);
 
-    if (
-      page >=
-      response.totalPages
-    ) {
+    if (page >= response.totalPages) {
       return drivers;
     }
 
@@ -222,58 +163,38 @@ export async function listDrivers(
 
 export function createDriver(
   tenantId: string,
-  input:
-    CreateDriverInput,
+  input: CreateDriverInput,
 ): Promise<Driver> {
-  return apiRequest<Driver>(
-    '/drivers',
-    {
-      method:
-        'POST',
+  return apiRequest<Driver>("/drivers", {
+    method: "POST",
 
-      tenantId,
+    tenantId,
 
-      body:
-        JSON.stringify(
-          input,
-        ),
-    },
-  );
+    body: JSON.stringify(input),
+  });
 }
 
 export function updateDriver(
   tenantId: string,
   driverId: string,
-  input:
-    UpdateDriverInput,
+  input: UpdateDriverInput,
 ): Promise<Driver> {
-  return apiRequest<Driver>(
-    `/drivers/${driverId}`,
-    {
-      method:
-        'PATCH',
+  return apiRequest<Driver>(`/drivers/${driverId}`, {
+    method: "PATCH",
 
-      tenantId,
+    tenantId,
 
-      body:
-        JSON.stringify(
-          input,
-        ),
-    },
-  );
+    body: JSON.stringify(input),
+  });
 }
 
 export function deactivateDriver(
   tenantId: string,
   driverId: string,
 ): Promise<Driver> {
-  return apiRequest<Driver>(
-    `/drivers/${driverId}`,
-    {
-      method:
-        'DELETE',
+  return apiRequest<Driver>(`/drivers/${driverId}`, {
+    method: "DELETE",
 
-      tenantId,
-    },
-  );
+    tenantId,
+  });
 }

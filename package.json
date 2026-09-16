@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,mjs,json,css,md}\" \"scripts/**/*.{js,mjs,ts}\"",
     "test:frontend": "npm run lint && npm run build",
     "test:dev-logins": "node --env-file=.env.development.local scripts/test-dev-logins.mjs",
     "test:vehicles-api": "node --env-file=.env.development.local scripts/test-vehicles-api.mjs",
@@ -34,7 +35,15 @@
     "test:driver-dashboard-frontend": "node scripts/test-driver-dashboard-frontend.mjs",
     "test:driver-safety-frontend": "node scripts/test-driver-safety-frontend.mjs",
     "test:driver-journey-frontend": "node scripts/test-driver-journey-frontend.mjs",
-    "test:driver-journey-realtime-frontend": "node scripts/test-driver-journey-realtime-frontend.mjs"
+    "test:driver-journey-realtime-frontend": "node scripts/test-driver-journey-realtime-frontend.mjs",
+    "test:operational-live-tracking": "node scripts/test-operational-live-tracking-frontend.mjs",
+    "test:maplibre-live-tracking": "node scripts/test-maplibre-live-tracking.mjs",
+    "test:tracking-control-room-map": "node scripts/test-tracking-control-room-map.mjs",
+    "test:canonical-route-map": "node scripts/test-canonical-route-map.mjs",
+    "test:tracking-bus-speed-marker": "node scripts/test-tracking-bus-speed-marker.mjs",
+    "test:route-distance-ui": "node scripts/test-route-distance-ui.mjs",
+    "test:remaining-route-highlight": "node scripts/test-remaining-route-highlight.mjs",
+    "test:tracking-snapshot-frontend": "node scripts/test-tracking-snapshot-frontend.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -43,6 +52,7 @@
     "@mui/material": "^9.4.0",
     "@tanstack/react-query": "^5.102.8",
     "leaflet": "^1.9.4",
+    "maplibre-gl": "^6.10.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.3",
@@ -55,6 +65,7 @@
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
     "oxlint": "^1.81.0",
+    "prettier": "^3.9.6",
     "typescript": "~6.0.2",
     "vite": "^8.3.0"
   }

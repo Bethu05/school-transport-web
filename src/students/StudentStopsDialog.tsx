@@ -1,7 +1,4 @@
-import {
-  useEffect,
-  useState,
-} from 'react';
+import { useEffect, useState } from "react";
 
 import {
   Alert,
@@ -15,22 +12,13 @@ import {
   MenuItem,
   TextField,
   Typography,
-} from '@mui/material';
+} from "@mui/material";
 
-import {
-  PlaceRounded,
-} from '@mui/icons-material';
+import { PlaceRounded } from "@mui/icons-material";
 
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import {
-  listStops,
-  type Stop,
-} from '../stops/stops.api';
+import { listStops, type Stop } from "../stops/stops.api";
 
 import {
   clearStudentDropoffStop,
@@ -38,50 +26,34 @@ import {
   getStudentStops,
   setStudentDropoffStop,
   setStudentPickupStop,
-} from './student-stops.api';
+} from "./student-stops.api";
 
-import type {
-  Student,
-} from './students.api';
+import type { Student } from "./students.api";
 
 interface StudentStopsDialogProps {
   open: boolean;
 
   tenantId: string;
 
-  student:
-    | Student
-    | null;
+  student: Student | null;
 
   onClose: () => void;
 
   onSaved: () => void;
 }
 
-function errorMessage(
-  error: unknown,
-): string {
-  return error instanceof
-    Error
+function errorMessage(error: unknown): string {
+  return error instanceof Error
     ? error.message
-    : 'The transport stops could not be updated.';
+    : "The transport stops could not be updated.";
 }
 
-function stopLabel(
-  stop:
-    Stop,
-): string {
-  const parts = [
-    stop.name,
-
-    stop.code
-      ? `(${stop.code})`
-      : null,
-  ].filter(Boolean);
-
-  return parts.join(
-    ' ',
+function stopLabel(stop: Stop): string {
+  const parts = [stop.name, stop.code ? `(${stop.code})` : null].filter(
+    Boolean,
   );
+
+  return parts.join(" ");
 }
 
 export function StudentStopsDialog({
@@ -91,228 +63,114 @@ export function StudentStopsDialog({
   onClose,
   onSaved,
 }: StudentStopsDialogProps) {
-  const queryClient =
-    useQueryClient();
+  const queryClient = useQueryClient();
 
-  const [
-    pickupStopId,
-    setPickupStopId,
-  ] =
-    useState('');
+  const [pickupStopId, setPickupStopId] = useState("");
 
-  const [
-    dropoffStopId,
-    setDropoffStopId,
-  ] =
-    useState('');
+  const [dropoffStopId, setDropoffStopId] = useState("");
 
-  const studentId =
-    student?.id;
+  const studentId = student?.id;
 
-  const assignmentsQuery =
-    useQuery({
-      queryKey: [
-        'student-stops',
-        tenantId,
-        studentId,
-      ],
+  const assignmentsQuery = useQuery({
+    queryKey: ["student-stops", tenantId, studentId],
 
-      enabled:
-        Boolean(
-          open &&
-          studentId,
-        ),
+    enabled: Boolean(open && studentId),
 
-      queryFn:
-        async () => {
-          if (!studentId) {
-            throw new Error(
-              'No Student selected',
-            );
-          }
-
-          return getStudentStops(
-            tenantId,
-            studentId,
-          );
-        },
-    });
-
-  const stopsQuery =
-    useQuery({
-      queryKey: [
-        'student-stop-options',
-        tenantId,
-        student?.schoolId,
-      ],
-
-      enabled:
-        Boolean(
-          open &&
-          student,
-        ),
-
-      queryFn:
-        async () => {
-          const allStops =
-            await listStops(
-              tenantId,
-            );
-
-          /**
-           * A Student may only use an active Stop belonging
-           * to the same school.
-           */
-          return allStops.filter(
-            (stop) =>
-              stop.status ===
-                'active' &&
-              stop.schoolId ===
-                student?.schoolId,
-          );
-        },
-    });
-
-  useEffect(
-    () => {
-      if (
-        !assignmentsQuery.data
-      ) {
-        return;
+    queryFn: async () => {
+      if (!studentId) {
+        throw new Error("No Student selected");
       }
 
-      setPickupStopId(
-        assignmentsQuery.data
-          .pickup
-          ?.stopId ??
-          '',
-      );
+      return getStudentStops(tenantId, studentId);
+    },
+  });
 
-      setDropoffStopId(
-        assignmentsQuery.data
-          .dropoff
-          ?.stopId ??
-          '',
+  const stopsQuery = useQuery({
+    queryKey: ["student-stop-options", tenantId, student?.schoolId],
+
+    enabled: Boolean(open && student),
+
+    queryFn: async () => {
+      const allStops = await listStops(tenantId);
+
+      /**
+       * A Student may only use an active Stop belonging
+       * to the same school.
+       */
+      return allStops.filter(
+        (stop) =>
+          stop.status === "active" && stop.schoolId === student?.schoolId,
       );
     },
-    [
-      assignmentsQuery.data,
-    ],
-  );
+  });
 
-  const saveMutation =
-    useMutation({
-      mutationFn:
-        async () => {
-          if (
-            !studentId
-          ) {
-            throw new Error(
-              'No Student selected',
-            );
-          }
+  useEffect(() => {
+    if (!assignmentsQuery.data) {
+      return;
+    }
 
-          const current =
-            assignmentsQuery.data;
+    setPickupStopId(assignmentsQuery.data.pickup?.stopId ?? "");
 
-          if (!current) {
-            throw new Error(
-              'Student stop assignments have not loaded',
-            );
-          }
+    setDropoffStopId(assignmentsQuery.data.dropoff?.stopId ?? "");
+  }, [assignmentsQuery.data]);
 
-          /**
-           * Pickup
-           */
-          if (
-            pickupStopId !==
-            (
-              current.pickup
-                ?.stopId ??
-              ''
-            )
-          ) {
-            if (
-              pickupStopId
-            ) {
-              await setStudentPickupStop(
-                tenantId,
-                studentId,
-                pickupStopId,
-              );
-            } else {
-              await clearStudentPickupStop(
-                tenantId,
-                studentId,
-              );
-            }
-          }
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!studentId) {
+        throw new Error("No Student selected");
+      }
 
-          /**
-           * Drop-off
-           */
-          if (
-            dropoffStopId !==
-            (
-              current.dropoff
-                ?.stopId ??
-              ''
-            )
-          ) {
-            if (
-              dropoffStopId
-            ) {
-              await setStudentDropoffStop(
-                tenantId,
-                studentId,
-                dropoffStopId,
-              );
-            } else {
-              await clearStudentDropoffStop(
-                tenantId,
-                studentId,
-              );
-            }
-          }
-        },
+      const current = assignmentsQuery.data;
 
-      onSuccess:
-        async () => {
-          await queryClient.invalidateQueries(
-            {
-              queryKey: [
-                'student-stops',
-              ],
-            },
-          );
+      if (!current) {
+        throw new Error("Student stop assignments have not loaded");
+      }
 
-          onSaved();
-          onClose();
-        },
-    });
+      /**
+       * Pickup
+       */
+      if (pickupStopId !== (current.pickup?.stopId ?? "")) {
+        if (pickupStopId) {
+          await setStudentPickupStop(tenantId, studentId, pickupStopId);
+        } else {
+          await clearStudentPickupStop(tenantId, studentId);
+        }
+      }
 
-  const loading =
-    assignmentsQuery.isLoading ||
-    stopsQuery.isLoading;
+      /**
+       * Drop-off
+       */
+      if (dropoffStopId !== (current.dropoff?.stopId ?? "")) {
+        if (dropoffStopId) {
+          await setStudentDropoffStop(tenantId, studentId, dropoffStopId);
+        } else {
+          await clearStudentDropoffStop(tenantId, studentId);
+        }
+      }
+    },
+
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["student-stops"],
+      });
+
+      onSaved();
+      onClose();
+    },
+  });
+
+  const loading = assignmentsQuery.isLoading || stopsQuery.isLoading;
 
   const error =
-    assignmentsQuery.error ??
-    stopsQuery.error ??
-    saveMutation.error;
+    assignmentsQuery.error ?? stopsQuery.error ?? saveMutation.error;
 
-  const stops =
-    stopsQuery.data ??
-    [];
+  const stops = stopsQuery.data ?? [];
 
   return (
     <Dialog
       open={open}
 
-      onClose={
-        saveMutation.isPending
-          ? undefined
-          : onClose
-      }
+      onClose={saveMutation.isPending ? undefined : onClose}
 
       fullWidth
 
@@ -320,8 +178,7 @@ export function StudentStopsDialog({
     >
       <DialogTitle
         sx={{
-          fontWeight:
-            850,
+          fontWeight: 850,
         }}
       >
         Manage transport stops
@@ -332,19 +189,16 @@ export function StudentStopsDialog({
           sx={{
             mb: 2.5,
 
-            color:
-              'text.secondary',
+            color: "text.secondary",
 
-            fontSize:
-              12.5,
+            fontSize: 12.5,
 
-            lineHeight:
-              1.6,
+            lineHeight: 1.6,
           }}
         >
           {student
             ? `Choose the normal pickup and drop-off stops for ${student.firstName} ${student.lastName}.`
-            : ''}
+            : ""}
         </Typography>
 
         {error ? (
@@ -355,9 +209,7 @@ export function StudentStopsDialog({
               mb: 2,
             }}
           >
-            {errorMessage(
-              error,
-            )}
+            {errorMessage(error)}
           </Alert>
         ) : null}
 
@@ -366,37 +218,26 @@ export function StudentStopsDialog({
             sx={{
               py: 5,
 
-              display:
-                'grid',
+              display: "grid",
 
-              placeItems:
-                'center',
+              placeItems: "center",
             }}
           >
-            <CircularProgress
-              size={30}
-            />
+            <CircularProgress size={30} />
           </Box>
         ) : null}
 
-        {!loading &&
-        stops.length ===
-          0 ? (
-          <Alert
-            severity="info"
-          >
-            No active stops are available for this Student&apos;s school.
-            Create the school&apos;s Stops first.
+        {!loading && stops.length === 0 ? (
+          <Alert severity="info">
+            No active stops are available for this Student&apos;s school. Create
+            the school&apos;s Stops first.
           </Alert>
         ) : null}
 
-        {!loading &&
-        stops.length >
-          0 ? (
+        {!loading && stops.length > 0 ? (
           <Box
             sx={{
-              display:
-                'grid',
+              display: "grid",
 
               gap: 2,
             }}
@@ -406,44 +247,23 @@ export function StudentStopsDialog({
 
               label="Pickup stop"
 
-              value={
-                pickupStopId
-              }
+              value={pickupStopId}
 
-              onChange={(
-                event,
-              ) =>
-                setPickupStopId(
-                  event.target
-                    .value,
-                )
-              }
+              onChange={(event) => setPickupStopId(event.target.value)}
 
               helperText="Where the Student normally boards the school transport."
             >
-              <MenuItem
-                value=""
-              >
-                No pickup stop
-              </MenuItem>
+              <MenuItem value="">No pickup stop</MenuItem>
 
-              {stops.map(
-                (stop) => (
-                  <MenuItem
-                    key={
-                      stop.id
-                    }
+              {stops.map((stop) => (
+                <MenuItem
+                  key={stop.id}
 
-                    value={
-                      stop.id
-                    }
-                  >
-                    {stopLabel(
-                      stop,
-                    )}
-                  </MenuItem>
-                ),
-              )}
+                  value={stop.id}
+                >
+                  {stopLabel(stop)}
+                </MenuItem>
+              ))}
             </TextField>
 
             <TextField
@@ -451,90 +271,61 @@ export function StudentStopsDialog({
 
               label="Drop-off stop"
 
-              value={
-                dropoffStopId
-              }
+              value={dropoffStopId}
 
-              onChange={(
-                event,
-              ) =>
-                setDropoffStopId(
-                  event.target
-                    .value,
-                )
-              }
+              onChange={(event) => setDropoffStopId(event.target.value)}
 
               helperText="Where the Student normally leaves the school transport."
             >
-              <MenuItem
-                value=""
-              >
-                No drop-off stop
-              </MenuItem>
+              <MenuItem value="">No drop-off stop</MenuItem>
 
-              {stops.map(
-                (stop) => (
-                  <MenuItem
-                    key={
-                      stop.id
-                    }
+              {stops.map((stop) => (
+                <MenuItem
+                  key={stop.id}
 
-                    value={
-                      stop.id
-                    }
-                  >
-                    {stopLabel(
-                      stop,
-                    )}
-                  </MenuItem>
-                ),
-              )}
+                  value={stop.id}
+                >
+                  {stopLabel(stop)}
+                </MenuItem>
+              ))}
             </TextField>
 
             <Box
               sx={{
-                display:
-                  'flex',
+                display: "flex",
 
-                alignItems:
-                  'flex-start',
+                alignItems: "flex-start",
 
                 gap: 1,
 
                 p: 1.5,
 
-                bgcolor:
-                  'action.hover',
+                bgcolor: "action.hover",
 
-                borderRadius:
-                  2,
+                borderRadius: 2,
               }}
             >
               <PlaceRounded
                 sx={{
                   mt: 0.2,
 
-                  fontSize:
-                    18,
+                  fontSize: 18,
 
-                  color:
-                    'primary.main',
+                  color: "primary.main",
                 }}
               />
 
               <Typography
                 sx={{
-                  color:
-                    'text.secondary',
+                  color: "text.secondary",
 
-                  fontSize:
-                    11.5,
+                  fontSize: 11.5,
 
-                  lineHeight:
-                    1.6,
+                  lineHeight: 1.6,
                 }}
               >
-                Only active stops belonging to this Student&apos;s school are shown.
+                Only active stops belonging to this Student&apos;s school are
+                shown.
               </Typography>
             </Box>
           </Box>
@@ -549,13 +340,9 @@ export function StudentStopsDialog({
         }}
       >
         <Button
-          disabled={
-            saveMutation.isPending
-          }
+          disabled={saveMutation.isPending}
 
-          onClick={
-            onClose
-          }
+          onClick={onClose}
         >
           Cancel
         </Button>
@@ -563,20 +350,11 @@ export function StudentStopsDialog({
         <Button
           variant="contained"
 
-          disabled={
-            loading ||
-            saveMutation.isPending ||
-            stops.length ===
-              0
-          }
+          disabled={loading || saveMutation.isPending || stops.length === 0}
 
-          onClick={() =>
-            saveMutation.mutate()
-          }
+          onClick={() => saveMutation.mutate()}
         >
-          {saveMutation.isPending
-            ? 'Saving...'
-            : 'Save stops'}
+          {saveMutation.isPending ? "Saving..." : "Save stops"}
         </Button>
       </DialogActions>
     </Dialog>

@@ -1,7 +1,4 @@
-import {
-  useState,
-  type ReactNode,
-} from 'react';
+import { useState, type ReactNode } from "react";
 
 import {
   Avatar,
@@ -15,7 +12,7 @@ import {
   ListItemText,
   Tooltip,
   Typography,
-} from '@mui/material';
+} from "@mui/material";
 
 import {
   AltRouteRounded,
@@ -34,26 +31,19 @@ import {
   SettingsRounded,
   ScheduleRounded,
   WarningAmberRounded,
-} from '@mui/icons-material';
+} from "@mui/icons-material";
 
-import {
-  useLocation,
-  useNavigate,
-} from 'react-router-dom';
+import { useLocation, useNavigate } from "react-router-dom";
 
-import {
-  useAuth,
-} from '../auth/AuthProvider';
+import { useAuth } from "../auth/AuthProvider";
 
 import {
   FRONTEND_PERMISSIONS,
   hasFrontendPermission,
   type FrontendPermission,
-} from '../auth/frontend-permissions';
+} from "../auth/frontend-permissions";
 
-import {
-  useColorMode,
-} from '../theme/AppThemeProvider';
+import { useColorMode } from "../theme/AppThemeProvider";
 
 const DRAWER_WIDTH = 252;
 
@@ -88,81 +78,75 @@ interface NavigationItem {
   roles?: readonly string[];
 }
 
-const ALL_ROLES = [
-  'owner',
-  'admin',
-  'transport_manager',
-  'driver',
-  'guardian',
-];
+const ALL_ROLES = ["owner", "admin", "transport_manager", "driver", "guardian"];
 
 const navigation: NavigationItem[] = [
   {
-    label: 'Dashboard',
-    path: '/dashboard',
+    label: "Dashboard",
+    path: "/dashboard",
     icon: <DashboardRounded />,
     roles: ALL_ROLES,
   },
 
   {
-    label: 'Live Tracking',
-    path: '/tracking',
+    label: "Live Tracking",
+    path: "/tracking",
     icon: <MapRounded />,
     roles: ALL_ROLES,
   },
 
   {
-    label: 'Trips',
-    path: '/trips',
+    label: "Trips",
+    path: "/trips",
     icon: <ScheduleRounded />,
     permission: FRONTEND_PERMISSIONS.TRIPS_READ,
   },
 
   {
-    label: 'Routes',
-    path: '/routes',
+    label: "Routes",
+    path: "/routes",
     icon: <AltRouteRounded />,
     permission: FRONTEND_PERMISSIONS.ROUTES_READ,
   },
 
   {
-    label: 'Stops',
-    path: '/stops',
+    label: "Stops",
+    path: "/stops",
     icon: <PlaceRounded />,
     permission: FRONTEND_PERMISSIONS.STOPS_READ,
   },
 
   {
-    label: 'Vehicles',
-    path: '/vehicles',
+    label: "Vehicles",
+    path: "/vehicles",
     icon: <DirectionsBusRounded />,
     permission: FRONTEND_PERMISSIONS.VEHICLES_READ,
   },
 
   {
-    label: 'Drivers',
-    path: '/drivers',
+    label: "Drivers",
+    path: "/drivers",
     icon: <BadgeRounded />,
     permission: FRONTEND_PERMISSIONS.DRIVERS_READ,
   },
 
   {
-    label: 'Students',
-    path: '/students',
+    label: "Students",
+    path: "/students",
     icon: <SchoolRounded />,
     permission: FRONTEND_PERMISSIONS.STUDENTS_READ,
   },
 
   {
-    label: 'Guardians',
-    path: '/guardians',
+    label: "Guardians",
+    path: "/guardians",
     icon: <FamilyRestroomRounded />,
     permission: FRONTEND_PERMISSIONS.GUARDIANS_READ,
   },
 
   {
-    label: 'Incidents',
-    path: '/incidents',
+    label: "Incidents",
+    path: "/incidents",
     icon: <WarningAmberRounded />,
     anyPermissions: [
       FRONTEND_PERMISSIONS.INCIDENTS_READ,
@@ -171,144 +155,96 @@ const navigation: NavigationItem[] = [
   },
 
   {
-    label: 'Notifications',
-    path: '/notifications',
+    label: "Notifications",
+    path: "/notifications",
     icon: <NotificationsRounded />,
     roles: ALL_ROLES,
   },
 
   {
-    label: 'Settings',
-    path: '/settings',
+    label: "Settings",
+    path: "/settings",
     icon: <SettingsRounded />,
-    roles: [
-      'owner',
-      'admin',
-    ],
+    roles: ["owner", "admin"],
   },
 ];
 
-function roleLabel(
-  role?: string,
-): string {
+function roleLabel(role?: string): string {
   switch (role) {
-    case 'owner':
-      return 'Owner';
+    case "owner":
+      return "Owner";
 
-    case 'admin':
-      return 'Administrator';
+    case "admin":
+      return "Administrator";
 
-    case 'transport_manager':
-      return 'Transport Manager';
+    case "transport_manager":
+      return "Transport Manager";
 
-    case 'driver':
-      return 'Driver';
+    case "driver":
+      return "Driver";
 
-    case 'guardian':
-      return 'Parent';
+    case "guardian":
+      return "Parent";
 
     default:
-      return 'User';
+      return "User";
   }
 }
 
-function initials(
-  email?: string,
-): string {
+function initials(email?: string): string {
   if (!email) {
-    return 'U';
+    return "U";
   }
 
-  return email
-    .slice(0, 2)
-    .toUpperCase();
+  return email.slice(0, 2).toUpperCase();
 }
 
-export function AppShell({
-  children,
-}: AppShellProps) {
-  const {
-    permissions,
-    user,
-    tenant,
-    logout,
-  } = useAuth();
+export function AppShell({ children }: AppShellProps) {
+  const { permissions, user, tenant, logout } = useAuth();
 
-  const {
-    mode,
-    toggleColorMode,
-  } = useColorMode();
+  const { mode, toggleColorMode } = useColorMode();
 
-  const navigate =
-    useNavigate();
+  const navigate = useNavigate();
 
-  const location =
-    useLocation();
+  const location = useLocation();
 
-  const [
-    mobileOpen,
-    setMobileOpen,
-  ] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  const role =
-    tenant?.role;
+  const role = tenant?.role;
 
-  const visibleNavigation =
-    navigation.filter(
-      (item) => {
-        if (
-          item.permission &&
-          !hasFrontendPermission(
-            permissions,
-            item.permission,
-          )
-        ) {
-          return false;
-        }
+  const visibleNavigation = navigation.filter((item) => {
+    if (
+      item.permission &&
+      !hasFrontendPermission(permissions, item.permission)
+    ) {
+      return false;
+    }
 
-        if (
-          item.anyPermissions &&
-          !item.anyPermissions.some(
-            (permission) =>
-              hasFrontendPermission(
-                permissions,
-                permission,
-              ),
-          )
-        ) {
-          return false;
-        }
+    if (
+      item.anyPermissions &&
+      !item.anyPermissions.some((permission) =>
+        hasFrontendPermission(permissions, permission),
+      )
+    ) {
+      return false;
+    }
 
-        if (
-          item.roles &&
-          !(
-            role &&
-            item.roles.includes(
-              role,
-            )
-          )
-        ) {
-          return false;
-        }
+    if (item.roles && !(role && item.roles.includes(role))) {
+      return false;
+    }
 
-        return true;
-      },
-    );
+    return true;
+  });
 
   function handleLogout(): void {
     logout();
 
-    navigate(
-      '/login',
-      {
-        replace: true,
-      },
-    );
+    navigate("/login", {
+      replace: true,
+    });
   }
 
-  function navigateTo(
-    path: string,
-  ): void {
+  function navigateTo(path: string): void {
     navigate(path);
 
     setMobileOpen(false);
@@ -317,9 +253,9 @@ export function AppShell({
   const drawerContent = (
     <Box
       sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       {/* ================================================
@@ -331,8 +267,8 @@ export function AppShell({
           px: 2.5,
           py: 2.5,
 
-          display: 'flex',
-          alignItems: 'center',
+          display: "flex",
+          alignItems: "center",
           gap: 1.5,
         }}
       >
@@ -343,14 +279,12 @@ export function AppShell({
 
             borderRadius: 2,
 
-            display: 'grid',
-            placeItems: 'center',
+            display: "grid",
+            placeItems: "center",
 
-            bgcolor:
-              'primary.main',
+            bgcolor: "primary.main",
 
-            color:
-              'primary.contrastText',
+            color: "primary.contrastText",
           }}
         >
           <DirectionsBusRounded />
@@ -368,8 +302,7 @@ export function AppShell({
 
           <Typography
             sx={{
-              color:
-                'text.secondary',
+              color: "text.secondary",
 
               fontSize: 11,
             }}
@@ -392,79 +325,60 @@ export function AppShell({
           px: 1.25,
           py: 2,
 
-          overflowY: 'auto',
+          overflowY: "auto",
         }}
       >
-        {visibleNavigation.map(
-          (item) => {
-            const selected =
-              location.pathname ===
-              item.path;
+        {visibleNavigation.map((item) => {
+          const selected = location.pathname === item.path;
 
-            return (
-              <ListItemButton
-                key={item.path}
-                selected={selected}
-                onClick={() =>
-                  navigateTo(
-                    item.path,
-                  )
-                }
+          return (
+            <ListItemButton
+              key={item.path}
+              selected={selected}
+              onClick={() => navigateTo(item.path)}
+              sx={{
+                mb: 0.5,
+
+                borderRadius: 2,
+
+                minHeight: 44,
+
+                "&.Mui-selected": {
+                  bgcolor: "action.selected",
+
+                  color: "primary.main",
+                },
+
+                "&.Mui-selected:hover": {
+                  bgcolor: "action.selected",
+                },
+              }}
+            >
+              <ListItemIcon
                 sx={{
-                  mb: 0.5,
+                  minWidth: 38,
 
-                  borderRadius: 2,
-
-                  minHeight: 44,
-
-                  '&.Mui-selected':
-                    {
-                      bgcolor:
-                        'action.selected',
-
-                      color:
-                        'primary.main',
-                    },
-
-                  '&.Mui-selected:hover':
-                    {
-                      bgcolor:
-                        'action.selected',
-                    },
+                  color: "inherit",
                 }}
               >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 38,
+                {item.icon}
+              </ListItemIcon>
 
-                    color:
-                      'inherit',
-                  }}
-                >
-                  {item.icon}
-                </ListItemIcon>
+              <ListItemText
+                primary={item.label}
+                slotProps={{
+                  primary: {
+                    sx: {
+                      fontSize: 13,
 
-                <ListItemText
-                  primary={
-                    item.label
-                  }
-                  slotProps={{
-                    primary: {
-                      sx: {
-                        fontSize: 13,
-
-                        fontWeight:
-                          selected
-                            ? 700
-                            : 600,
-                      },
+                      fontWeight: selected ? 700 : 600,
                     },
-                  }}
-                />
-              </ListItemButton>
-            );
-          },
-        )}
+                  },
+                }}
+              />
+            </ListItemButton>
+          );
+        })}
       </List>
 
       <Divider />
@@ -479,9 +393,7 @@ export function AppShell({
         }}
       >
         <ListItemButton
-          onClick={
-            handleLogout
-          }
+          onClick={handleLogout}
           sx={{
             borderRadius: 2,
 
@@ -515,12 +427,11 @@ export function AppShell({
   return (
     <Box
       sx={{
-        minHeight: '100vh',
+        minHeight: "100vh",
 
-        display: 'flex',
+        display: "flex",
 
-        bgcolor:
-          'background.default',
+        bgcolor: "background.default",
       }}
     >
       {/* ================================================
@@ -531,32 +442,25 @@ export function AppShell({
         variant="permanent"
         sx={{
           display: {
-            xs: 'none',
-            md: 'block',
+            xs: "none",
+            md: "block",
           },
 
-          width:
-            DRAWER_WIDTH,
+          width: DRAWER_WIDTH,
 
           flexShrink: 0,
 
-          '& .MuiDrawer-paper':
-            {
-              width:
-                DRAWER_WIDTH,
+          "& .MuiDrawer-paper": {
+            width: DRAWER_WIDTH,
 
-              boxSizing:
-                'border-box',
+            boxSizing: "border-box",
 
-              borderRight:
-                '1px solid',
+            borderRight: "1px solid",
 
-              borderColor:
-                'divider',
+            borderColor: "divider",
 
-              bgcolor:
-                'background.paper',
-            },
+            bgcolor: "background.paper",
+          },
         }}
       >
         {drawerContent}
@@ -568,23 +472,18 @@ export function AppShell({
 
       <Drawer
         open={mobileOpen}
-        onClose={() =>
-          setMobileOpen(false)
-        }
+        onClose={() => setMobileOpen(false)}
         sx={{
           display: {
-            xs: 'block',
-            md: 'none',
+            xs: "block",
+            md: "none",
           },
 
-          '& .MuiDrawer-paper':
-            {
-              width:
-                DRAWER_WIDTH,
+          "& .MuiDrawer-paper": {
+            width: DRAWER_WIDTH,
 
-              bgcolor:
-                'background.paper',
-            },
+            bgcolor: "background.paper",
+          },
         }}
       >
         {drawerContent}
@@ -610,7 +509,7 @@ export function AppShell({
           sx={{
             minHeight: 72,
 
-            position: 'sticky',
+            position: "sticky",
 
             top: 0,
 
@@ -621,30 +520,25 @@ export function AppShell({
               md: 3,
             },
 
-            display: 'flex',
+            display: "flex",
 
-            alignItems: 'center',
+            alignItems: "center",
 
-            borderBottom:
-              '1px solid',
+            borderBottom: "1px solid",
 
-            borderColor:
-              'divider',
+            borderColor: "divider",
 
-            bgcolor:
-              'background.paper',
+            bgcolor: "background.paper",
           }}
         >
           {/* MOBILE MENU */}
 
           <IconButton
             aria-label="Open navigation"
-            onClick={() =>
-              setMobileOpen(true)
-            }
+            onClick={() => setMobileOpen(true)}
             sx={{
               display: {
-                md: 'none',
+                md: "none",
               },
 
               mr: 1,
@@ -671,9 +565,7 @@ export function AppShell({
                 lineHeight: 1.25,
               }}
             >
-              {roleLabel(
-                role,
-              )}
+              {roleLabel(role)}
             </Typography>
 
             <Typography
@@ -681,8 +573,7 @@ export function AppShell({
               sx={{
                 mt: 0.25,
 
-                color:
-                  'text.secondary',
+                color: "text.secondary",
 
                 fontSize: 11,
               }}
@@ -697,30 +588,19 @@ export function AppShell({
 
           <Tooltip
             title={
-              mode === 'light'
-                ? 'Switch to dark mode'
-                : 'Switch to light mode'
+              mode === "light" ? "Switch to dark mode" : "Switch to light mode"
             }
           >
             <IconButton
               aria-label={
-                mode === 'light'
-                  ? 'Enable dark mode'
-                  : 'Enable light mode'
+                mode === "light" ? "Enable dark mode" : "Enable light mode"
               }
-              onClick={
-                toggleColorMode
-              }
+              onClick={toggleColorMode}
               sx={{
                 mr: 1,
               }}
             >
-              {mode ===
-              'light' ? (
-                <DarkModeRounded />
-              ) : (
-                <LightModeRounded />
-              )}
+              {mode === "light" ? <DarkModeRounded /> : <LightModeRounded />}
             </IconButton>
           </Tooltip>
 
@@ -731,20 +611,16 @@ export function AppShell({
               width: 38,
               height: 38,
 
-              bgcolor:
-                'primary.main',
+              bgcolor: "primary.main",
 
-              color:
-                'primary.contrastText',
+              color: "primary.contrastText",
 
               fontSize: 13,
 
               fontWeight: 800,
             }}
           >
-            {initials(
-              user?.email,
-            )}
+            {initials(user?.email)}
           </Avatar>
         </Box>
 
@@ -761,8 +637,7 @@ export function AppShell({
               lg: 4,
             },
 
-            minHeight:
-              'calc(100vh - 72px)',
+            minHeight: "calc(100vh - 72px)",
           }}
         >
           {children}

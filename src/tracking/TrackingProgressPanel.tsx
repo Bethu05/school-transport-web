@@ -1,115 +1,57 @@
-import {
-  Box,
-  Chip,
-  Paper,
-  Typography,
-} from '@mui/material';
+import { Box, Chip, Paper, Typography } from "@mui/material";
 
 import {
   AccessTimeRounded,
   NearMeRounded,
   PlaceRounded,
-} from '@mui/icons-material';
+} from "@mui/icons-material";
 
-import type {
-  VehicleLocationNextStop,
-} from './tracking.realtime';
+import type { VehicleLocationNextStop } from "./tracking.realtime";
 
 interface TrackingProgressPanelProps {
-  label:
-    string;
+  label: string;
 
-  nextStop:
-    | VehicleLocationNextStop
-    | null;
+  nextStop: VehicleLocationNextStop | null;
 }
 
-function formatDistance(
-  meters:
-    number,
-): string {
-  if (
-    meters >=
-    1000
-  ) {
-    return `${(
-      meters /
-      1000
-    ).toFixed(
-      1,
-    )} km`;
+function formatDistance(meters: number): string {
+  if (meters >= 1000) {
+    return `${(meters / 1000).toFixed(1)} km`;
   }
 
-  return `${Math.round(
-    meters,
-  )} m`;
+  return `${Math.round(meters)} m`;
 }
 
-function formatEta(
-  seconds:
-    | number
-    | null,
-): string {
-  if (
-    seconds ===
-    null
-  ) {
-    return 'Calculating';
+function formatEta(seconds: number | null): string {
+  if (seconds === null) {
+    return "Calculating";
   }
 
-  if (
-    seconds <
-    60
-  ) {
-    return '< 1 min';
+  if (seconds < 60) {
+    return "< 1 min";
   }
 
-  return `${Math.max(
-    1,
-    Math.round(
-      seconds /
-      60,
-    ),
-  )} min`;
+  return `${Math.max(1, Math.round(seconds / 60))} min`;
 }
 
-function formatArrival(
-  value:
-    | string
-    | null,
-): string {
+function formatArrival(value: string | null): string {
   if (!value) {
-    return 'Calculating';
+    return "Calculating";
   }
 
-  const date =
-    new Date(
-      value,
-    );
+  const date = new Date(value);
 
-  if (
-    Number.isNaN(
-      date.getTime(),
-    )
-  ) {
-    return 'Calculating';
+  if (Number.isNaN(date.getTime())) {
+    return "Calculating";
   }
 
-  return new Intl.DateTimeFormat(
-    'en-GB',
-    {
-      hour:
-        '2-digit',
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
 
-      minute:
-        '2-digit',
+    minute: "2-digit",
 
-      timeZone:
-        'Africa/Nairobi',
-    },
-  ).format(
-    date,
-  );
+    timeZone: "Africa/Nairobi",
+  }).format(date);
 }
 
 export function TrackingProgressPanel({
@@ -119,27 +61,20 @@ export function TrackingProgressPanel({
   if (!nextStop) {
     return (
       <Paper
-        elevation={
-          0
-        }
+        elevation={0}
         sx={{
-          p:
-            2,
+          p: 2,
 
-          border:
-            '1px solid',
+          border: "1px solid",
 
-          borderColor:
-            'divider',
+          borderColor: "divider",
         }}
       >
         <Typography
           sx={{
-            fontWeight:
-              800,
+            fontWeight: 800,
 
-            fontSize:
-              13.5,
+            fontSize: 13.5,
           }}
         >
           {label}
@@ -147,14 +82,11 @@ export function TrackingProgressPanel({
 
         <Typography
           sx={{
-            mt:
-              0.5,
+            mt: 0.5,
 
-            color:
-              'text.secondary',
+            color: "text.secondary",
 
-            fontSize:
-              12,
+            fontSize: 12,
           }}
         >
           No upcoming stop currently reported.
@@ -163,58 +95,53 @@ export function TrackingProgressPanel({
     );
   }
 
-  const distance =
-    nextStop.routeDistanceMeters ??
-    nextStop.etaDistanceMeters ??
-    nextStop.distanceMeters;
+  /**
+   * etaDistanceMeters is authoritative for the UI.
+   *
+   * The backend has already decided whether canonical
+   * route_geometry can be used. Keeping that decision in one
+   * place prevents the frontend from accidentally displaying
+   * crow-flies distance while ETA uses road distance.
+   */
+  const distance = nextStop.etaDistanceMeters;
+
+  const distanceLabel =
+    nextStop.etaDistanceSource === "route_geometry"
+      ? "Road distance"
+      : "Direct fallback";
 
   return (
     <Paper
-      elevation={
-        0
-      }
+      elevation={0}
       sx={{
-        p:
-          2.25,
+        p: 2.25,
 
-        border:
-          '1px solid',
+        border: "1px solid",
 
-        borderColor:
-          nextStop.withinGeofence
-            ? 'success.main'
-            : 'divider',
+        borderColor: nextStop.withinGeofence ? "success.main" : "divider",
       }}
     >
       <Box
         sx={{
-          display:
-            'flex',
+          display: "flex",
 
-          justifyContent:
-            'space-between',
+          justifyContent: "space-between",
 
-          alignItems:
-            'flex-start',
+          alignItems: "flex-start",
 
-          gap:
-            1.5,
+          gap: 1.5,
         }}
       >
         <Box>
           <Typography
             sx={{
-              color:
-                'text.secondary',
+              color: "text.secondary",
 
-              fontSize:
-                10.5,
+              fontSize: 10.5,
 
-              textTransform:
-                'uppercase',
+              textTransform: "uppercase",
 
-              letterSpacing:
-                '0.06em',
+              letterSpacing: "0.06em",
             }}
           >
             {label}
@@ -222,36 +149,28 @@ export function TrackingProgressPanel({
 
           <Box
             sx={{
-              mt:
-                0.5,
+              mt: 0.5,
 
-              display:
-                'flex',
+              display: "flex",
 
-              alignItems:
-                'center',
+              alignItems: "center",
 
-              gap:
-                0.75,
+              gap: 0.75,
             }}
           >
             <PlaceRounded
               sx={{
-                fontSize:
-                  18,
+                fontSize: 18,
 
-                color:
-                  'primary.main',
+                color: "primary.main",
               }}
             />
 
             <Typography
               sx={{
-                fontWeight:
-                  850,
+                fontWeight: 850,
 
-                fontSize:
-                  15,
+                fontSize: 15,
               }}
             >
               {nextStop.stopName}
@@ -260,137 +179,101 @@ export function TrackingProgressPanel({
 
           <Typography
             sx={{
-              mt:
-                0.4,
+              mt: 0.4,
 
-              color:
-                'text.secondary',
+              color: "text.secondary",
 
-              fontSize:
-                11.5,
+              fontSize: 11.5,
             }}
           >
             Stop {nextStop.stopOrder}
-            {nextStop.stopCode
-              ? ` · ${nextStop.stopCode}`
-              : ''}
+            {nextStop.stopCode ? ` · ${nextStop.stopCode}` : ""}
           </Typography>
         </Box>
 
         {nextStop.withinGeofence ? (
-          <Chip
-            size="small"
-            color="success"
-            label="At stop"
-          />
+          <Chip size="small" color="success" label="At stop" />
         ) : (
-          <Chip
-            size="small"
-            variant="outlined"
-            label="En route"
-          />
+          <Chip size="small" variant="outlined" label="En route" />
         )}
       </Box>
 
       <Box
         sx={{
-          mt:
-            2,
+          mt: 2,
 
-          display:
-            'grid',
+          display: "grid",
 
-          gridTemplateColumns:
-            'repeat(3, minmax(0, 1fr))',
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
 
-          gap:
-            1.25,
+          gap: 1.25,
         }}
       >
         <Box>
           <Box
             sx={{
-              display:
-                'flex',
+              display: "flex",
 
-              alignItems:
-                'center',
+              alignItems: "center",
 
-              gap:
-                0.4,
+              gap: 0.4,
             }}
           >
             <NearMeRounded
               sx={{
-                fontSize:
-                  14,
+                fontSize: 14,
 
-                color:
-                  'text.secondary',
+                color: "text.secondary",
               }}
             />
 
             <Typography
               sx={{
-                color:
-                  'text.secondary',
+                color: "text.secondary",
 
-                fontSize:
-                  10.5,
+                fontSize: 10.5,
               }}
             >
-              Distance
+              {distanceLabel}
             </Typography>
           </Box>
 
           <Typography
             sx={{
-              mt:
-                0.3,
+              mt: 0.3,
 
-              fontWeight:
-                800,
+              fontWeight: 800,
 
-              fontSize:
-                13,
+              fontSize: 13,
             }}
           >
-            {formatDistance(
-              distance,
-            )}
+            {formatDistance(distance)}
           </Typography>
         </Box>
 
         <Box>
           <Box
             sx={{
-              display:
-                'flex',
+              display: "flex",
 
-              alignItems:
-                'center',
+              alignItems: "center",
 
-              gap:
-                0.4,
+              gap: 0.4,
             }}
           >
             <AccessTimeRounded
               sx={{
-                fontSize:
-                  14,
+                fontSize: 14,
 
-                color:
-                  'text.secondary',
+                color: "text.secondary",
               }}
             />
 
             <Typography
               sx={{
-                color:
-                  'text.secondary',
+                color: "text.secondary",
 
-                fontSize:
-                  10.5,
+                fontSize: 10.5,
               }}
             >
               ETA
@@ -399,30 +282,23 @@ export function TrackingProgressPanel({
 
           <Typography
             sx={{
-              mt:
-                0.3,
+              mt: 0.3,
 
-              fontWeight:
-                800,
+              fontWeight: 800,
 
-              fontSize:
-                13,
+              fontSize: 13,
             }}
           >
-            {formatEta(
-              nextStop.etaSeconds,
-            )}
+            {formatEta(nextStop.etaSeconds)}
           </Typography>
         </Box>
 
         <Box>
           <Typography
             sx={{
-              color:
-                'text.secondary',
+              color: "text.secondary",
 
-              fontSize:
-                10.5,
+              fontSize: 10.5,
             }}
           >
             Arrival
@@ -430,45 +306,32 @@ export function TrackingProgressPanel({
 
           <Typography
             sx={{
-              mt:
-                0.3,
+              mt: 0.3,
 
-              fontWeight:
-                800,
+              fontWeight: 800,
 
-              fontSize:
-                13,
+              fontSize: 13,
             }}
           >
-            {formatArrival(
-              nextStop.estimatedArrivalAt,
-            )}
+            {formatArrival(nextStop.estimatedArrivalAt)}
           </Typography>
         </Box>
       </Box>
 
       <Typography
         sx={{
-          mt:
-            1.5,
+          mt: 1.5,
 
-          color:
-            'text.secondary',
+          color: "text.secondary",
 
-          fontSize:
-            10.5,
+          fontSize: 10.5,
         }}
       >
-        ETA source: {nextStop.etaSource.replace(
-          /_/g,
-          ' ',
-        )}
-        {nextStop.etaSpeedKph !==
-        null
-          ? ` · ${nextStop.etaSpeedKph.toFixed(
-              1,
-            )} km/h`
-          : ''}
+        Distance source: {nextStop.etaDistanceSource.replace(/_/g, " ")}
+        {" · "}ETA source: {nextStop.etaSource.replace(/_/g, " ")}
+        {nextStop.etaSpeedKph !== null
+          ? ` · ${nextStop.etaSpeedKph.toFixed(1)} km/h`
+          : ""}
       </Typography>
     </Paper>
   );

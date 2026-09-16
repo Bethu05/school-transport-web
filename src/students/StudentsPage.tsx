@@ -1,6 +1,4 @@
-import {
-  useState,
-} from 'react';
+import { useState } from "react";
 
 import {
   Alert,
@@ -23,7 +21,7 @@ import {
   TextField,
   Tooltip,
   Typography,
-} from '@mui/material';
+} from "@mui/material";
 
 import {
   FamilyRestroomRounded,
@@ -34,31 +32,20 @@ import {
   PlaceRounded,
   SchoolRounded,
   SearchRounded,
-} from '@mui/icons-material';
+} from "@mui/icons-material";
 
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import {
-  useAuth,
-} from '../auth/AuthProvider';
+import { useAuth } from "../auth/AuthProvider";
 
 import {
   FRONTEND_PERMISSIONS,
   hasFrontendPermission,
-} from '../auth/frontend-permissions';
+} from "../auth/frontend-permissions";
 
-import {
-  PaginationControls,
-} from '../components/PaginationControls';
+import { PaginationControls } from "../components/PaginationControls";
 
-import {
-  listSchools,
-  type School,
-} from '../schools/schools.api';
+import { listSchools, type School } from "../schools/schools.api";
 
 import {
   createStudent,
@@ -69,81 +56,42 @@ import {
   type Student,
   type StudentStatus,
   type UpdateStudentInput,
-} from './students.api';
+} from "./students.api";
 
-import {
-  StudentFormDialog,
-} from './StudentFormDialog';
+import { StudentFormDialog } from "./StudentFormDialog";
 
-import {
-  StudentGuardiansDialog,
-} from './StudentGuardiansDialog';
+import { StudentGuardiansDialog } from "./StudentGuardiansDialog";
 
-import {
-  StudentStopsDialog,
-} from './StudentStopsDialog';
+import { StudentStopsDialog } from "./StudentStopsDialog";
 
-type StatusFilter =
-  | 'all'
-  | StudentStatus;
+type StatusFilter = "all" | StudentStatus;
 
-function studentName(
-  student:
-    Student,
-): string {
-  return [
-    student.firstName,
-    student.lastName,
-  ]
-    .filter(Boolean)
-    .join(' ');
+function studentName(student: Student): string {
+  return [student.firstName, student.lastName].filter(Boolean).join(" ");
 }
 
-function statusLabel(
-  status:
-    StudentStatus,
-): string {
-  return status ===
-    'active'
-    ? 'Active'
-    : 'Inactive';
+function statusLabel(status: StudentStatus): string {
+  return status === "active" ? "Active" : "Inactive";
 }
 
-function statusColor(
-  status:
-    StudentStatus,
-): string {
-  return status ===
-    'active'
-    ? '#5F9471'
-    : '#85898F';
+function statusColor(status: StudentStatus): string {
+  return status === "active" ? "#5F9471" : "#85898F";
 }
 
-function errorMessage(
-  error: unknown,
-): string {
-  return error instanceof
-    Error
+function errorMessage(error: unknown): string {
+  return error instanceof Error
     ? error.message
-    : 'The operation could not be completed.';
+    : "The operation could not be completed.";
 }
 
 export function StudentsPage() {
-  const {
-    permissions,
-    tenant,
-  } = useAuth();
+  const { permissions, tenant } = useAuth();
 
-  const queryClient =
-    useQueryClient();
+  const queryClient = useQueryClient();
 
-  const [
-    guardiansStudent,
-    setGuardiansStudent,
-  ] =
-    useState<
-      Student | null
-    >(null);
+  const [guardiansStudent, setGuardiansStudent] = useState<Student | null>(
+    null,
+  );
 
   /**
    * Reading and managing Guardian relationships are separate
@@ -152,567 +100,301 @@ export function StudentsPage() {
    * This keeps the UI compatible with future per-user permission
    * overrides rather than assuming permissions from role names.
    */
-  const canReadGuardians =
-    hasFrontendPermission(
-      permissions,
-      FRONTEND_PERMISSIONS.GUARDIANS_READ,
-    );
+  const canReadGuardians = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.GUARDIANS_READ,
+  );
 
-  const canManageGuardians =
-    hasFrontendPermission(
-      permissions,
-      FRONTEND_PERMISSIONS.GUARDIANS_MANAGE_STUDENTS,
-    );
+  const canManageGuardians = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.GUARDIANS_MANAGE_STUDENTS,
+  );
 
+  const tenantId = tenant?.tenantId;
+  const canReadStudents = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.STUDENTS_READ,
+  );
 
+  const canCreateStudents = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.STUDENTS_CREATE,
+  );
 
-  const tenantId =
-    tenant?.tenantId;
-  const canReadStudents =
-    hasFrontendPermission(
-      permissions,
-      FRONTEND_PERMISSIONS.STUDENTS_READ,
-    );
+  const canUpdateStudents = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.STUDENTS_UPDATE,
+  );
 
-  const canCreateStudents =
-    hasFrontendPermission(
-      permissions,
-      FRONTEND_PERMISSIONS.STUDENTS_CREATE,
-    );
+  const canDeactivateStudents = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.STUDENTS_DEACTIVATE,
+  );
 
-  const canUpdateStudents =
-    hasFrontendPermission(
-      permissions,
-      FRONTEND_PERMISSIONS.STUDENTS_UPDATE,
-    );
+  const canManageStudentStops = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.STUDENTS_MANAGE_STOPS,
+  );
 
-  const canDeactivateStudents =
-    hasFrontendPermission(
-      permissions,
-      FRONTEND_PERMISSIONS.STUDENTS_DEACTIVATE,
-    );
+  const [search, setSearch] = useState("");
 
-  const canManageStudentStops =
-    hasFrontendPermission(
-      permissions,
-      FRONTEND_PERMISSIONS.STUDENTS_MANAGE_STOPS,
-    );
+  const [schoolId, setSchoolId] = useState("all");
 
-  const [
-    search,
-    setSearch,
-  ] =
-    useState('');
+  const [status, setStatus] = useState<StatusFilter>("active");
 
-  const [
-    schoolId,
-    setSchoolId,
-  ] =
-    useState('all');
+  const [page, setPage] = useState(1);
 
-  const [
-    status,
-    setStatus,
-  ] =
-    useState<StatusFilter>(
-      'active',
-    );
+  const [limit, setLimit] = useState(10);
 
-  const [
-    page,
-    setPage,
-  ] =
-    useState(1);
+  const [formOpen, setFormOpen] = useState(false);
 
-  const [
-    limit,
-    setLimit,
-  ] =
-    useState(10);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
 
-  const [
-    formOpen,
-    setFormOpen,
-  ] =
-    useState(false);
+  const [deactivateTarget, setDeactivateTarget] = useState<Student | null>(
+    null,
+  );
 
-  const [
-    editingStudent,
-    setEditingStudent,
-  ] =
-    useState<
-      Student | null
-    >(null);
+  const [stopsStudent, setStopsStudent] = useState<Student | null>(null);
 
-  const [
-    deactivateTarget,
-    setDeactivateTarget,
-  ] =
-    useState<
-      Student | null
-    >(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
-  const [
-    stopsStudent,
-    setStopsStudent,
-  ] =
-    useState<
-      Student | null
-    >(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const [
-    mutationError,
-    setMutationError,
-  ] =
-    useState<
-      string | null
-    >(null);
+  const schoolsQuery = useQuery({
+    queryKey: ["schools", tenantId],
 
-  const [
-    successMessage,
-    setSuccessMessage,
-  ] =
-    useState<
-      string | null
-    >(null);
+    enabled: Boolean(tenantId && canReadStudents),
 
-  const schoolsQuery =
-    useQuery({
-      queryKey: [
-        'schools',
-        tenantId,
-      ],
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-      enabled:
-        Boolean(
-          tenantId &&
-          canReadStudents,
-        ),
+      return listSchools(tenantId);
+    },
+  });
 
-      queryFn:
-        async () => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+  const studentsQuery = useQuery({
+    queryKey: ["students", tenantId, search, schoolId, status, page, limit],
 
-          return listSchools(
-            tenantId,
-          );
-        },
-    });
+    enabled: Boolean(tenantId && canReadStudents),
 
-  const studentsQuery =
-    useQuery({
-      queryKey: [
-        'students',
-        tenantId,
-        search,
-        schoolId,
-        status,
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
+
+      return listStudentsPage(tenantId, {
         page,
+
         limit,
-      ],
 
-      enabled:
-        Boolean(
-          tenantId &&
-          canReadStudents,
-        ),
+        search: search.trim() || undefined,
 
-      queryFn:
-        async () => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+        schoolId: schoolId === "all" ? undefined : schoolId,
 
-          return listStudentsPage(
-            tenantId,
-            {
-              page,
-
-              limit,
-
-              search:
-                search.trim() ||
-                undefined,
-
-              schoolId:
-                schoolId ===
-                  'all'
-                  ? undefined
-                  : schoolId,
-
-              status:
-                status ===
-                  'all'
-                  ? undefined
-                  : status,
-            },
-          );
-        },
-    });
+        status: status === "all" ? undefined : status,
+      });
+    },
+  });
 
   /**
    * Small summary requests use the minimum supported
    * page size (10). We only need the `total` metadata.
    */
-  const studentSummaryQuery =
-    useQuery({
-      queryKey: [
-        'students-summary',
-        tenantId,
-      ],
+  const studentSummaryQuery = useQuery({
+    queryKey: ["students-summary", tenantId],
 
-      enabled:
-        Boolean(
-          tenantId &&
-          canReadStudents,
-        ),
+    enabled: Boolean(tenantId && canReadStudents),
 
-      queryFn:
-        async () => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-          const [
-            all,
-            active,
-            inactive,
-          ] =
-            await Promise.all([
-              listStudentsPage(
-                tenantId,
-                {
-                  page: 1,
-                  limit: 10,
-                },
-              ),
+      const [all, active, inactive] = await Promise.all([
+        listStudentsPage(tenantId, {
+          page: 1,
+          limit: 10,
+        }),
 
-              listStudentsPage(
-                tenantId,
-                {
-                  page: 1,
-                  limit: 10,
-                  status:
-                    'active',
-                },
-              ),
+        listStudentsPage(tenantId, {
+          page: 1,
+          limit: 10,
+          status: "active",
+        }),
 
-              listStudentsPage(
-                tenantId,
-                {
-                  page: 1,
-                  limit: 10,
-                  status:
-                    'inactive',
-                },
-              ),
-            ]);
+        listStudentsPage(tenantId, {
+          page: 1,
+          limit: 10,
+          status: "inactive",
+        }),
+      ]);
 
-          return {
-            total:
-              all.total,
+      return {
+        total: all.total,
 
-            active:
-              active.total,
+        active: active.total,
 
-            inactive:
-              inactive.total,
-          };
-        },
-    });
+        inactive: inactive.total,
+      };
+    },
+  });
 
-  async function refreshStudents():
-    Promise<void> {
+  async function refreshStudents(): Promise<void> {
     await Promise.all([
-      queryClient.invalidateQueries(
-        {
-          queryKey: [
-            'students',
-          ],
-        },
-      ),
+      queryClient.invalidateQueries({
+        queryKey: ["students"],
+      }),
 
-      queryClient.invalidateQueries(
-        {
-          queryKey: [
-            'students-summary',
-          ],
-        },
-      ),
+      queryClient.invalidateQueries({
+        queryKey: ["students-summary"],
+      }),
     ]);
   }
 
-  const createMutation =
-    useMutation({
-      mutationFn:
-        async (
-          input:
-            CreateStudentInput,
-        ) => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+  const createMutation = useMutation({
+    mutationFn: async (input: CreateStudentInput) => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-          return createStudent(
-            tenantId,
-            input,
-          );
-        },
+      return createStudent(tenantId, input);
+    },
 
-      onSuccess:
-        async () => {
-          await refreshStudents();
+    onSuccess: async () => {
+      await refreshStudents();
 
-          setPage(
-            1,
-          );
+      setPage(1);
 
-          setFormOpen(
-            false,
-          );
+      setFormOpen(false);
 
-          setEditingStudent(
-            null,
-          );
+      setEditingStudent(null);
 
-          setMutationError(
-            null,
-          );
+      setMutationError(null);
 
-          setSuccessMessage(
-            'Student added successfully.',
-          );
-        },
+      setSuccessMessage("Student added successfully.");
+    },
 
-      onError:
-        (error) => {
-          setMutationError(
-            errorMessage(
-              error,
-            ),
-          );
-        },
-    });
+    onError: (error) => {
+      setMutationError(errorMessage(error));
+    },
+  });
 
-  const updateMutation =
-    useMutation({
-      mutationFn:
-        async ({
-          studentId:
-            targetStudentId,
-          input,
-        }: {
-          studentId:
-            string;
+  const updateMutation = useMutation({
+    mutationFn: async ({
+      studentId: targetStudentId,
+      input,
+    }: {
+      studentId: string;
 
-          input:
-            UpdateStudentInput;
-        }) => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+      input: UpdateStudentInput;
+    }) => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-          return updateStudent(
-            tenantId,
-            targetStudentId,
-            input,
-          );
-        },
+      return updateStudent(tenantId, targetStudentId, input);
+    },
 
-      onSuccess:
-        async () => {
-          await refreshStudents();
+    onSuccess: async () => {
+      await refreshStudents();
 
-          setFormOpen(
-            false,
-          );
+      setFormOpen(false);
 
-          setEditingStudent(
-            null,
-          );
+      setEditingStudent(null);
 
-          setMutationError(
-            null,
-          );
+      setMutationError(null);
 
-          setSuccessMessage(
-            'Student updated successfully.',
-          );
-        },
+      setSuccessMessage("Student updated successfully.");
+    },
 
-      onError:
-        (error) => {
-          setMutationError(
-            errorMessage(
-              error,
-            ),
-          );
-        },
-    });
+    onError: (error) => {
+      setMutationError(errorMessage(error));
+    },
+  });
 
-  const deactivateMutation =
-    useMutation({
-      mutationFn:
-        async (
-          targetStudentId:
-            string,
-        ) => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+  const deactivateMutation = useMutation({
+    mutationFn: async (targetStudentId: string) => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-          return deactivateStudent(
-            tenantId,
-            targetStudentId,
-          );
-        },
+      return deactivateStudent(tenantId, targetStudentId);
+    },
 
-      onSuccess:
-        async () => {
-          await refreshStudents();
+    onSuccess: async () => {
+      await refreshStudents();
 
-          setDeactivateTarget(
-            null,
-          );
+      setDeactivateTarget(null);
 
-          setSuccessMessage(
-            'Student deactivated successfully.',
-          );
-        },
-    });
+      setSuccessMessage("Student deactivated successfully.");
+    },
+  });
 
-  const students =
-    studentsQuery.data
-      ?.items ??
-    [];
+  const students = studentsQuery.data?.items ?? [];
 
-  const schools =
-    schoolsQuery.data ??
-    [];
+  const schools = schoolsQuery.data ?? [];
 
-  const schoolById =
-    new Map<
-      string,
-      School
-    >(
-      schools.map(
-        (school) => [
-          school.id,
-          school,
-        ],
-      ),
-    );
+  const schoolById = new Map<string, School>(
+    schools.map((school) => [school.id, school]),
+  );
 
-  const summary =
-    studentSummaryQuery.data ?? {
-      total: 0,
-      active: 0,
-      inactive: 0,
-    };
+  const summary = studentSummaryQuery.data ?? {
+    total: 0,
+    active: 0,
+    inactive: 0,
+  };
 
-  function openCreate():
-    void {
-    setMutationError(
-      null,
-    );
+  function openCreate(): void {
+    setMutationError(null);
 
-    setEditingStudent(
-      null,
-    );
+    setEditingStudent(null);
 
-    setFormOpen(
-      true,
-    );
+    setFormOpen(true);
   }
 
-  function openEdit(
-    student:
-      Student,
-  ): void {
-    setMutationError(
-      null,
-    );
+  function openEdit(student: Student): void {
+    setMutationError(null);
 
-    setEditingStudent(
-      student,
-    );
+    setEditingStudent(student);
 
-    setFormOpen(
-      true,
-    );
+    setFormOpen(true);
   }
 
-  function closeForm():
-    void {
-    if (
-      createMutation.isPending ||
-      updateMutation.isPending
-    ) {
+  function closeForm(): void {
+    if (createMutation.isPending || updateMutation.isPending) {
       return;
     }
 
-    setMutationError(
-      null,
-    );
+    setMutationError(null);
 
-    setEditingStudent(
-      null,
-    );
+    setEditingStudent(null);
 
-    setFormOpen(
-      false,
-    );
+    setFormOpen(false);
   }
 
   async function submitStudent(
-    input:
-      | CreateStudentInput
-      | UpdateStudentInput,
+    input: CreateStudentInput | UpdateStudentInput,
   ): Promise<void> {
-    setMutationError(
-      null,
-    );
+    setMutationError(null);
 
-    if (
-      editingStudent
-    ) {
-      await updateMutation.mutateAsync(
-        {
-          studentId:
-            editingStudent.id,
+    if (editingStudent) {
+      await updateMutation.mutateAsync({
+        studentId: editingStudent.id,
 
-          input:
-            input as UpdateStudentInput,
-        },
-      );
+        input: input as UpdateStudentInput,
+      });
 
       return;
     }
 
-    await createMutation.mutateAsync(
-      input as CreateStudentInput,
-    );
+    await createMutation.mutateAsync(input as CreateStudentInput);
   }
 
   if (!canReadStudents) {
     return (
-      <Alert
-        severity="warning"
-      >
+      <Alert severity="warning">
         You do not have permission to view Students for this tenant.
       </Alert>
     );
@@ -726,27 +408,21 @@ export function StudentsPage() {
         sx={{
           mb: 3,
 
-          display:
-            'flex',
+          display: "flex",
 
           flexDirection: {
-            xs:
-              'column',
+            xs: "column",
 
-            md:
-              'row',
+            md: "row",
           },
 
           alignItems: {
-            xs:
-              'flex-start',
+            xs: "flex-start",
 
-            md:
-              'flex-end',
+            md: "flex-end",
           },
 
-          justifyContent:
-            'space-between',
+          justifyContent: "space-between",
 
           gap: 2,
         }}
@@ -754,20 +430,15 @@ export function StudentsPage() {
         <Box>
           <Typography
             sx={{
-              color:
-                'primary.dark',
+              color: "primary.dark",
 
-              fontSize:
-                10,
+              fontSize: 10,
 
-              fontWeight:
-                850,
+              fontWeight: 850,
 
-              textTransform:
-                'uppercase',
+              textTransform: "uppercase",
 
-              letterSpacing:
-                '0.14em',
+              letterSpacing: "0.14em",
             }}
           >
             School Operations
@@ -785,11 +456,9 @@ export function StudentsPage() {
                 md: 38,
               },
 
-              fontWeight:
-                900,
+              fontWeight: 900,
 
-              letterSpacing:
-                '-0.04em',
+              letterSpacing: "-0.04em",
             }}
           >
             Students
@@ -799,78 +468,55 @@ export function StudentsPage() {
             sx={{
               mt: 0.7,
 
-              color:
-                'text.secondary',
+              color: "text.secondary",
 
-              fontSize:
-                13,
+              fontSize: 13,
             }}
           >
-            Manage student profiles, school assignments and transport eligibility.
+            Manage student profiles, school assignments and transport
+            eligibility.
           </Typography>
         </Box>
 
         <Box
           sx={{
-            display:
-              'flex',
+            display: "flex",
 
-            alignItems:
-              'center',
+            alignItems: "center",
 
             gap: 1,
 
-            flexWrap:
-              'wrap',
+            flexWrap: "wrap",
           }}
         >
           <Chip
-            icon={
-              <PersonRounded />
-            }
+            icon={<PersonRounded />}
 
-            label={
-              `${summary.total} students`
-            }
+            label={`${summary.total} students`}
 
             sx={{
-              color:
-                'primary.main',
+              color: "primary.main",
 
-              bgcolor:
-                'rgba(201,165,92,0.10)',
+              bgcolor: "rgba(201,165,92,0.10)",
 
-              border:
-                '1px solid',
+              border: "1px solid",
 
-              borderColor:
-                'rgba(201,165,92,0.22)',
+              borderColor: "rgba(201,165,92,0.22)",
             }}
           />
 
           <Button
             variant="contained"
 
-            startIcon={
-              <AddRounded />
-            }
+            startIcon={<AddRounded />}
 
-            disabled={
-              schools.length ===
-                0 ||
-              !canCreateStudents
-            }
+            disabled={schools.length === 0 || !canCreateStudents}
 
             sx={{
-              display:
-                canCreateStudents
-                  ? 'inline-flex'
-                  : 'none',
+              display: canCreateStudents ? "inline-flex" : "none",
             }}
 
-            onClick={
-              openCreate
-            }
+            onClick={openCreate}
           >
             Add student
           </Button>
@@ -881,15 +527,12 @@ export function StudentsPage() {
 
       <Box
         sx={{
-          display:
-            'grid',
+          display: "grid",
 
           gridTemplateColumns: {
-            xs:
-              '1fr',
+            xs: "1fr",
 
-            sm:
-              'repeat(3, minmax(0, 1fr))',
+            sm: "repeat(3, minmax(0, 1fr))",
           },
 
           gap: 2,
@@ -899,145 +542,111 @@ export function StudentsPage() {
       >
         {[
           {
-            label:
-              'Total Students',
+            label: "Total Students",
 
-            value:
-              summary.total,
+            value: summary.total,
 
-            icon:
-              <PersonRounded />,
+            icon: <PersonRounded />,
 
-            accent:
-              '#C9A55C',
+            accent: "#C9A55C",
           },
 
           {
-            label:
-              'Active',
+            label: "Active",
 
-            value:
-              summary.active,
+            value: summary.active,
 
-            icon:
-              <PersonRounded />,
+            icon: <PersonRounded />,
 
-            accent:
-              '#5F9471',
+            accent: "#5F9471",
           },
 
           {
-            label:
-              'Inactive',
+            label: "Inactive",
 
-            value:
-              summary.inactive,
+            value: summary.inactive,
 
-            icon:
-              <PersonOffRounded />,
+            icon: <PersonOffRounded />,
 
-            accent:
-              '#85898F',
+            accent: "#85898F",
           },
-        ].map(
-          (item) => (
-            <Paper
-              key={
-                item.label
-              }
+        ].map((item) => (
+          <Paper
+            key={item.label}
 
-              elevation={0}
+            elevation={0}
 
+            sx={{
+              p: 2.5,
+
+              border: "1px solid",
+
+              borderColor: "divider",
+            }}
+          >
+            <Box
               sx={{
-                p: 2.5,
+                display: "flex",
 
-                border:
-                  '1px solid',
+                alignItems: "center",
 
-                borderColor:
-                  'divider',
+                justifyContent: "space-between",
               }}
             >
-              <Box
-                sx={{
-                  display:
-                    'flex',
-
-                  alignItems:
-                    'center',
-
-                  justifyContent:
-                    'space-between',
-                }}
-              >
-                <Box>
-                  <Typography
-                    sx={{
-                      color:
-                        'text.secondary',
-
-                      fontSize:
-                        10.5,
-
-                      fontWeight:
-                        800,
-
-                      textTransform:
-                        'uppercase',
-
-                      letterSpacing:
-                        '0.09em',
-                    }}
-                  >
-                    {item.label}
-                  </Typography>
-
-                  <Typography
-                    sx={{
-                      mt: 1,
-
-                      fontSize:
-                        30,
-
-                      lineHeight:
-                        1,
-
-                      fontWeight:
-                        900,
-                    }}
-                  >
-                    {item.value}
-                  </Typography>
-                </Box>
-
-                <Box
+              <Box>
+                <Typography
                   sx={{
-                    width: 42,
+                    color: "text.secondary",
 
-                    height: 42,
+                    fontSize: 10.5,
 
-                    display:
-                      'grid',
+                    fontWeight: 800,
 
-                    placeItems:
-                      'center',
+                    textTransform: "uppercase",
 
-                    borderRadius:
-                      2,
-
-                    color:
-                      item.accent,
-
-                    bgcolor:
-                      `${item.accent}15`,
+                    letterSpacing: "0.09em",
                   }}
                 >
-                  {item.icon}
-                </Box>
+                  {item.label}
+                </Typography>
+
+                <Typography
+                  sx={{
+                    mt: 1,
+
+                    fontSize: 30,
+
+                    lineHeight: 1,
+
+                    fontWeight: 900,
+                  }}
+                >
+                  {item.value}
+                </Typography>
               </Box>
-            </Paper>
-          ),
-        )}
+
+              <Box
+                sx={{
+                  width: 42,
+
+                  height: 42,
+
+                  display: "grid",
+
+                  placeItems: "center",
+
+                  borderRadius: 2,
+
+                  color: item.accent,
+
+                  bgcolor: `${item.accent}15`,
+                }}
+              >
+                {item.icon}
+              </Box>
+            </Box>
+          </Paper>
+        ))}
       </Box>
 
       {/* FILTERS */}
@@ -1050,45 +659,31 @@ export function StudentsPage() {
 
           mb: 2,
 
-          border:
-            '1px solid',
+          border: "1px solid",
 
-          borderColor:
-            'divider',
+          borderColor: "divider",
         }}
       >
         <Box
           sx={{
-            display:
-              'grid',
+            display: "grid",
 
             gridTemplateColumns: {
-              xs:
-                '1fr',
+              xs: "1fr",
 
-              md:
-                'minmax(0, 1fr) 240px 180px',
+              md: "minmax(0, 1fr) 240px 180px",
             },
 
             gap: 1.5,
           }}
         >
           <TextField
-            value={
-              search
-            }
+            value={search}
 
-            onChange={(
-              event,
-            ) => {
-              setSearch(
-                event.target
-                  .value,
-              );
+            onChange={(event) => {
+              setSearch(event.target.value);
 
-              setPage(
-                1,
-              );
+              setPage(1);
             }}
 
             label="Search students"
@@ -1097,123 +692,72 @@ export function StudentsPage() {
 
             slotProps={{
               input: {
-                startAdornment:
-                  (
-                    <SearchRounded
-                      sx={{
-                        mr: 1,
+                startAdornment: (
+                  <SearchRounded
+                    sx={{
+                      mr: 1,
 
-                        color:
-                          'text.secondary',
+                      color: "text.secondary",
 
-                        fontSize:
-                          20,
-                      }}
-                    />
-                  ),
+                      fontSize: 20,
+                    }}
+                  />
+                ),
               },
             }}
           />
 
           <FormControl>
-            <InputLabel
-              id="student-school-label"
-            >
-              School
-            </InputLabel>
+            <InputLabel id="student-school-label">School</InputLabel>
 
             <Select
               labelId="student-school-label"
 
               label="School"
 
-              value={
-                schoolId
-              }
+              value={schoolId}
 
-              onChange={(
-                event,
-              ) => {
-                setSchoolId(
-                  event.target
-                    .value,
-                );
+              onChange={(event) => {
+                setSchoolId(event.target.value);
 
-                setPage(
-                  1,
-                );
+                setPage(1);
               }}
             >
-              <MenuItem
-                value="all"
-              >
-                All schools
-              </MenuItem>
+              <MenuItem value="all">All schools</MenuItem>
 
-              {schools.map(
-                (school) => (
-                  <MenuItem
-                    key={
-                      school.id
-                    }
+              {schools.map((school) => (
+                <MenuItem
+                  key={school.id}
 
-                    value={
-                      school.id
-                    }
-                  >
-                    {school.name}
-                  </MenuItem>
-                ),
-              )}
+                  value={school.id}
+                >
+                  {school.name}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
 
           <FormControl>
-            <InputLabel
-              id="student-status-label"
-            >
-              Status
-            </InputLabel>
+            <InputLabel id="student-status-label">Status</InputLabel>
 
             <Select
               labelId="student-status-label"
 
               label="Status"
 
-              value={
-                status
-              }
+              value={status}
 
-              onChange={(
-                event,
-              ) => {
-                setStatus(
-                  event.target
-                    .value as StatusFilter,
-                );
+              onChange={(event) => {
+                setStatus(event.target.value as StatusFilter);
 
-                setPage(
-                  1,
-                );
+                setPage(1);
               }}
             >
-              <MenuItem
-                value="all"
-              >
-                All statuses
-              </MenuItem>
+              <MenuItem value="all">All statuses</MenuItem>
 
-              <MenuItem
-                value="active"
-              >
-                Active
-              </MenuItem>
+              <MenuItem value="active">Active</MenuItem>
 
-              <MenuItem
-                value="inactive"
-              >
-                Inactive
-              </MenuItem>
+              <MenuItem value="inactive">Inactive</MenuItem>
             </Select>
           </FormControl>
         </Box>
@@ -1226,62 +770,44 @@ export function StudentsPage() {
           sx={{
             py: 8,
 
-            display:
-              'grid',
+            display: "grid",
 
-            placeItems:
-              'center',
+            placeItems: "center",
 
-            border:
-              '1px solid',
+            border: "1px solid",
 
-            borderColor:
-              'divider',
+            borderColor: "divider",
           }}
         >
-          <CircularProgress
-            size={32}
-          />
+          <CircularProgress size={32} />
         </Paper>
       ) : null}
 
       {studentsQuery.isError ? (
-        <Alert
-          severity="error"
-        >
-          {errorMessage(
-            studentsQuery.error,
-          )}
-        </Alert>
+        <Alert severity="error">{errorMessage(studentsQuery.error)}</Alert>
       ) : null}
 
       {!studentsQuery.isLoading &&
-        !studentsQuery.isError &&
-        students.length ===
-          0 ? (
+      !studentsQuery.isError &&
+      students.length === 0 ? (
         <Paper
           elevation={0}
 
           sx={{
             py: 8,
 
-            textAlign:
-              'center',
+            textAlign: "center",
 
-            border:
-              '1px solid',
+            border: "1px solid",
 
-            borderColor:
-              'divider',
+            borderColor: "divider",
           }}
         >
           <PersonRounded
             sx={{
-              fontSize:
-                42,
+              fontSize: 42,
 
-              color:
-                'primary.main',
+              color: "primary.main",
             }}
           />
 
@@ -1289,8 +815,7 @@ export function StudentsPage() {
             sx={{
               mt: 2,
 
-              fontWeight:
-                800,
+              fontWeight: 800,
             }}
           >
             No students found
@@ -1299,21 +824,17 @@ export function StudentsPage() {
       ) : null}
 
       {!studentsQuery.isLoading &&
-        !studentsQuery.isError &&
-        students.length >
-          0 ? (
+      !studentsQuery.isError &&
+      students.length > 0 ? (
         <Paper
           elevation={0}
 
           sx={{
-            overflow:
-              'hidden',
+            overflow: "hidden",
 
-            border:
-              '1px solid',
+            border: "1px solid",
 
-            borderColor:
-              'divider',
+            borderColor: "divider",
           }}
         >
           <Box
@@ -1323,569 +844,369 @@ export function StudentsPage() {
               py: 1.5,
 
               display: {
-                xs:
-                  'none',
+                xs: "none",
 
-                lg:
-                  'grid',
+                lg: "grid",
               },
 
-              gridTemplateColumns:
-                '1.4fr 1.2fr .75fr 1fr .7fr 130px',
+              gridTemplateColumns: "1.4fr 1.2fr .75fr 1fr .7fr 130px",
 
               gap: 2,
 
-              bgcolor:
-                'action.hover',
+              bgcolor: "action.hover",
 
-              borderBottom:
-                '1px solid',
+              borderBottom: "1px solid",
 
-              borderColor:
-                'divider',
+              borderColor: "divider",
             }}
           >
             {[
-              'Student',
-              'School',
-              'Grade / Class',
-              'Reference',
-              'Status',
-              'Actions',
-            ].map(
-              (heading) => (
-                <Typography
-                  key={
-                    heading
-                  }
+              "Student",
+              "School",
+              "Grade / Class",
+              "Reference",
+              "Status",
+              "Actions",
+            ].map((heading) => (
+              <Typography
+                key={heading}
 
-                  sx={{
-                    color:
-                      'text.secondary',
+                sx={{
+                  color: "text.secondary",
 
-                    fontSize:
-                      10,
+                  fontSize: 10,
 
-                    fontWeight:
-                      800,
+                  fontWeight: 800,
 
-                    textTransform:
-                      'uppercase',
+                  textTransform: "uppercase",
 
-                    letterSpacing:
-                      '0.08em',
-                  }}
-                >
-                  {heading}
-                </Typography>
-              ),
-            )}
+                  letterSpacing: "0.08em",
+                }}
+              >
+                {heading}
+              </Typography>
+            ))}
           </Box>
 
-          {students.map(
-            (
-              student,
-              index,
-            ) => {
-              const school =
-                schoolById.get(
-                  student.schoolId,
-                );
+          {students.map((student, index) => {
+            const school = schoolById.get(student.schoolId);
 
-              return (
+            return (
+              <Box
+                key={student.id}
+
+                sx={{
+                  px: 2.5,
+
+                  py: 2,
+
+                  display: "grid",
+
+                  gridTemplateColumns: {
+                    xs: "1fr",
+
+                    lg: "1.4fr 1.2fr .75fr 1fr .7fr 130px",
+                  },
+
+                  alignItems: "center",
+
+                  gap: 2,
+
+                  borderBottom:
+                    index === students.length - 1 ? "none" : "1px solid",
+
+                  borderColor: "divider",
+
+                  "&:hover": {
+                    bgcolor: "action.hover",
+                  },
+                }}
+              >
                 <Box
-                  key={
-                    student.id
-                  }
-
                   sx={{
-                    px: 2.5,
+                    display: "flex",
 
-                    py: 2,
+                    alignItems: "center",
 
-                    display:
-                      'grid',
-
-                    gridTemplateColumns: {
-                      xs:
-                        '1fr',
-
-                      lg:
-                        '1.4fr 1.2fr .75fr 1fr .7fr 130px',
-                    },
-
-                    alignItems:
-                      'center',
-
-                    gap: 2,
-
-                    borderBottom:
-                      index ===
-                        students.length -
-                          1
-                        ? 'none'
-                        : '1px solid',
-
-                    borderColor:
-                      'divider',
-
-                    '&:hover': {
-                      bgcolor:
-                        'action.hover',
-                    },
+                    gap: 1.3,
                   }}
                 >
-                  <Box
+                  <Avatar
+                    src={student.photoUrl ?? undefined}
+
+                    alt={studentName(student)}
+
                     sx={{
-                      display:
-                        'flex',
+                      width: 38,
 
-                      alignItems:
-                        'center',
+                      height: 38,
 
-                      gap: 1.3,
+                      bgcolor: "rgba(201,165,92,0.14)",
+
+                      color: "primary.main",
+
+                      fontSize: 12,
+
+                      fontWeight: 800,
                     }}
                   >
-                    <Avatar
-                      src={
-                        student.photoUrl ??
-                        undefined
-                      }
-
-                      alt={
-                        studentName(
-                          student,
-                        )
-                      }
-
-                      sx={{
-                        width: 38,
-
-                        height: 38,
-
-                        bgcolor:
-                          'rgba(201,165,92,0.14)',
-
-                        color:
-                          'primary.main',
-
-                        fontSize:
-                          12,
-
-                        fontWeight:
-                          800,
-                      }}
-                    >
-                      {student.firstName
-                        .slice(
-                          0,
-                          1,
-                        )
-                        .toUpperCase()}
-                      {student.lastName
-                        .slice(
-                          0,
-                          1,
-                        )
-                        .toUpperCase()}
-                    </Avatar>
-
-                    <Typography
-                      sx={{
-                        fontSize:
-                          12.5,
-
-                        fontWeight:
-                          800,
-                      }}
-                    >
-                      {studentName(
-                        student,
-                      )}
-                    </Typography>
-                  </Box>
-
-                  <Box
-                    sx={{
-                      display:
-                        'flex',
-
-                      alignItems:
-                        'center',
-
-                      gap: 0.7,
-                    }}
-                  >
-                    <SchoolRounded
-                      sx={{
-                        fontSize:
-                          16,
-
-                        color:
-                          'text.secondary',
-                      }}
-                    />
-
-                    <Typography
-                      sx={{
-                        fontSize:
-                          11.5,
-                      }}
-                    >
-                      {school?.name ??
-                        'School unavailable'}
-                    </Typography>
-                  </Box>
+                    {student.firstName.slice(0, 1).toUpperCase()}
+                    {student.lastName.slice(0, 1).toUpperCase()}
+                  </Avatar>
 
                   <Typography
                     sx={{
-                      fontSize:
-                        11.5,
+                      fontSize: 12.5,
 
-                      fontWeight:
-                        700,
+                      fontWeight: 800,
                     }}
                   >
-                    {student.grade}
+                    {studentName(student)}
                   </Typography>
+                </Box>
 
-                  <Typography
+                <Box
+                  sx={{
+                    display: "flex",
+
+                    alignItems: "center",
+
+                    gap: 0.7,
+                  }}
+                >
+                  <SchoolRounded
                     sx={{
-                      fontSize:
-                        11.5,
+                      fontSize: 16,
 
-                      color:
-                        student.externalRef
-                          ? 'text.primary'
-                          : 'text.secondary',
-                    }}
-                  >
-                    {student.externalRef ??
-                      'Not set'}
-                  </Typography>
-
-                  <Chip
-                    size="small"
-
-                    label={
-                      statusLabel(
-                        student.status,
-                      )
-                    }
-
-                    sx={{
-                      color:
-                        statusColor(
-                          student.status,
-                        ),
-
-                      bgcolor:
-                        `${statusColor(
-                          student.status,
-                        )}14`,
-
-                      border:
-                        '1px solid',
-
-                      borderColor:
-                        `${statusColor(
-                          student.status,
-                        )}30`,
+                      color: "text.secondary",
                     }}
                   />
 
-                  <Box
+                  <Typography
                     sx={{
-                      display:
-                        'flex',
+                      fontSize: 11.5,
                     }}
                   >
-                    <Tooltip
-                      title="Edit student"
+                    {school?.name ?? "School unavailable"}
+                  </Typography>
+                </Box>
+
+                <Typography
+                  sx={{
+                    fontSize: 11.5,
+
+                    fontWeight: 700,
+                  }}
+                >
+                  {student.grade}
+                </Typography>
+
+                <Typography
+                  sx={{
+                    fontSize: 11.5,
+
+                    color: student.externalRef
+                      ? "text.primary"
+                      : "text.secondary",
+                  }}
+                >
+                  {student.externalRef ?? "Not set"}
+                </Typography>
+
+                <Chip
+                  size="small"
+
+                  label={statusLabel(student.status)}
+
+                  sx={{
+                    color: statusColor(student.status),
+
+                    bgcolor: `${statusColor(student.status)}14`,
+
+                    border: "1px solid",
+
+                    borderColor: `${statusColor(student.status)}30`,
+                  }}
+                />
+
+                <Box
+                  sx={{
+                    display: "flex",
+                  }}
+                >
+                  <Tooltip title="Edit student">
+                    <IconButton
+                      size="small"
+
+                      disabled={!canUpdateStudents}
+
+                      sx={{
+                        display: canUpdateStudents ? "inline-flex" : "none",
+                      }}
+
+                      onClick={() => openEdit(student)}
                     >
+                      <EditRounded fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+
+                  <Tooltip
+                    title={
+                      student.status === "inactive"
+                        ? "Inactive Students cannot change transport stops"
+                        : "Manage transport stops"
+                    }
+                  >
+                    <span>
                       <IconButton
                         size="small"
 
                         disabled={
-                          !canUpdateStudents
+                          !canManageStudentStops ||
+                          student.status === "inactive"
                         }
 
                         sx={{
-                          display:
-                            canUpdateStudents
-                              ? 'inline-flex'
-                              : 'none',
+                          display: canManageStudentStops
+                            ? "inline-flex"
+                            : "none",
                         }}
 
-                        onClick={() =>
-                          openEdit(
-                            student,
-                          )
-                        }
+                        onClick={() => setStopsStudent(student)}
                       >
-                        <EditRounded
-                          fontSize="small"
-                        />
+                        <PlaceRounded fontSize="small" />
                       </IconButton>
-                    </Tooltip>
-
-                    <Tooltip
-                      title={
-                        student.status ===
-                          'inactive'
-                          ? 'Inactive Students cannot change transport stops'
-                          : 'Manage transport stops'
-                      }
-                    >
-                      <span>
-                        <IconButton
-                          size="small"
-
-                          disabled={
-                            !canManageStudentStops ||
-                            student.status ===
-                              'inactive'
-                          }
-
-                          sx={{
-                            display:
-                              canManageStudentStops
-                                ? 'inline-flex'
-                                : 'none',
-                          }}
-
-                          onClick={() =>
-                            setStopsStudent(
-                              student,
-                            )
-                          }
-                        >
-                          <PlaceRounded
-                            fontSize="small"
-                          />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
+                    </span>
+                  </Tooltip>
 
                   {canReadGuardians ? (
                     <Tooltip
                       title={
                         canManageGuardians
-                          ? 'Manage guardians'
-                          : 'View guardians'
+                          ? "Manage guardians"
+                          : "View guardians"
                       }
                     >
                       <IconButton
                         size="small"
-                        onClick={() =>
-                          setGuardiansStudent(
-                            student,
-                          )
-                        }
+                        onClick={() => setGuardiansStudent(student)}
                       >
-                        <FamilyRestroomRounded
-                          fontSize="small"
-                        />
+                        <FamilyRestroomRounded fontSize="small" />
                       </IconButton>
                     </Tooltip>
                   ) : null}
 
-                    <Tooltip
-                      title={
-                        student.status ===
-                          'inactive'
-                          ? 'Already inactive'
-                          : 'Deactivate student'
-                      }
-                    >
-                      <span>
-                        <IconButton
-                          size="small"
+                  <Tooltip
+                    title={
+                      student.status === "inactive"
+                        ? "Already inactive"
+                        : "Deactivate student"
+                    }
+                  >
+                    <span>
+                      <IconButton
+                        size="small"
 
-                          disabled={
-                            !canDeactivateStudents ||
-                            student.status ===
-                              'inactive'
-                          }
+                        disabled={
+                          !canDeactivateStudents ||
+                          student.status === "inactive"
+                        }
 
-                          sx={{
-                            display:
-                              canDeactivateStudents
-                                ? 'inline-flex'
-                                : 'none',
-                          }}
+                        sx={{
+                          display: canDeactivateStudents
+                            ? "inline-flex"
+                            : "none",
+                        }}
 
-                          onClick={() =>
-                            setDeactivateTarget(
-                              student,
-                            )
-                          }
-                        >
-                          <PersonOffRounded
-                            fontSize="small"
-                          />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                  </Box>
+                        onClick={() => setDeactivateTarget(student)}
+                      >
+                        <PersonOffRounded fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
                 </Box>
-              );
-            },
-          )}
+              </Box>
+            );
+          })}
 
           <PaginationControls
-            page={
-              studentsQuery.data
-                ?.page ??
-              page
-            }
+            page={studentsQuery.data?.page ?? page}
 
-            limit={
-              studentsQuery.data
-                ?.limit ??
-              limit
-            }
+            limit={studentsQuery.data?.limit ?? limit}
 
-            total={
-              studentsQuery.data
-                ?.total ??
-              0
-            }
+            total={studentsQuery.data?.total ?? 0}
 
-            totalPages={
-              studentsQuery.data
-                ?.totalPages ??
-              0
-            }
+            totalPages={studentsQuery.data?.totalPages ?? 0}
 
-            onPageChange={
-              setPage
-            }
+            onPageChange={setPage}
 
-            onLimitChange={(
-              nextLimit,
-            ) => {
-              setLimit(
-                nextLimit,
-              );
+            onLimitChange={(nextLimit) => {
+              setLimit(nextLimit);
 
-              setPage(
-                1,
-              );
+              setPage(1);
             }}
           />
         </Paper>
       ) : null}
 
       <StudentFormDialog
-        key={`${formOpen ? 'open' : 'closed'}:${editingStudent?.id ?? 'new'}`}
+        key={`${formOpen ? "open" : "closed"}:${editingStudent?.id ?? "new"}`}
 
-        open={
-          formOpen
-        }
+        open={formOpen}
 
-        student={
-          editingStudent
-        }
+        student={editingStudent}
 
-        schools={
-          schools
-        }
+        schools={schools}
 
-        saving={
-          createMutation.isPending ||
-          updateMutation.isPending
-        }
+        saving={createMutation.isPending || updateMutation.isPending}
 
-        error={
-          mutationError
-        }
+        error={mutationError}
 
-        onClose={
-          closeForm
-        }
+        onClose={closeForm}
 
-        onSubmit={
-          submitStudent
-        }
+        onSubmit={submitStudent}
       />
 
       {tenantId ? (
         <>
-<StudentStopsDialog
-          key={
-            stopsStudent?.id ??
-            'no-student'
-          }
+          <StudentStopsDialog
+            key={stopsStudent?.id ?? "no-student"}
 
-          open={
-            stopsStudent !==
-            null
-          }
+            open={stopsStudent !== null}
 
-          tenantId={
-            tenantId
-          }
+            tenantId={tenantId}
 
-          student={
-            stopsStudent
-          }
+            student={stopsStudent}
 
-          onClose={() =>
-            setStopsStudent(
-              null,
-            )
-          }
+            onClose={() => setStopsStudent(null)}
 
-          onSaved={() =>
-            setSuccessMessage(
-              'Student transport stops updated successfully.',
-            )
-          }
-        />
+            onSaved={() =>
+              setSuccessMessage("Student transport stops updated successfully.")
+            }
+          />
 
-<StudentGuardiansDialog
-        key={`student-guardians:${guardiansStudent?.id ?? 'closed'}`}
+          <StudentGuardiansDialog
+            key={`student-guardians:${guardiansStudent?.id ?? "closed"}`}
 
-        open={
-          guardiansStudent !==
-          null
-        }
+            open={guardiansStudent !== null}
 
-        tenantId={
-          tenantId
-        }
+            tenantId={tenantId}
 
-        student={
-          guardiansStudent
-        }
+            student={guardiansStudent}
 
-        canManage={
-          canManageGuardians
-        }
+            canManage={canManageGuardians}
 
-        onClose={() =>
-          setGuardiansStudent(
-            null,
-          )
-        }
-      />
-</>
+            onClose={() => setGuardiansStudent(null)}
+          />
+        </>
       ) : null}
 
       <Dialog
-        open={
-          deactivateTarget !==
-          null
-        }
+        open={deactivateTarget !== null}
 
         onClose={() => {
-          if (
-            !deactivateMutation.isPending
-          ) {
-            setDeactivateTarget(
-              null,
-            );
+          if (!deactivateMutation.isPending) {
+            setDeactivateTarget(null);
           }
         }}
 
@@ -1895,8 +1216,7 @@ export function StudentsPage() {
       >
         <DialogTitle
           sx={{
-            fontWeight:
-              850,
+            fontWeight: 850,
           }}
         >
           Deactivate student?
@@ -1911,29 +1231,24 @@ export function StudentsPage() {
                 mb: 2,
               }}
             >
-              {errorMessage(
-                deactivateMutation.error,
-              )}
+              {errorMessage(deactivateMutation.error)}
             </Alert>
           ) : null}
 
           <Typography
             sx={{
-              color:
-                'text.secondary',
+              color: "text.secondary",
 
-              fontSize:
-                13,
+              fontSize: 13,
 
-              lineHeight:
-                1.7,
+              lineHeight: 1.7,
             }}
           >
             {deactivateTarget
               ? `${studentName(
-                deactivateTarget,
-              )} will become inactive, but the student record will remain available for historical guardian, route and trip records.`
-              : ''}
+                  deactivateTarget,
+                )} will become inactive, but the student record will remain available for historical guardian, route and trip records.`
+              : ""}
           </Typography>
         </DialogContent>
 
@@ -1945,15 +1260,9 @@ export function StudentsPage() {
           }}
         >
           <Button
-            disabled={
-              deactivateMutation.isPending
-            }
+            disabled={deactivateMutation.isPending}
 
-            onClick={() =>
-              setDeactivateTarget(
-                null,
-              )
-            }
+            onClick={() => setDeactivateTarget(null)}
           >
             Cancel
           </Button>
@@ -1961,50 +1270,32 @@ export function StudentsPage() {
           <Button
             variant="contained"
 
-            disabled={
-              deactivateMutation.isPending ||
-              !deactivateTarget
-            }
+            disabled={deactivateMutation.isPending || !deactivateTarget}
 
             onClick={() => {
-              if (
-                deactivateTarget
-              ) {
-                deactivateMutation.mutate(
-                  deactivateTarget.id,
-                );
+              if (deactivateTarget) {
+                deactivateMutation.mutate(deactivateTarget.id);
               }
             }}
           >
             {deactivateMutation.isPending
-              ? 'Deactivating...'
-              : 'Deactivate student'}
+              ? "Deactivating..."
+              : "Deactivate student"}
           </Button>
         </DialogActions>
       </Dialog>
 
       <Snackbar
-        open={
-          successMessage !==
-          null
-        }
+        open={successMessage !== null}
 
-        autoHideDuration={
-          3500
-        }
+        autoHideDuration={3500}
 
-        onClose={() =>
-          setSuccessMessage(
-            null,
-          )
-        }
+        onClose={() => setSuccessMessage(null)}
 
         anchorOrigin={{
-          vertical:
-            'bottom',
+          vertical: "bottom",
 
-          horizontal:
-            'right',
+          horizontal: "right",
         }}
       >
         <Alert
@@ -2012,11 +1303,7 @@ export function StudentsPage() {
 
           variant="filled"
 
-          onClose={() =>
-            setSuccessMessage(
-              null,
-            )
-          }
+          onClose={() => setSuccessMessage(null)}
         >
           {successMessage}
         </Alert>

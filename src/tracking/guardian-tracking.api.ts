@@ -1,6 +1,4 @@
-import {
-  apiRequest,
-} from '../api/client';
+import { apiRequest } from "../api/client";
 
 export interface GuardianChild {
   studentId: string;
@@ -8,24 +6,18 @@ export interface GuardianChild {
   schoolName: string;
   schoolCode: string;
 
-  externalRef:
-    | string
-    | null;
+  externalRef: string | null;
 
   firstName: string;
   lastName: string;
 
-  status:
-    'active';
+  status: "active";
 
-  relationshipType:
-    string;
+  relationshipType: string;
 
-  isPrimary:
-    boolean;
+  isPrimary: boolean;
 
-  receiveNotifications:
-    boolean;
+  receiveNotifications: boolean;
 }
 
 export interface GuardianActiveTrip {
@@ -38,28 +30,19 @@ export interface GuardianActiveTrip {
    * The realtime UI deliberately needs only
    * the authorised trip id for subscription.
    */
-  [key: string]:
-    unknown;
+  [key: string]: unknown;
 }
 
 export interface GuardianTrackableChild {
-  child:
-    GuardianChild;
+  child: GuardianChild;
 
-  activeTrip:
-    GuardianActiveTrip
-    | null;
+  activeTrip: GuardianActiveTrip | null;
 }
 
-export function listMyChildren(
-  tenantId: string,
-): Promise<GuardianChild[]> {
-  return apiRequest<GuardianChild[]>(
-    '/me/children',
-    {
-      tenantId,
-    },
-  );
+export function listMyChildren(tenantId: string): Promise<GuardianChild[]> {
+  return apiRequest<GuardianChild[]>("/me/children", {
+    tenantId,
+  });
 }
 
 export async function getMyChildActiveTrip(
@@ -84,16 +67,8 @@ export async function getMyChildActiveTrip(
      */
     if (
       error instanceof Error &&
-      (
-        error.message.includes(
-          '404',
-        ) ||
-        error.message
-          .toLowerCase()
-          .includes(
-            'active trip',
-          )
-      )
+      (error.message.includes("404") ||
+        error.message.toLowerCase().includes("active trip"))
     ) {
       return null;
     }
@@ -105,24 +80,13 @@ export async function getMyChildActiveTrip(
 export async function listMyTrackableChildren(
   tenantId: string,
 ): Promise<GuardianTrackableChild[]> {
-  const children =
-    await listMyChildren(
-      tenantId,
-    );
+  const children = await listMyChildren(tenantId);
 
   return Promise.all(
-    children.map(
-      async (
-        child,
-      ) => ({
-        child,
+    children.map(async (child) => ({
+      child,
 
-        activeTrip:
-          await getMyChildActiveTrip(
-            tenantId,
-            child.studentId,
-          ),
-      }),
-    ),
+      activeTrip: await getMyChildActiveTrip(tenantId, child.studentId),
+    })),
   );
 }

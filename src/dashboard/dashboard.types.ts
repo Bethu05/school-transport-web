@@ -1,6 +1,4 @@
-import type {
-  ReactNode,
-} from 'react';
+import type { ReactNode } from "react";
 
 export interface Metric {
   label: string;
@@ -13,9 +11,7 @@ export interface Metric {
 
   icon: ReactNode;
 
-  source:
-    | 'live'
-    | 'preview';
+  source: "live" | "preview";
 }
 
 export interface TripRow {
@@ -27,10 +23,7 @@ export interface TripRow {
 
   time: string;
 
-  status:
-    | 'Active'
-    | 'Scheduled'
-    | 'Delayed';
+  status: "Active" | "Scheduled" | "Delayed";
 }
 
 export interface IncidentRow {
@@ -38,8 +31,5 @@ export interface IncidentRow {
 
   time: string;
 
-  severity:
-    | 'Low'
-    | 'Medium'
-    | 'High';
+  severity: "Low" | "Medium" | "High";
 }

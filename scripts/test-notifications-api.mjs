@@ -1,134 +1,78 @@
-const API_BASE_URL =
-  process.env.VITE_API_URL ??
-  'http://localhost:3000';
+const API_BASE_URL = process.env.VITE_API_URL ?? "http://localhost:3000";
 
-const EMAIL =
-  process.env.VITE_DEV_PARENT_EMAIL;
+const EMAIL = process.env.VITE_DEV_PARENT_EMAIL;
 
-const PASSWORD =
-  process.env.VITE_DEV_PASSWORD;
+const PASSWORD = process.env.VITE_DEV_PASSWORD;
 
-const TENANT_ID =
-  process.env.VITE_DEV_TENANT_ID;
+const TENANT_ID = process.env.VITE_DEV_TENANT_ID;
 
-function required(
-  value,
-  name,
-) {
+function required(value, name) {
   if (!value) {
-    throw new Error(
-      `${name} is missing from .env.development.local`,
-    );
+    throw new Error(`${name} is missing from .env.development.local`);
   }
 
   return value;
 }
 
-required(
-  EMAIL,
-  'VITE_DEV_PARENT_EMAIL',
-);
+required(EMAIL, "VITE_DEV_PARENT_EMAIL");
 
-required(
-  PASSWORD,
-  'VITE_DEV_PASSWORD',
-);
+required(PASSWORD, "VITE_DEV_PASSWORD");
 
-required(
-  TENANT_ID,
-  'VITE_DEV_TENANT_ID',
-);
+required(TENANT_ID, "VITE_DEV_TENANT_ID");
 
-function check(
-  condition,
-  label,
-) {
+function check(condition, label) {
   if (!condition) {
-    throw new Error(
-      `✗ ${label}`,
-    );
+    throw new Error(`✗ ${label}`);
   }
 
-  console.log(
-    `✓ ${label}`,
-  );
+  console.log(`✓ ${label}`);
 }
 
-async function request(
-  path,
-  {
-    method = 'GET',
-    token,
-    body,
-  } = {},
-) {
-  const response =
-    await fetch(
-      `${API_BASE_URL}${path}`,
-      {
-        method,
+async function request(path, { method = "GET", token, body } = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method,
 
-        headers: {
-          Accept:
-            'application/json',
+    headers: {
+      Accept: "application/json",
 
-          ...(body !==
-          undefined
-            ? {
-                'Content-Type':
-                  'application/json',
-              }
-            : {}),
+      ...(body !== undefined
+        ? {
+            "Content-Type": "application/json",
+          }
+        : {}),
 
-          ...(token
-            ? {
-                Authorization:
-                  `Bearer ${token}`,
+      ...(token
+        ? {
+            Authorization: `Bearer ${token}`,
 
-                'x-tenant-id':
-                  TENANT_ID,
-              }
-            : {}),
-        },
+            "x-tenant-id": TENANT_ID,
+          }
+        : {}),
+    },
 
-        ...(body !==
-        undefined
-          ? {
-              body:
-                JSON.stringify(
-                  body,
-                ),
-            }
-          : {}),
-      },
-    );
+    ...(body !== undefined
+      ? {
+          body: JSON.stringify(body),
+        }
+      : {}),
+  });
 
-  const text =
-    await response.text();
+  const text = await response.text();
 
   let payload = null;
 
   if (text) {
     try {
-      payload =
-        JSON.parse(
-          text,
-        );
+      payload = JSON.parse(text);
     } catch {
-      payload =
-        text;
+      payload = text;
     }
   }
 
   if (!response.ok) {
     throw new Error(
       `${method} ${path} -> ${response.status}: ${
-        typeof payload ===
-        'string'
-          ? payload
-          : JSON.stringify(
-              payload,
-            )
+        typeof payload === "string" ? payload : JSON.stringify(payload)
       }`,
     );
   }
@@ -137,305 +81,189 @@ async function request(
 }
 
 console.log();
-console.log(
-  'Notifications API checkpoint',
-);
-console.log(
-  '----------------------------',
-);
+console.log("Notifications API checkpoint");
+console.log("----------------------------");
 
-const login =
-  await request(
-    '/auth/login',
-    {
-      method:
-        'POST',
+const login = await request("/auth/login", {
+  method: "POST",
 
-      body: {
-        email:
-          EMAIL,
+  body: {
+    email: EMAIL,
 
-        password:
-          PASSWORD,
-      },
-    },
-  );
+    password: PASSWORD,
+  },
+});
 
 check(
-  typeof login?.accessToken ===
-    'string' &&
-    login.accessToken.length >
-      0,
-  'parent login',
+  typeof login?.accessToken === "string" && login.accessToken.length > 0,
+  "parent login",
 );
 
-const token =
-  login.accessToken;
+const token = login.accessToken;
 
-const context =
-  await request(
-    '/auth/context',
-    {
-      token,
-    },
-  );
+const context = await request("/auth/context", {
+  token,
+});
 
 check(
-  context?.tenant?.tenantId ===
-    TENANT_ID,
-  'parent tenant context verified',
+  context?.tenant?.tenantId === TENANT_ID,
+  "parent tenant context verified",
 );
-
 
 /* ============================================================
  * INBOX
  * ============================================================ */
 
-const firstPage =
-  await request(
-    '/me/notifications?limit=1',
-    {
-      token,
-    },
-  );
+const firstPage = await request("/me/notifications?limit=1", {
+  token,
+});
+
+check(Array.isArray(firstPage?.items), "notification inbox loaded");
+
+check(firstPage.items.length <= 1, "notification page size respected");
 
 check(
-  Array.isArray(
-    firstPage?.items,
-  ),
-  'notification inbox loaded',
+  firstPage.nextCursor === null || typeof firstPage.nextCursor === "string",
+  "notification cursor response valid",
 );
-
-check(
-  firstPage.items.length <=
-    1,
-  'notification page size respected',
-);
-
-check(
-  firstPage.nextCursor ===
-    null ||
-    typeof firstPage.nextCursor ===
-      'string',
-  'notification cursor response valid',
-);
-
 
 /* ============================================================
  * PAGINATION
  * ============================================================ */
 
-if (
-  firstPage.nextCursor
-) {
-  const secondPage =
-    await request(
-      `/me/notifications?limit=1&cursor=${encodeURIComponent(
-        firstPage.nextCursor,
-      )}`,
-      {
-        token,
-      },
-    );
-
-  check(
-    Array.isArray(
-      secondPage?.items,
-    ),
-    'next notification page loaded',
-  );
-
-  if (
-    firstPage.items[0] &&
-    secondPage.items[0]
-  ) {
-    check(
-      firstPage.items[0].id !==
-        secondPage.items[0].id,
-      'cursor advances to another notification',
-    );
-  }
-} else {
-  console.log(
-    '✓ pagination endpoint valid; only one page currently available',
-  );
-}
-
-
-/* ============================================================
- * MARK READ
- * ============================================================ */
-
-const notification =
-  firstPage.items[0];
-
-if (notification) {
-  const originalReadAt =
-    notification.readAt;
-
-  const marked =
-    await request(
-      `/me/notifications/${notification.id}/read`,
-      {
-        method:
-          'PATCH',
-
-        token,
-      },
-    );
-
-  check(
-    marked.id ===
-      notification.id,
-    'mark-read targets correct notification',
-  );
-
-  check(
-    typeof marked.readAt ===
-      'string' &&
-    marked.readAt.length >
-      0,
-    'notification marked read',
-  );
-
-  /*
-   * Calling mark-read again must remain safe/idempotent.
-   */
-  const markedAgain =
-    await request(
-      `/me/notifications/${notification.id}/read`,
-      {
-        method:
-          'PATCH',
-
-        token,
-      },
-    );
-
-  check(
-    markedAgain.readAt ===
-      marked.readAt,
-    'mark-read is idempotent',
-  );
-
-  if (!originalReadAt) {
-    console.log(
-      '  note: this test intentionally leaves the notification read',
-    );
-  }
-} else {
-  console.log(
-    '✓ inbox currently empty; mark-read fixture not available',
-  );
-}
-
-
-/* ============================================================
- * PREFERENCES
- * ============================================================ */
-
-const preferences =
-  await request(
-    '/me/notification-preferences',
+if (firstPage.nextCursor) {
+  const secondPage = await request(
+    `/me/notifications?limit=1&cursor=${encodeURIComponent(
+      firstPage.nextCursor,
+    )}`,
     {
       token,
     },
   );
 
+  check(Array.isArray(secondPage?.items), "next notification page loaded");
+
+  if (firstPage.items[0] && secondPage.items[0]) {
+    check(
+      firstPage.items[0].id !== secondPage.items[0].id,
+      "cursor advances to another notification",
+    );
+  }
+} else {
+  console.log("✓ pagination endpoint valid; only one page currently available");
+}
+
+/* ============================================================
+ * MARK READ
+ * ============================================================ */
+
+const notification = firstPage.items[0];
+
+if (notification) {
+  const originalReadAt = notification.readAt;
+
+  const marked = await request(`/me/notifications/${notification.id}/read`, {
+    method: "PATCH",
+
+    token,
+  });
+
+  check(
+    marked.id === notification.id,
+    "mark-read targets correct notification",
+  );
+
+  check(
+    typeof marked.readAt === "string" && marked.readAt.length > 0,
+    "notification marked read",
+  );
+
+  /*
+   * Calling mark-read again must remain safe/idempotent.
+   */
+  const markedAgain = await request(
+    `/me/notifications/${notification.id}/read`,
+    {
+      method: "PATCH",
+
+      token,
+    },
+  );
+
+  check(markedAgain.readAt === marked.readAt, "mark-read is idempotent");
+
+  if (!originalReadAt) {
+    console.log("  note: this test intentionally leaves the notification read");
+  }
+} else {
+  console.log("✓ inbox currently empty; mark-read fixture not available");
+}
+
+/* ============================================================
+ * PREFERENCES
+ * ============================================================ */
+
+const preferences = await request("/me/notification-preferences", {
+  token,
+});
+
 check(
-  typeof preferences
-    ?.notifyBoarded ===
-    'boolean' &&
-  typeof preferences
-    ?.notifyDroppedOff ===
-    'boolean' &&
-  typeof preferences
-    ?.notifyTripUpdates ===
-    'boolean',
-  'notification preferences loaded',
+  typeof preferences?.notifyBoarded === "boolean" &&
+    typeof preferences?.notifyDroppedOff === "boolean" &&
+    typeof preferences?.notifyTripUpdates === "boolean",
+  "notification preferences loaded",
 );
 
 const originalPreferences = {
-  notifyBoarded:
-    preferences.notifyBoarded,
+  notifyBoarded: preferences.notifyBoarded,
 
-  notifyDroppedOff:
-    preferences.notifyDroppedOff,
+  notifyDroppedOff: preferences.notifyDroppedOff,
 
-  notifyTripUpdates:
-    preferences.notifyTripUpdates,
+  notifyTripUpdates: preferences.notifyTripUpdates,
 };
 
-const temporaryValue =
-  !originalPreferences
-    .notifyBoarded;
+const temporaryValue = !originalPreferences.notifyBoarded;
 
 try {
-  const changed =
-    await request(
-      '/me/notification-preferences',
-      {
-        method:
-          'PATCH',
+  const changed = await request("/me/notification-preferences", {
+    method: "PATCH",
 
-        token,
+    token,
 
-        body: {
-          notifyBoarded:
-            temporaryValue,
-        },
-      },
-    );
+    body: {
+      notifyBoarded: temporaryValue,
+    },
+  });
 
   check(
-    changed.notifyBoarded ===
-      temporaryValue,
-    'notification preference updated',
+    changed.notifyBoarded === temporaryValue,
+    "notification preference updated",
   );
 
-  const verified =
-    await request(
-      '/me/notification-preferences',
-      {
-        token,
-      },
-    );
+  const verified = await request("/me/notification-preferences", {
+    token,
+  });
 
   check(
-    verified.notifyBoarded ===
-      temporaryValue,
-    'preference update persisted',
+    verified.notifyBoarded === temporaryValue,
+    "preference update persisted",
   );
 } finally {
-  const restored =
-    await request(
-      '/me/notification-preferences',
-      {
-        method:
-          'PATCH',
+  const restored = await request("/me/notification-preferences", {
+    method: "PATCH",
 
-        token,
+    token,
 
-        body:
-          originalPreferences,
-      },
-    );
+    body: originalPreferences,
+  });
 
   check(
-    restored.notifyBoarded ===
-      originalPreferences
-        .notifyBoarded &&
-    restored.notifyDroppedOff ===
-      originalPreferences
-        .notifyDroppedOff &&
-    restored.notifyTripUpdates ===
-      originalPreferences
-        .notifyTripUpdates,
-    'original preferences restored',
+    restored.notifyBoarded === originalPreferences.notifyBoarded &&
+      restored.notifyDroppedOff === originalPreferences.notifyDroppedOff &&
+      restored.notifyTripUpdates === originalPreferences.notifyTripUpdates,
+    "original preferences restored",
   );
 }
 
 console.log();
-console.log(
-  'Notifications API checkpoint PASSED',
-);
+console.log("Notifications API checkpoint PASSED");

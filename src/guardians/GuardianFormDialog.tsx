@@ -1,6 +1,4 @@
-import {
-  useState,
-} from 'react';
+import { useState } from "react";
 
 import {
   Alert,
@@ -14,34 +12,26 @@ import {
   Switch,
   TextField,
   Typography,
-} from '@mui/material';
+} from "@mui/material";
 
 import type {
   CreateGuardianInput,
   Guardian,
   UpdateGuardianInput,
-} from './guardians.api';
+} from "./guardians.api";
 
 interface GuardianFormDialogProps {
   open: boolean;
 
-  guardian:
-    | Guardian
-    | null;
+  guardian: Guardian | null;
 
   submitting: boolean;
 
-  error:
-    | string
-    | null;
+  error: string | null;
 
   onClose: () => void;
 
-  onSubmit: (
-    input:
-      | CreateGuardianInput
-      | UpdateGuardianInput,
-  ) => void;
+  onSubmit: (input: CreateGuardianInput | UpdateGuardianInput) => void;
 }
 
 interface GuardianForm {
@@ -56,17 +46,13 @@ interface GuardianForm {
   notifyTripUpdates: boolean;
 }
 
-function initialForm(
-  guardian:
-    | Guardian
-    | null,
-): GuardianForm {
+function initialForm(guardian: Guardian | null): GuardianForm {
   if (!guardian) {
     return {
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
 
       notifyBoarded: true,
       notifyDroppedOff: true,
@@ -75,28 +61,19 @@ function initialForm(
   }
 
   return {
-    firstName:
-      guardian.firstName,
+    firstName: guardian.firstName,
 
-    lastName:
-      guardian.lastName,
+    lastName: guardian.lastName,
 
-    email:
-      guardian.email ??
-      '',
+    email: guardian.email ?? "",
 
-    phone:
-      guardian.phone ??
-      '',
+    phone: guardian.phone ?? "",
 
-    notifyBoarded:
-      guardian.notifyBoarded,
+    notifyBoarded: guardian.notifyBoarded,
 
-    notifyDroppedOff:
-      guardian.notifyDroppedOff,
+    notifyDroppedOff: guardian.notifyDroppedOff,
 
-    notifyTripUpdates:
-      guardian.notifyTripUpdates,
+    notifyTripUpdates: guardian.notifyTripUpdates,
   };
 }
 
@@ -108,73 +85,40 @@ export function GuardianFormDialog({
   onClose,
   onSubmit,
 }: GuardianFormDialogProps) {
-  const [
-    form,
-    setForm,
-  ] =
-    useState<GuardianForm>(
-      () =>
-        initialForm(
-          guardian,
-        ),
-    );
+  const [form, setForm] = useState<GuardianForm>(() => initialForm(guardian));
 
-  const [
-    validationError,
-    setValidationError,
-  ] =
-    useState<
-      string | null
-    >(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
-  const editing =
-    Boolean(
-      guardian,
-    );
+  const editing = Boolean(guardian);
 
   function updateText(
-    field:
-      | 'firstName'
-      | 'lastName'
-      | 'email'
-      | 'phone',
+    field: "firstName" | "lastName" | "email" | "phone",
     value: string,
   ): void {
-    setForm(
-      (current) => ({
-        ...current,
+    setForm((current) => ({
+      ...current,
 
-        [field]:
-          value,
-      }),
-    );
+      [field]: value,
+    }));
   }
 
   function submit(): void {
-    const firstName =
-      form.firstName.trim();
+    const firstName = form.firstName.trim();
 
-    const lastName =
-      form.lastName.trim();
+    const lastName = form.lastName.trim();
 
-    const email =
-      form.email.trim();
+    const email = form.email.trim();
 
-    const phone =
-      form.phone.trim();
+    const phone = form.phone.trim();
 
     if (!firstName) {
-      setValidationError(
-        'First name is required.',
-      );
+      setValidationError("First name is required.");
 
       return;
     }
 
     if (!lastName) {
-      setValidationError(
-        'Last name is required.',
-      );
+      setValidationError("Last name is required.");
 
       return;
     }
@@ -186,92 +130,61 @@ export function GuardianFormDialog({
      * User-account linking is deliberately not exposed
      * in this form yet.
      */
-    if (
-      !email &&
-      !phone
-    ) {
-      setValidationError(
-        'Enter at least an email address or phone number.',
-      );
+    if (!email && !phone) {
+      setValidationError("Enter at least an email address or phone number.");
 
       return;
     }
 
-    setValidationError(
-      null,
-    );
+    setValidationError(null);
 
     if (editing) {
-      const input:
-        UpdateGuardianInput = {
-          firstName,
-          lastName,
-
-          /*
-           * null explicitly clears an existing contact value.
-           */
-          email:
-            email ||
-            null,
-
-          phone:
-            phone ||
-            null,
-
-          notifyBoarded:
-            form.notifyBoarded,
-
-          notifyDroppedOff:
-            form.notifyDroppedOff,
-
-          notifyTripUpdates:
-            form.notifyTripUpdates,
-        };
-
-      onSubmit(
-        input,
-      );
-
-      return;
-    }
-
-    const input:
-      CreateGuardianInput = {
+      const input: UpdateGuardianInput = {
         firstName,
         lastName,
 
-        email:
-          email ||
-          undefined,
+        /*
+         * null explicitly clears an existing contact value.
+         */
+        email: email || null,
 
-        phone:
-          phone ||
-          undefined,
+        phone: phone || null,
 
-        notifyBoarded:
-          form.notifyBoarded,
+        notifyBoarded: form.notifyBoarded,
 
-        notifyDroppedOff:
-          form.notifyDroppedOff,
+        notifyDroppedOff: form.notifyDroppedOff,
 
-        notifyTripUpdates:
-          form.notifyTripUpdates,
+        notifyTripUpdates: form.notifyTripUpdates,
       };
 
-    onSubmit(
-      input,
-    );
+      onSubmit(input);
+
+      return;
+    }
+
+    const input: CreateGuardianInput = {
+      firstName,
+      lastName,
+
+      email: email || undefined,
+
+      phone: phone || undefined,
+
+      notifyBoarded: form.notifyBoarded,
+
+      notifyDroppedOff: form.notifyDroppedOff,
+
+      notifyTripUpdates: form.notifyTripUpdates,
+    };
+
+    onSubmit(input);
   }
 
   return (
     <Dialog
       open={open}
 
-      onClose={
-        submitting
-          ? undefined
-          : onClose
-      }
+      onClose={submitting ? undefined : onClose}
 
       fullWidth
 
@@ -279,13 +192,10 @@ export function GuardianFormDialog({
     >
       <DialogTitle
         sx={{
-          fontWeight:
-            850,
+          fontWeight: 850,
         }}
       >
-        {editing
-          ? 'Edit Guardian'
-          : 'Add Guardian'}
+        {editing ? "Edit Guardian" : "Add Guardian"}
       </DialogTitle>
 
       <DialogContent>
@@ -293,14 +203,13 @@ export function GuardianFormDialog({
           sx={{
             mb: 2.5,
 
-            color:
-              'text.secondary',
+            color: "text.secondary",
 
-            fontSize:
-              12.5,
+            fontSize: 12.5,
           }}
         >
-          Keep the Guardian profile simple. Student relationships are managed separately.
+          Keep the Guardian profile simple. Student relationships are managed
+          separately.
         </Typography>
 
         {validationError ? (
@@ -329,15 +238,12 @@ export function GuardianFormDialog({
 
         <Box
           sx={{
-            display:
-              'grid',
+            display: "grid",
 
             gridTemplateColumns: {
-              xs:
-                '1fr',
+              xs: "1fr",
 
-              sm:
-                '1fr 1fr',
+              sm: "1fr 1fr",
             },
 
             gap: 2,
@@ -348,23 +254,13 @@ export function GuardianFormDialog({
 
             label="First name"
 
-            value={
-              form.firstName
-            }
+            value={form.firstName}
 
-            onChange={(
-              event,
-            ) =>
-              updateText(
-                'firstName',
-                event.target.value,
-              )
-            }
+            onChange={(event) => updateText("firstName", event.target.value)}
 
             slotProps={{
               htmlInput: {
-                maxLength:
-                  100,
+                maxLength: 100,
               },
             }}
           />
@@ -374,23 +270,13 @@ export function GuardianFormDialog({
 
             label="Last name"
 
-            value={
-              form.lastName
-            }
+            value={form.lastName}
 
-            onChange={(
-              event,
-            ) =>
-              updateText(
-                'lastName',
-                event.target.value,
-              )
-            }
+            onChange={(event) => updateText("lastName", event.target.value)}
 
             slotProps={{
               htmlInput: {
-                maxLength:
-                  100,
+                maxLength: 100,
               },
             }}
           />
@@ -400,25 +286,15 @@ export function GuardianFormDialog({
 
             label="Email"
 
-            value={
-              form.email
-            }
+            value={form.email}
 
-            onChange={(
-              event,
-            ) =>
-              updateText(
-                'email',
-                event.target.value,
-              )
-            }
+            onChange={(event) => updateText("email", event.target.value)}
 
             placeholder="parent@example.com"
 
             slotProps={{
               htmlInput: {
-                maxLength:
-                  320,
+                maxLength: 320,
               },
             }}
           />
@@ -426,25 +302,15 @@ export function GuardianFormDialog({
           <TextField
             label="Phone"
 
-            value={
-              form.phone
-            }
+            value={form.phone}
 
-            onChange={(
-              event,
-            ) =>
-              updateText(
-                'phone',
-                event.target.value,
-              )
-            }
+            onChange={(event) => updateText("phone", event.target.value)}
 
             placeholder="+254..."
 
             slotProps={{
               htmlInput: {
-                maxLength:
-                  50,
+                maxLength: 50,
               },
             }}
           />
@@ -456,22 +322,18 @@ export function GuardianFormDialog({
 
             p: 2,
 
-            borderRadius:
-              2.5,
+            borderRadius: 2.5,
 
-            bgcolor:
-              'action.hover',
+            bgcolor: "action.hover",
           }}
         >
           <Typography
             sx={{
               mb: 1,
 
-              fontSize:
-                12,
+              fontSize: 12,
 
-              fontWeight:
-                850,
+              fontWeight: 850,
             }}
           >
             Transport notifications
@@ -480,23 +342,14 @@ export function GuardianFormDialog({
           <FormControlLabel
             control={
               <Switch
-                checked={
-                  form.notifyBoarded
-                }
+                checked={form.notifyBoarded}
 
-                onChange={(
-                  event,
-                ) =>
-                  setForm(
-                    (
-                      current,
-                    ) => ({
-                      ...current,
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
 
-                      notifyBoarded:
-                        event.target.checked,
-                    }),
-                  )
+                    notifyBoarded: event.target.checked,
+                  }))
                 }
               />
             }
@@ -507,23 +360,14 @@ export function GuardianFormDialog({
           <FormControlLabel
             control={
               <Switch
-                checked={
-                  form.notifyDroppedOff
-                }
+                checked={form.notifyDroppedOff}
 
-                onChange={(
-                  event,
-                ) =>
-                  setForm(
-                    (
-                      current,
-                    ) => ({
-                      ...current,
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
 
-                      notifyDroppedOff:
-                        event.target.checked,
-                    }),
-                  )
+                    notifyDroppedOff: event.target.checked,
+                  }))
                 }
               />
             }
@@ -534,23 +378,14 @@ export function GuardianFormDialog({
           <FormControlLabel
             control={
               <Switch
-                checked={
-                  form.notifyTripUpdates
-                }
+                checked={form.notifyTripUpdates}
 
-                onChange={(
-                  event,
-                ) =>
-                  setForm(
-                    (
-                      current,
-                    ) => ({
-                      ...current,
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
 
-                      notifyTripUpdates:
-                        event.target.checked,
-                    }),
-                  )
+                    notifyTripUpdates: event.target.checked,
+                  }))
                 }
               />
             }
@@ -568,13 +403,9 @@ export function GuardianFormDialog({
         }}
       >
         <Button
-          disabled={
-            submitting
-          }
+          disabled={submitting}
 
-          onClick={
-            onClose
-          }
+          onClick={onClose}
         >
           Cancel
         </Button>
@@ -582,19 +413,11 @@ export function GuardianFormDialog({
         <Button
           variant="contained"
 
-          disabled={
-            submitting
-          }
+          disabled={submitting}
 
-          onClick={
-            submit
-          }
+          onClick={submit}
         >
-          {submitting
-            ? 'Saving...'
-            : editing
-              ? 'Save changes'
-              : 'Add Guardian'}
+          {submitting ? "Saving..." : editing ? "Save changes" : "Add Guardian"}
         </Button>
       </DialogActions>
     </Dialog>

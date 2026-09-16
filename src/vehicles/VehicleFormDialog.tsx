@@ -1,7 +1,4 @@
-import {
-  useState,
-  type FormEvent,
-} from 'react';
+import { useState, type FormEvent } from "react";
 
 import {
   Alert,
@@ -13,35 +10,27 @@ import {
   DialogTitle,
   MenuItem,
   TextField,
-} from '@mui/material';
+} from "@mui/material";
 
 import type {
   CreateVehicleInput,
   UpdateVehicleInput,
   Vehicle,
   VehicleStatus,
-} from './vehicles.api';
+} from "./vehicles.api";
 
 interface VehicleFormDialogProps {
   open: boolean;
 
-  vehicle:
-  | Vehicle
-  | null;
+  vehicle: Vehicle | null;
 
   saving: boolean;
 
-  error:
-  | string
-  | null;
+  error: string | null;
 
   onClose: () => void;
 
-  onSubmit: (
-    input:
-      | CreateVehicleInput
-      | UpdateVehicleInput,
-  ) => Promise<void>;
+  onSubmit: (input: CreateVehicleInput | UpdateVehicleInput) => Promise<void>;
 }
 
 interface VehicleFormState {
@@ -55,23 +44,18 @@ interface VehicleFormState {
   status: VehicleStatus;
 }
 
-const EMPTY_FORM:
-  VehicleFormState = {
-  registrationNumber: '',
-  fleetNumber: '',
-  make: '',
-  model: '',
-  manufactureYear: '',
-  seatCapacity: '',
-  gpsDeviceId: '',
-  status: 'active',
+const EMPTY_FORM: VehicleFormState = {
+  registrationNumber: "",
+  fleetNumber: "",
+  make: "",
+  model: "",
+  manufactureYear: "",
+  seatCapacity: "",
+  gpsDeviceId: "",
+  status: "active",
 };
 
-function createVehicleFormState(
-  vehicle:
-    | Vehicle
-    | null,
-): VehicleFormState {
+function createVehicleFormState(vehicle: Vehicle | null): VehicleFormState {
   if (!vehicle) {
     return {
       ...EMPTY_FORM,
@@ -79,39 +63,23 @@ function createVehicleFormState(
   }
 
   return {
-    registrationNumber:
-      vehicle.registrationNumber,
+    registrationNumber: vehicle.registrationNumber,
 
-    fleetNumber:
-      vehicle.fleetNumber ??
-      '',
+    fleetNumber: vehicle.fleetNumber ?? "",
 
-    make:
-      vehicle.make ??
-      '',
+    make: vehicle.make ?? "",
 
-    model:
-      vehicle.model ??
-      '',
+    model: vehicle.model ?? "",
 
-    manufactureYear:
-      vehicle.manufactureYear
-        ? String(
-          vehicle.manufactureYear,
-        )
-        : '',
+    manufactureYear: vehicle.manufactureYear
+      ? String(vehicle.manufactureYear)
+      : "",
 
-    seatCapacity:
-      String(
-        vehicle.seatCapacity,
-      ),
+    seatCapacity: String(vehicle.seatCapacity),
 
-    gpsDeviceId:
-      vehicle.gpsDeviceId ??
-      '',
+    gpsDeviceId: vehicle.gpsDeviceId ?? "",
 
-    status:
-      vehicle.status,
+    status: vehicle.status,
   };
 }
 
@@ -123,178 +91,105 @@ export function VehicleFormDialog({
   onClose,
   onSubmit,
 }: VehicleFormDialogProps) {
-  const [
-    form,
-    setForm,
-  ] =
-    useState<VehicleFormState>(
-      () =>
-        createVehicleFormState(
-          vehicle,
-        ),
-    );
+  const [form, setForm] = useState<VehicleFormState>(() =>
+    createVehicleFormState(vehicle),
+  );
 
-  const [
-    validationError,
-    setValidationError,
-  ] =
-    useState<
-      string | null
-    >(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
-  const editing =
-    vehicle !== null;
+  const editing = vehicle !== null;
 
-
-  function updateField<
-    K extends keyof VehicleFormState,
-  >(
+  function updateField<K extends keyof VehicleFormState>(
     key: K,
-    value:
-      VehicleFormState[K],
+    value: VehicleFormState[K],
   ): void {
-    setForm(
-      (current) => ({
-        ...current,
-        [key]: value,
-      }),
-    );
+    setForm((current) => ({
+      ...current,
+      [key]: value,
+    }));
   }
 
   async function handleSubmit(
-    event:
-      FormEvent<HTMLFormElement>,
+    event: FormEvent<HTMLFormElement>,
   ): Promise<void> {
     event.preventDefault();
 
-    setValidationError(
-      null,
-    );
+    setValidationError(null);
 
-    const registration =
-      form.registrationNumber.trim();
+    const registration = form.registrationNumber.trim();
 
-    const capacity =
-      Number(
-        form.seatCapacity,
-      );
+    const capacity = Number(form.seatCapacity);
 
     if (!registration) {
+      setValidationError("Registration number is required.");
+
+      return;
+    }
+
+    if (!Number.isInteger(capacity) || capacity < 1 || capacity > 200) {
       setValidationError(
-        'Registration number is required.',
+        "Seat capacity must be a whole number between 1 and 200.",
       );
 
       return;
     }
 
-    if (
-      !Number.isInteger(
-        capacity,
-      ) ||
-      capacity < 1 ||
-      capacity > 200
-    ) {
-      setValidationError(
-        'Seat capacity must be a whole number between 1 and 200.',
-      );
+    let manufactureYear: number | undefined;
 
-      return;
-    }
-
-    let manufactureYear:
-      | number
-      | undefined;
-
-    if (
-      form.manufactureYear.trim()
-    ) {
-      const parsedYear =
-        Number(
-          form.manufactureYear,
-        );
+    if (form.manufactureYear.trim()) {
+      const parsedYear = Number(form.manufactureYear);
 
       if (
-        !Number.isInteger(
-          parsedYear,
-        ) ||
-        parsedYear <
-        1900 ||
-        parsedYear >
-        2100
+        !Number.isInteger(parsedYear) ||
+        parsedYear < 1900 ||
+        parsedYear > 2100
       ) {
-        setValidationError(
-          'Manufacture year must be between 1900 and 2100.',
-        );
+        setValidationError("Manufacture year must be between 1900 and 2100.");
 
         return;
       }
 
-      manufactureYear =
-        parsedYear;
+      manufactureYear = parsedYear;
     }
 
     const payload = {
-      registrationNumber:
-        registration,
+      registrationNumber: registration,
 
-      fleetNumber:
-        form.fleetNumber.trim() ||
-        undefined,
+      fleetNumber: form.fleetNumber.trim() || undefined,
 
-      make:
-        form.make.trim() ||
-        undefined,
+      make: form.make.trim() || undefined,
 
-      model:
-        form.model.trim() ||
-        undefined,
+      model: form.model.trim() || undefined,
 
       manufactureYear,
 
-      seatCapacity:
-        capacity,
+      seatCapacity: capacity,
 
-      gpsDeviceId:
-        form.gpsDeviceId.trim() ||
-        undefined,
+      gpsDeviceId: form.gpsDeviceId.trim() || undefined,
 
-      status:
-        form.status,
+      status: form.status,
     };
 
-    await onSubmit(
-      payload,
-    );
+    await onSubmit(payload);
   }
 
   return (
     <Dialog
       open={open}
 
-      onClose={
-        saving
-          ? undefined
-          : onClose
-      }
+      onClose={saving ? undefined : onClose}
 
       fullWidth
 
       maxWidth="sm"
     >
-      <Box
-        component="form"
-        onSubmit={
-          handleSubmit
-        }
-      >
+      <Box component="form" onSubmit={handleSubmit}>
         <DialogTitle
           sx={{
             fontWeight: 850,
           }}
         >
-          {editing
-            ? 'Edit vehicle'
-            : 'Add vehicle'}
+          {editing ? "Edit vehicle" : "Add vehicle"}
         </DialogTitle>
 
         <DialogContent>
@@ -302,30 +197,25 @@ export function VehicleFormDialog({
             sx={{
               pt: 1,
 
-              display:
-                'grid',
+              display: "grid",
 
               gridTemplateColumns: {
-                xs: '1fr',
+                xs: "1fr",
 
-                sm:
-                  'repeat(2, minmax(0, 1fr))',
+                sm: "repeat(2, minmax(0, 1fr))",
               },
 
               gap: 2,
             }}
           >
-            {(validationError ||
-              error) ? (
+            {validationError || error ? (
               <Alert
                 severity="error"
                 sx={{
-                  gridColumn:
-                    '1 / -1',
+                  gridColumn: "1 / -1",
                 }}
               >
-                {validationError ??
-                  error}
+                {validationError ?? error}
               </Alert>
             ) : null}
 
@@ -334,23 +224,15 @@ export function VehicleFormDialog({
 
               label="Registration number"
 
-              value={
-                form.registrationNumber
-              }
+              value={form.registrationNumber}
 
-              onChange={
-                (event) =>
-                  updateField(
-                    'registrationNumber',
-                    event.target
-                      .value,
-                  )
+              onChange={(event) =>
+                updateField("registrationNumber", event.target.value)
               }
 
               slotProps={{
                 htmlInput: {
-                  maxLength:
-                    50,
+                  maxLength: 50,
                 },
               }}
             />
@@ -358,23 +240,15 @@ export function VehicleFormDialog({
             <TextField
               label="Fleet number"
 
-              value={
-                form.fleetNumber
-              }
+              value={form.fleetNumber}
 
-              onChange={
-                (event) =>
-                  updateField(
-                    'fleetNumber',
-                    event.target
-                      .value,
-                  )
+              onChange={(event) =>
+                updateField("fleetNumber", event.target.value)
               }
 
               slotProps={{
                 htmlInput: {
-                  maxLength:
-                    50,
+                  maxLength: 50,
                 },
               }}
             />
@@ -382,23 +256,13 @@ export function VehicleFormDialog({
             <TextField
               label="Make"
 
-              value={
-                form.make
-              }
+              value={form.make}
 
-              onChange={
-                (event) =>
-                  updateField(
-                    'make',
-                    event.target
-                      .value,
-                  )
-              }
+              onChange={(event) => updateField("make", event.target.value)}
 
               slotProps={{
                 htmlInput: {
-                  maxLength:
-                    100,
+                  maxLength: 100,
                 },
               }}
             />
@@ -406,23 +270,13 @@ export function VehicleFormDialog({
             <TextField
               label="Model"
 
-              value={
-                form.model
-              }
+              value={form.model}
 
-              onChange={
-                (event) =>
-                  updateField(
-                    'model',
-                    event.target
-                      .value,
-                  )
-              }
+              onChange={(event) => updateField("model", event.target.value)}
 
               slotProps={{
                 htmlInput: {
-                  maxLength:
-                    100,
+                  maxLength: 100,
                 },
               }}
             />
@@ -432,17 +286,10 @@ export function VehicleFormDialog({
 
               type="number"
 
-              value={
-                form.manufactureYear
-              }
+              value={form.manufactureYear}
 
-              onChange={
-                (event) =>
-                  updateField(
-                    'manufactureYear',
-                    event.target
-                      .value,
-                  )
+              onChange={(event) =>
+                updateField("manufactureYear", event.target.value)
               }
 
               slotProps={{
@@ -460,17 +307,10 @@ export function VehicleFormDialog({
 
               type="number"
 
-              value={
-                form.seatCapacity
-              }
+              value={form.seatCapacity}
 
-              onChange={
-                (event) =>
-                  updateField(
-                    'seatCapacity',
-                    event.target
-                      .value,
-                  )
+              onChange={(event) =>
+                updateField("seatCapacity", event.target.value)
               }
 
               slotProps={{
@@ -484,23 +324,15 @@ export function VehicleFormDialog({
             <TextField
               label="GPS device ID"
 
-              value={
-                form.gpsDeviceId
-              }
+              value={form.gpsDeviceId}
 
-              onChange={
-                (event) =>
-                  updateField(
-                    'gpsDeviceId',
-                    event.target
-                      .value,
-                  )
+              onChange={(event) =>
+                updateField("gpsDeviceId", event.target.value)
               }
 
               slotProps={{
                 htmlInput: {
-                  maxLength:
-                    100,
+                  maxLength: 100,
                 },
               }}
             />
@@ -510,34 +342,19 @@ export function VehicleFormDialog({
 
               label="Status"
 
-              value={
-                form.status
-              }
+              value={form.status}
 
-              onChange={
-                (event) =>
-                  updateField(
-                    'status',
-                    event.target
-                      .value as VehicleStatus,
-                  )
+              onChange={(event) =>
+                updateField("status", event.target.value as VehicleStatus)
               }
             >
-              <MenuItem value="active">
-                Active
-              </MenuItem>
+              <MenuItem value="active">Active</MenuItem>
 
-              <MenuItem value="maintenance">
-                Maintenance
-              </MenuItem>
+              <MenuItem value="maintenance">Maintenance</MenuItem>
 
-              <MenuItem value="inactive">
-                Inactive
-              </MenuItem>
+              <MenuItem value="inactive">Inactive</MenuItem>
 
-              <MenuItem value="retired">
-                Retired
-              </MenuItem>
+              <MenuItem value="retired">Retired</MenuItem>
             </TextField>
           </Box>
         </DialogContent>
@@ -549,13 +366,9 @@ export function VehicleFormDialog({
           }}
         >
           <Button
-            onClick={
-              onClose
-            }
+            onClick={onClose}
 
-            disabled={
-              saving
-            }
+            disabled={saving}
           >
             Cancel
           </Button>
@@ -565,15 +378,9 @@ export function VehicleFormDialog({
 
             variant="contained"
 
-            disabled={
-              saving
-            }
+            disabled={saving}
           >
-            {saving
-              ? 'Saving...'
-              : editing
-                ? 'Save changes'
-                : 'Add vehicle'}
+            {saving ? "Saving..." : editing ? "Save changes" : "Add vehicle"}
           </Button>
         </DialogActions>
       </Box>

@@ -1,11 +1,6 @@
-import {
-  createTheme,
-  type Theme,
-} from '@mui/material/styles';
+import { createTheme, type Theme } from "@mui/material/styles";
 
-import {
-  colors,
-} from './tokens';
+import { colors } from "./tokens";
 
 /**
  * The provider stores only an explicit rendered colour mode.
@@ -13,9 +8,7 @@ import {
  * If the application later supports a "system" preference, resolve
  * that preference inside AppThemeProvider before calling createAppTheme.
  */
-export type AppColorMode =
-  | 'light'
-  | 'dark';
+export type AppColorMode = "light" | "dark";
 
 /**
  * Build the application's MUI theme from the central design tokens.
@@ -26,98 +19,63 @@ export type AppColorMode =
  * - individual domain pages free from brand hex values where MUI
  *   semantic colours are sufficient.
  */
-export function createAppTheme(
-  mode: AppColorMode,
-): Theme {
-  const dark =
-    mode === 'dark';
+export function createAppTheme(mode: AppColorMode): Theme {
+  const dark = mode === "dark";
 
   return createTheme({
     palette: {
       mode,
 
       primary: {
-        main:
-          colors.brand.teal,
+        main: colors.brand.teal,
 
-        light:
-          colors.brand.tealLight,
+        light: colors.brand.tealLight,
 
-        dark:
-          colors.brand.tealDark,
+        dark: colors.brand.tealDark,
 
-        contrastText:
-          colors.neutral.white,
+        contrastText: colors.neutral.white,
       },
 
       secondary: {
-        main:
-          colors.brand.champagneGold,
+        main: colors.brand.champagneGold,
 
-        light:
-          colors.brand.lightGold,
+        light: colors.brand.lightGold,
 
-        dark:
-          colors.brand.bronze,
+        dark: colors.brand.bronze,
 
-        contrastText:
-          colors.neutral.graphite900,
+        contrastText: colors.neutral.graphite900,
       },
 
       success: {
-        main:
-          colors.status.success,
+        main: colors.status.success,
       },
 
       warning: {
-        main:
-          colors.status.warning,
+        main: colors.status.warning,
       },
 
       error: {
-        main:
-          colors.status.danger,
+        main: colors.status.danger,
       },
 
       background: {
-        default:
-          dark
-            ? colors.neutral.graphite950
-            : colors.neutral.ivory,
+        default: dark ? colors.neutral.graphite950 : colors.neutral.ivory,
 
-        paper:
-          dark
-            ? colors.neutral.graphite900
-            : colors.neutral.paper,
+        paper: dark ? colors.neutral.graphite900 : colors.neutral.paper,
       },
 
       text: {
-        primary:
-          dark
-            ? colors.neutral.ivory
-            : colors.neutral.charcoal,
+        primary: dark ? colors.neutral.ivory : colors.neutral.charcoal,
 
-        secondary:
-          dark
-            ? '#A7ABB2'
-            : '#6F716F',
+        secondary: dark ? "#A7ABB2" : "#6F716F",
       },
 
-      divider:
-        dark
-          ? 'rgba(255,255,255,0.08)'
-          : 'rgba(58,49,34,0.10)',
+      divider: dark ? "rgba(255,255,255,0.08)" : "rgba(58,49,34,0.10)",
 
       action: {
-        hover:
-          dark
-            ? 'rgba(36,166,157,0.08)'
-            : 'rgba(8,127,121,0.06)',
+        hover: dark ? "rgba(36,166,157,0.08)" : "rgba(8,127,121,0.06)",
 
-        selected:
-          dark
-            ? 'rgba(36,166,157,0.18)'
-            : 'rgba(8,127,121,0.12)',
+        selected: dark ? "rgba(36,166,157,0.18)" : "rgba(8,127,121,0.12)",
       },
     },
 
@@ -130,11 +88,9 @@ export function createAppTheme(
         '"Inter", "Segoe UI", "Roboto", "Helvetica", "Arial", sans-serif',
 
       button: {
-        textTransform:
-          'none',
+        textTransform: "none",
 
-        fontWeight:
-          750,
+        fontWeight: 750,
       },
     },
 
@@ -144,15 +100,13 @@ export function createAppTheme(
           body: {
             margin: 0,
 
-            backgroundColor:
-              dark
-                ? colors.neutral.graphite950
-                : colors.neutral.ivory,
+            backgroundColor: dark
+              ? colors.neutral.graphite950
+              : colors.neutral.ivory,
           },
 
-          '*': {
-            boxSizing:
-              'border-box',
+          "*": {
+            boxSizing: "border-box",
           },
         },
       },
@@ -160,48 +114,41 @@ export function createAppTheme(
       MuiPaper: {
         styleOverrides: {
           root: {
-            backgroundImage:
-              'none',
+            backgroundImage: "none",
           },
         },
       },
 
       MuiButton: {
         defaultProps: {
-          disableElevation:
-            true,
+          disableElevation: true,
         },
 
         styleOverrides: {
           root: {
-            borderRadius:
-              10,
+            borderRadius: 10,
 
-            fontWeight:
-              750,
+            fontWeight: 750,
           },
         },
       },
 
       MuiTextField: {
         defaultProps: {
-          size:
-            'small',
+          size: "small",
         },
       },
 
       MuiFormControl: {
         defaultProps: {
-          size:
-            'small',
+          size: "small",
         },
       },
 
       MuiChip: {
         styleOverrides: {
           root: {
-            fontWeight:
-              700,
+            fontWeight: 700,
           },
         },
       },

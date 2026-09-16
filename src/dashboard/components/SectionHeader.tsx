@@ -1,11 +1,6 @@
-import type {
-  ReactNode,
-} from 'react';
+import type { ReactNode } from "react";
 
-import {
-  Box,
-  Typography,
-} from '@mui/material';
+import { Box, Typography } from "@mui/material";
 
 interface SectionHeaderProps {
   title: string;
@@ -29,41 +24,29 @@ interface SectionHeaderProps {
  * all dashboard sections share the same spacing,
  * typography and action positioning.
  */
-export function SectionHeader({
-  title,
-  subtitle,
-  action,
-}: SectionHeaderProps) {
+export function SectionHeader({ title, subtitle, action }: SectionHeaderProps) {
   return (
     <Box
       sx={{
-        display:
-          'flex',
+        display: "flex",
 
-        alignItems:
-          'flex-start',
+        alignItems: "flex-start",
 
-        justifyContent:
-          'space-between',
+        justifyContent: "space-between",
 
-        gap:
-          2,
+        gap: 2,
 
-        mb:
-          2.5,
+        mb: 2.5,
       }}
     >
       <Box>
         <Typography
           sx={{
-            fontSize:
-              17,
+            fontSize: 17,
 
-            fontWeight:
-              850,
+            fontWeight: 850,
 
-            letterSpacing:
-              '-0.015em',
+            letterSpacing: "-0.015em",
           }}
         >
           {title}
@@ -72,14 +55,11 @@ export function SectionHeader({
         {subtitle ? (
           <Typography
             sx={{
-              mt:
-                0.4,
+              mt: 0.4,
 
-              color:
-                'text.secondary',
+              color: "text.secondary",
 
-              fontSize:
-                12,
+              fontSize: 12,
             }}
           >
             {subtitle}

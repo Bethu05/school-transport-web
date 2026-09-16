@@ -1,102 +1,51 @@
-import type {
-  ReactNode,
-} from 'react';
+import type { ReactNode } from "react";
 
-import {
-  Navigate,
-  Route,
-  Routes,
-} from 'react-router-dom';
+import { Navigate, Route, Routes } from "react-router-dom";
 
-import {
-  AppShell,
-} from './app/AppShell';
+import { AppShell } from "./app/AppShell";
 
-import {
-  LoginPage,
-} from './auth/LoginPage';
+import { LoginPage } from "./auth/LoginPage";
 
-import {
-  ProtectedRoute,
-} from './auth/ProtectedRoute';
+import { ProtectedRoute } from "./auth/ProtectedRoute";
 
-import {
-  DashboardPage,
-} from './dashboard/DashboardPage';
+import { DashboardPage } from "./dashboard/DashboardPage";
 
-import {
-  DriversPage,
-} from './drivers/DriversPage';
+import { DriversPage } from "./drivers/DriversPage";
 
-import {
-  HomePage,
-} from './home/HomePage';
+import { HomePage } from "./home/HomePage";
 
-import {
-  IncidentsPage,
-} from './incidents/IncidentsPage';
+import { IncidentsPage } from "./incidents/IncidentsPage";
 
-import {
-  NotificationsPage,
-} from './notifications/NotificationsPage';
+import { NotificationsPage } from "./notifications/NotificationsPage";
 
-import {
-  RoutesPage,
-} from './routes/RoutesPage';
+import { RoutesPage } from "./routes/RoutesPage";
 
-import {
-  TripsPage,
-} from './trips/TripsPage';
+import { TripsPage } from "./trips/TripsPage";
 
-import {
-  StopsPage,
-} from './stops/StopsPage';
+import { StopsPage } from "./stops/StopsPage";
 
-import {
-  StudentsPage,
-} from './students/StudentsPage';
+import { StudentsPage } from "./students/StudentsPage";
 
-import {
-  GuardiansPage,
-} from './guardians/GuardiansPage';
+import { GuardiansPage } from "./guardians/GuardiansPage";
 
-import {
-  VehiclesPage,
-} from './vehicles/VehiclesPage';
+import { VehiclesPage } from "./vehicles/VehiclesPage";
 
-import {
-  TrackingPage,
-} from './tracking/TrackingPage';
+import { TrackingPage } from "./tracking/TrackingPage";
 
-function ProtectedPage({
-  children,
-}: {
-  children:
-  ReactNode;
-}) {
+function ProtectedPage({ children }: { children: ReactNode }) {
   return (
     <ProtectedRoute>
-      <AppShell>
-        {children}
-      </AppShell>
+      <AppShell>{children}</AppShell>
     </ProtectedRoute>
   );
 }
 
-function PlaceholderPage({
-  title,
-}: {
-  title: string;
-}) {
+function PlaceholderPage({ title }: { title: string }) {
   return (
     <div>
-      <h1>
-        {title}
-      </h1>
+      <h1>{title}</h1>
 
-      <p>
-        This module will be connected next.
-      </p>
+      <p>This module will be connected next.</p>
     </div>
   );
 }
@@ -108,19 +57,9 @@ function App() {
           PUBLIC
           ====================================================== */}
 
-      <Route
-        path="/"
-        element={
-          <HomePage />
-        }
-      />
+      <Route path="/" element={<HomePage />} />
 
-      <Route
-        path="/login"
-        element={
-          <LoginPage />
-        }
-      />
+      <Route path="/login" element={<LoginPage />} />
 
       {/* ======================================================
           DASHBOARD
@@ -257,9 +196,7 @@ function App() {
         path="/settings"
         element={
           <ProtectedPage>
-            <PlaceholderPage
-              title="Settings"
-            />
+            <PlaceholderPage title="Settings" />
           </ProtectedPage>
         }
       />
@@ -268,15 +205,7 @@ function App() {
           UNKNOWN ROUTES
           ====================================================== */}
 
-      <Route
-        path="*"
-        element={
-          <Navigate
-            to="/"
-            replace
-          />
-        }
-      />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

@@ -1,15 +1,8 @@
-import {
-  apiRequest,
-} from '../api/client';
+import { apiRequest } from "../api/client";
 
-export type RouteType =
-  | 'pickup'
-  | 'dropoff'
-  | 'other';
+export type RouteType = "pickup" | "dropoff" | "other";
 
-export type RouteStatus =
-  | 'active'
-  | 'inactive';
+export type RouteStatus = "active" | "inactive";
 
 export interface Route {
   id: string;
@@ -95,60 +88,32 @@ export interface RemoveRouteStopResult {
   success: boolean;
 }
 
-function buildRoutesQueryString(
-  query:
-    ListRoutesQuery,
-): string {
-  const parameters =
-    new URLSearchParams();
+function buildRoutesQueryString(query: ListRoutesQuery): string {
+  const parameters = new URLSearchParams();
 
   if (query.page) {
-    parameters.set(
-      'page',
-      String(
-        query.page,
-      ),
-    );
+    parameters.set("page", String(query.page));
   }
 
   if (query.limit) {
-    parameters.set(
-      'limit',
-      String(
-        query.limit,
-      ),
-    );
+    parameters.set("limit", String(query.limit));
   }
 
-  if (
-    query.search?.trim()
-  ) {
-    parameters.set(
-      'search',
-      query.search.trim(),
-    );
+  if (query.search?.trim()) {
+    parameters.set("search", query.search.trim());
   }
 
   if (query.status) {
-    parameters.set(
-      'status',
-      query.status,
-    );
+    parameters.set("status", query.status);
   }
 
   if (query.routeType) {
-    parameters.set(
-      'routeType',
-      query.routeType,
-    );
+    parameters.set("routeType", query.routeType);
   }
 
-  const value =
-    parameters.toString();
+  const value = parameters.toString();
 
-  return value
-    ? `?${value}`
-    : '';
+  return value ? `?${value}` : "";
 }
 
 /**
@@ -156,13 +121,10 @@ function buildRoutesQueryString(
  */
 export function listRoutesPage(
   tenantId: string,
-  query:
-    ListRoutesQuery = {},
+  query: ListRoutesQuery = {},
 ): Promise<PaginatedRoutes> {
   return apiRequest<PaginatedRoutes>(
-    `/routes${buildRoutesQueryString(
-      query,
-    )}`,
+    `/routes${buildRoutesQueryString(query)}`,
     {
       tenantId,
     },
@@ -173,34 +135,22 @@ export function listRoutesPage(
  * Compatibility helper for Trips and other existing
  * consumers that still expect a plain Route[].
  */
-export async function listRoutes(
-  tenantId: string,
-): Promise<Route[]> {
-  const routes:
-    Route[] = [];
+export async function listRoutes(tenantId: string): Promise<Route[]> {
+  const routes: Route[] = [];
 
   let page = 1;
 
   const limit = 100;
 
   while (true) {
-    const response =
-      await listRoutesPage(
-        tenantId,
-        {
-          page,
-          limit,
-        },
-      );
+    const response = await listRoutesPage(tenantId, {
+      page,
+      limit,
+    });
 
-    routes.push(
-      ...response.items,
-    );
+    routes.push(...response.items);
 
-    if (
-      page >=
-      response.totalPages
-    ) {
+    if (page >= response.totalPages) {
       return routes;
     }
 
@@ -211,16 +161,10 @@ export async function listRoutes(
 /**
  * Fetch one route.
  */
-export function getRoute(
-  tenantId: string,
-  routeId: string,
-): Promise<Route> {
-  return apiRequest<Route>(
-    `/routes/${routeId}`,
-    {
-      tenantId,
-    },
-  );
+export function getRoute(tenantId: string, routeId: string): Promise<Route> {
+  return apiRequest<Route>(`/routes/${routeId}`, {
+    tenantId,
+  });
 }
 
 /**
@@ -230,16 +174,11 @@ export function createRoute(
   tenantId: string,
   input: CreateRouteInput,
 ): Promise<Route> {
-  return apiRequest<Route>(
-    '/routes',
-    {
-      method: 'POST',
-      tenantId,
-      body: JSON.stringify(
-        input,
-      ),
-    },
-  );
+  return apiRequest<Route>("/routes", {
+    method: "POST",
+    tenantId,
+    body: JSON.stringify(input),
+  });
 }
 
 /**
@@ -252,16 +191,11 @@ export function updateRoute(
   routeId: string,
   input: UpdateRouteInput,
 ): Promise<Route> {
-  return apiRequest<Route>(
-    `/routes/${routeId}`,
-    {
-      method: 'PATCH',
-      tenantId,
-      body: JSON.stringify(
-        input,
-      ),
-    },
-  );
+  return apiRequest<Route>(`/routes/${routeId}`, {
+    method: "PATCH",
+    tenantId,
+    body: JSON.stringify(input),
+  });
 }
 
 /**
@@ -271,13 +205,10 @@ export function activateRoute(
   tenantId: string,
   routeId: string,
 ): Promise<Route> {
-  return apiRequest<Route>(
-    `/routes/${routeId}/activate`,
-    {
-      method: 'PATCH',
-      tenantId,
-    },
-  );
+  return apiRequest<Route>(`/routes/${routeId}/activate`, {
+    method: "PATCH",
+    tenantId,
+  });
 }
 
 /**
@@ -290,13 +221,10 @@ export function deactivateRoute(
   tenantId: string,
   routeId: string,
 ): Promise<Route> {
-  return apiRequest<Route>(
-    `/routes/${routeId}`,
-    {
-      method: 'DELETE',
-      tenantId,
-    },
-  );
+  return apiRequest<Route>(`/routes/${routeId}`, {
+    method: "DELETE",
+    tenantId,
+  });
 }
 
 /**
@@ -306,12 +234,9 @@ export function listRouteStops(
   tenantId: string,
   routeId: string,
 ): Promise<RouteStop[]> {
-  return apiRequest<RouteStop[]>(
-    `/routes/${routeId}/stops`,
-    {
-      tenantId,
-    },
-  );
+  return apiRequest<RouteStop[]>(`/routes/${routeId}/stops`, {
+    tenantId,
+  });
 }
 
 /**
@@ -322,16 +247,11 @@ export function addRouteStop(
   routeId: string,
   input: AddRouteStopInput,
 ): Promise<RouteStop> {
-  return apiRequest<RouteStop>(
-    `/routes/${routeId}/stops`,
-    {
-      method: 'POST',
-      tenantId,
-      body: JSON.stringify(
-        input,
-      ),
-    },
-  );
+  return apiRequest<RouteStop>(`/routes/${routeId}/stops`, {
+    method: "POST",
+    tenantId,
+    body: JSON.stringify(input),
+  });
 }
 
 /**
@@ -343,16 +263,11 @@ export function updateRouteStop(
   routeStopId: string,
   input: UpdateRouteStopInput,
 ): Promise<RouteStop> {
-  return apiRequest<RouteStop>(
-    `/routes/${routeId}/stops/${routeStopId}`,
-    {
-      method: 'PATCH',
-      tenantId,
-      body: JSON.stringify(
-        input,
-      ),
-    },
-  );
+  return apiRequest<RouteStop>(`/routes/${routeId}/stops/${routeStopId}`, {
+    method: "PATCH",
+    tenantId,
+    body: JSON.stringify(input),
+  });
 }
 
 /**
@@ -367,7 +282,7 @@ export function removeRouteStop(
   return apiRequest<RemoveRouteStopResult>(
     `/routes/${routeId}/stops/${routeStopId}`,
     {
-      method: 'DELETE',
+      method: "DELETE",
       tenantId,
     },
   );

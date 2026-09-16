@@ -1,32 +1,23 @@
 export const panelStyle = {
-  border:
-    '1px solid',
+  border: "1px solid",
 
-  borderColor:
-    'divider',
+  borderColor: "divider",
 
-  borderRadius:
-    2,
+  borderRadius: 2,
 };
 
 export const pageGridStyle = {
-  display:
-    'grid',
+  display: "grid",
 
-  gap:
-    2,
+  gap: 2,
 };
 
 export const sectionLabelStyle = {
-  fontSize:
-    10.5,
+  fontSize: 10.5,
 
-  fontWeight:
-    800,
+  fontWeight: 800,
 
-  textTransform:
-    'uppercase',
+  textTransform: "uppercase",
 
-  letterSpacing:
-    '0.09em',
+  letterSpacing: "0.09em",
 };

@@ -1,15 +1,9 @@
-import {
-  io,
-  type Socket,
-} from 'socket.io-client';
+import { io, type Socket } from "socket.io-client";
 
-import {
-  getAccessToken,
-} from '../api/client';
+import { getAccessToken } from "../api/client";
 
 const REALTIME_BASE_URL =
-  import.meta.env.VITE_REALTIME_URL ??
-  'http://localhost:3002';
+  import.meta.env.VITE_REALTIME_URL ?? "http://localhost:3002";
 
 export interface VehicleLocationNextStop {
   tripStopId: string;
@@ -17,68 +11,45 @@ export interface VehicleLocationNextStop {
   stopOrder: number;
   stopName: string;
 
-  stopCode:
-    | string
-    | null;
+  stopCode: string | null;
 
   latitude: number;
   longitude: number;
 
-  geofenceRadiusMeters:
-    number;
+  geofenceRadiusMeters: number;
 
-  scheduledArrivalAt:
-    | string
-    | null;
+  scheduledArrivalAt: string | null;
 
-  status:
-    | 'pending'
-    | 'arrived'
-    | 'departed'
-    | 'skipped';
+  status: "pending" | "arrived" | "departed" | "skipped";
 
   /**
    * Straight-line distance from the current GPS position.
    */
-  distanceMeters:
-    number;
+  distanceMeters: number;
 
   /**
    * Route-aware distance when route geometry is available.
    */
-  routeDistanceMeters:
-    | number
-    | null;
+  routeDistanceMeters: number | null;
 
-  withinGeofence:
-    boolean;
+  withinGeofence: boolean;
 
   /**
    * Distance actually used by the ETA engine.
    */
-  etaDistanceMeters:
-    number;
+  etaDistanceMeters: number;
 
-  etaDistanceSource:
-    string;
+  etaDistanceSource: string;
 
-  etaSeconds:
-    | number
-    | null;
+  etaSeconds: number | null;
 
-  estimatedArrivalAt:
-    | string
-    | null;
+  estimatedArrivalAt: string | null;
 
-  etaSpeedKph:
-    | number
-    | null;
+  etaSpeedKph: number | null;
 
-  etaSource:
-    string;
+  etaSource: string;
 
-  etaSampleCount:
-    number;
+  etaSampleCount: number;
 }
 
 export interface VehicleLocationUpdate {
@@ -86,43 +57,28 @@ export interface VehicleLocationUpdate {
   vehicleId: string;
   gpsDeviceId: string;
 
-  tripId:
-    | string
-    | null;
+  tripId: string | null;
 
-  routeId:
-    | string
-    | null;
+  routeId: string | null;
 
-  arrivedStop:
-    unknown | null;
+  arrivedStop: unknown | null;
 
-  departedStop:
-    unknown | null;
+  departedStop: unknown | null;
 
-  nextStop:
-    | VehicleLocationNextStop
-    | null;
+  nextStop: VehicleLocationNextStop | null;
 
   latitude: number;
   longitude: number;
 
-  speedKph:
-    | number
-    | null;
+  speedKph: number | null;
 
-  heading:
-    | number
-    | null;
+  heading: number | null;
 
-  accuracyMeters:
-    | number
-    | null;
+  accuracyMeters: number | null;
 
   recordedAt: string;
 
-  recordedAtEpochMs:
-    number;
+  recordedAtEpochMs: number;
 
   receivedAt: string;
 }
@@ -138,18 +94,14 @@ export interface TripStopEvent {
   stopOrder: number;
   stopName: string;
 
-  stopCode:
-    | string
-    | null;
+  stopCode: string | null;
 
   latitude: number;
   longitude: number;
   distanceMeters: number;
   geofenceRadiusMeters: number;
 
-  eventType:
-    | 'trip.stop.arrived'
-    | 'trip.stop.departed';
+  eventType: "trip.stop.arrived" | "trip.stop.departed";
 }
 
 export interface TrackingConnectionReady {
@@ -161,134 +113,85 @@ export interface TrackingConnectionDenied {
   message: string;
 }
 
-export function createTrackingSocket(
-  tenantId: string,
-): Socket {
-  const token =
-    getAccessToken();
+export function createTrackingSocket(tenantId: string): Socket {
+  const token = getAccessToken();
 
   if (!token) {
-    throw new Error(
-      'Authentication token is missing',
-    );
+    throw new Error("Authentication token is missing");
   }
 
-  return io(
-    `${REALTIME_BASE_URL}/tracking`,
-    {
-      autoConnect:
-        false,
+  return io(`${REALTIME_BASE_URL}/tracking`, {
+    autoConnect: false,
 
-      transports: [
-        'websocket',
-      ],
+    transports: ["websocket"],
 
-      auth: {
-        token,
-        tenantId,
-      },
+    auth: {
+      token,
+      tenantId,
     },
-  );
+  });
 }
 
 export interface TripSubscriptionResult {
   ok: boolean;
 
-  tripId?:
-    string;
+  tripId?: string;
 
-  scope?:
-    'tenant'
-    | 'trip';
+  scope?: "tenant" | "trip";
 
-  message?:
-    string;
+  message?: string;
 }
 
 export function subscribeToTrip(
   socket: Socket,
   tripId: string,
 ): Promise<TripSubscriptionResult> {
-  return new Promise<
-    TripSubscriptionResult
-  >(
-    (
-      resolve,
-      reject,
-    ) => {
-      socket
-        .timeout(
-          5_000,
-        )
-        .emit(
-          'trip.subscribe',
-          {
-            tripId,
-          },
-          (
-            error:
-              Error | null,
+  return new Promise<TripSubscriptionResult>((resolve, reject) => {
+    socket.timeout(5_000).emit(
+      "trip.subscribe",
+      {
+        tripId,
+      },
+      (
+        error: Error | null,
 
-            response:
-              TripSubscriptionResult,
-          ) => {
-            if (error) {
-              reject(
-                error,
-              );
+        response: TripSubscriptionResult,
+      ) => {
+        if (error) {
+          reject(error);
 
-              return;
-            }
+          return;
+        }
 
-            resolve(
-              response,
-            );
-          },
-        );
-    },
-  );
+        resolve(response);
+      },
+    );
+  });
 }
 
 export function unsubscribeFromTrip(
   socket: Socket,
   tripId: string,
 ): Promise<TripSubscriptionResult> {
-  return new Promise<
-    TripSubscriptionResult
-  >(
-    (
-      resolve,
-      reject,
-    ) => {
-      socket
-        .timeout(
-          5_000,
-        )
-        .emit(
-          'trip.unsubscribe',
-          {
-            tripId,
-          },
-          (
-            error:
-              Error | null,
+  return new Promise<TripSubscriptionResult>((resolve, reject) => {
+    socket.timeout(5_000).emit(
+      "trip.unsubscribe",
+      {
+        tripId,
+      },
+      (
+        error: Error | null,
 
-            response:
-              TripSubscriptionResult,
-          ) => {
-            if (error) {
-              reject(
-                error,
-              );
+        response: TripSubscriptionResult,
+      ) => {
+        if (error) {
+          reject(error);
 
-              return;
-            }
+          return;
+        }
 
-            resolve(
-              response,
-            );
-          },
-        );
-    },
-  );
+        resolve(response);
+      },
+    );
+  });
 }

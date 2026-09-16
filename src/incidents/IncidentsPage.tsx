@@ -1,6 +1,4 @@
-import {
-  useState,
-} from 'react';
+import { useState } from "react";
 
 import {
   Alert,
@@ -13,32 +11,24 @@ import {
   Snackbar,
   TextField,
   Typography,
-} from '@mui/material';
+} from "@mui/material";
 
 import {
   AddRounded,
   EditRounded,
   WarningAmberRounded,
-} from '@mui/icons-material';
+} from "@mui/icons-material";
 
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import {
-  useAuth,
-} from '../auth/AuthProvider';
+import { useAuth } from "../auth/AuthProvider";
 
 import {
   FRONTEND_PERMISSIONS,
   hasFrontendPermission,
-} from '../auth/frontend-permissions';
+} from "../auth/frontend-permissions";
 
-import {
-  IncidentFormDialog,
-} from './IncidentFormDialog';
+import { IncidentFormDialog } from "./IncidentFormDialog";
 
 import {
   createIncident,
@@ -49,491 +39,268 @@ import {
   type IncidentSeverity,
   type IncidentStatus,
   type UpdateIncidentInput,
-} from './incidents.api';
+} from "./incidents.api";
 
-type StatusFilter =
-  | 'all'
-  | IncidentStatus;
+type StatusFilter = "all" | IncidentStatus;
 
-type SeverityFilter =
-  | 'all'
-  | IncidentSeverity;
+type SeverityFilter = "all" | IncidentSeverity;
 
-const PAGE_SIZES = [
-  10,
-  25,
-  50,
-  100,
-] as const;
+const PAGE_SIZES = [10, 25, 50, 100] as const;
 
-function errorMessage(
-  error:
-    unknown,
-): string {
-  return error instanceof
-    Error
+function errorMessage(error: unknown): string {
+  return error instanceof Error
     ? error.message
-    : 'The operation could not be completed.';
+    : "The operation could not be completed.";
 }
 
-function severityLabel(
-  severity:
-    IncidentSeverity,
-): string {
-  switch (
-    severity
-  ) {
-    case 'low':
-      return 'Low';
+function severityLabel(severity: IncidentSeverity): string {
+  switch (severity) {
+    case "low":
+      return "Low";
 
-    case 'medium':
-      return 'Medium';
+    case "medium":
+      return "Medium";
 
-    case 'high':
-      return 'High';
+    case "high":
+      return "High";
 
-    case 'critical':
-      return 'Critical';
+    case "critical":
+      return "Critical";
   }
 }
 
 function severityColor(
-  severity:
-    IncidentSeverity,
-):
-  | 'default'
-  | 'info'
-  | 'warning'
-  | 'error' {
-  switch (
-    severity
-  ) {
-    case 'low':
-      return 'default';
+  severity: IncidentSeverity,
+): "default" | "info" | "warning" | "error" {
+  switch (severity) {
+    case "low":
+      return "default";
 
-    case 'medium':
-      return 'info';
+    case "medium":
+      return "info";
 
-    case 'high':
-      return 'warning';
+    case "high":
+      return "warning";
 
-    case 'critical':
-      return 'error';
+    case "critical":
+      return "error";
   }
 }
 
-function statusLabel(
-  status:
-    IncidentStatus,
-): string {
-  switch (
-    status
-  ) {
-    case 'open':
-      return 'Open';
+function statusLabel(status: IncidentStatus): string {
+  switch (status) {
+    case "open":
+      return "Open";
 
-    case 'resolved':
-      return 'Resolved';
+    case "resolved":
+      return "Resolved";
 
-    case 'closed':
-      return 'Closed';
+    case "closed":
+      return "Closed";
   }
 }
 
-function formatDateTime(
-  value:
-    string,
-): string {
-  const date =
-    new Date(
-      value,
-    );
+function formatDateTime(value: string): string {
+  const date = new Date(value);
 
-  if (
-    Number.isNaN(
-      date.getTime(),
-    )
-  ) {
+  if (Number.isNaN(date.getTime())) {
     return value;
   }
 
-  return new Intl.DateTimeFormat(
-    'en-GB',
-    {
-      dateStyle:
-        'medium',
+  return new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium",
 
-      timeStyle:
-        'short',
+    timeStyle: "short",
 
-      timeZone:
-        'Africa/Nairobi',
-    },
-  ).format(
-    date,
-  );
+    timeZone: "Africa/Nairobi",
+  }).format(date);
 }
 
 export function IncidentsPage() {
-  const {
+  const { permissions, tenant } = useAuth();
+
+  const queryClient = useQueryClient();
+
+  const tenantId = tenant?.tenantId;
+
+  const canRead = hasFrontendPermission(
     permissions,
-    tenant,
-  } =
-    useAuth();
+    FRONTEND_PERMISSIONS.INCIDENTS_READ,
+  );
 
-  const queryClient =
-    useQueryClient();
+  const canCreate = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.INCIDENTS_CREATE,
+  );
 
-  const tenantId =
-    tenant?.tenantId;
+  const canUpdate = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.INCIDENTS_UPDATE,
+  );
 
-  const canRead =
-    hasFrontendPermission(
-      permissions,
-      FRONTEND_PERMISSIONS.INCIDENTS_READ,
-    );
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-  const canCreate =
-    hasFrontendPermission(
-      permissions,
-      FRONTEND_PERMISSIONS.INCIDENTS_CREATE,
-    );
+  const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
 
-  const canUpdate =
-    hasFrontendPermission(
-      permissions,
-      FRONTEND_PERMISSIONS.INCIDENTS_UPDATE,
-    );
+  const [limit, setLimit] = useState<number>(25);
 
-  const [
-    statusFilter,
-    setStatusFilter,
-  ] =
-    useState<StatusFilter>(
-      'all',
-    );
+  const [cursor, setCursor] = useState<string | null>(null);
 
-  const [
-    severityFilter,
-    setSeverityFilter,
-  ] =
-    useState<SeverityFilter>(
-      'all',
-    );
+  const [cursorHistory, setCursorHistory] = useState<Array<string | null>>([]);
 
-  const [
-    limit,
-    setLimit,
-  ] =
-    useState<
-      number
-    >(25);
+  const [createOpen, setCreateOpen] = useState(false);
 
-  const [
-    cursor,
-    setCursor,
-  ] =
-    useState<
-      string | null
-    >(null);
+  const [createKey, setCreateKey] = useState(0);
 
-  const [
-    cursorHistory,
-    setCursorHistory,
-  ] =
-    useState<
-      Array<
-        string | null
-      >
-    >([]);
+  const [editingIncident, setEditingIncident] = useState<Incident | null>(null);
 
-  const [
-    createOpen,
-    setCreateOpen,
-  ] =
-    useState(
-      false,
-    );
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
-  const [
-    createKey,
-    setCreateKey,
-  ] =
-    useState(
-      0,
-    );
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const [
-    editingIncident,
-    setEditingIncident,
-  ] =
-    useState<
-      Incident | null
-    >(null);
+  function resetPaging(): void {
+    setCursor(null);
 
-  const [
-    mutationError,
-    setMutationError,
-  ] =
-    useState<
-      string | null
-    >(null);
-
-  const [
-    successMessage,
-    setSuccessMessage,
-  ] =
-    useState<
-      string | null
-    >(null);
-
-  function resetPaging():
-    void {
-    setCursor(
-      null,
-    );
-
-    setCursorHistory(
-      [],
-    );
+    setCursorHistory([]);
   }
 
-  const incidentsQuery =
-    useQuery({
-      queryKey: [
-        'incidents',
-        tenantId,
-        statusFilter,
-        severityFilter,
+  const incidentsQuery = useQuery({
+    queryKey: [
+      "incidents",
+      tenantId,
+      statusFilter,
+      severityFilter,
+      limit,
+      cursor,
+    ],
+
+    enabled: Boolean(tenantId && canRead),
+
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
+
+      return listIncidents(tenantId, {
+        status: statusFilter === "all" ? undefined : statusFilter,
+
+        severity: severityFilter === "all" ? undefined : severityFilter,
+
         limit,
-        cursor,
-      ],
 
-      enabled:
-        Boolean(
-          tenantId &&
-          canRead,
-        ),
-
-      queryFn:
-        async () => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
-
-          return listIncidents(
-            tenantId,
-            {
-              status:
-                statusFilter ===
-                'all'
-                  ? undefined
-                  : statusFilter,
-
-              severity:
-                severityFilter ===
-                'all'
-                  ? undefined
-                  : severityFilter,
-
-              limit,
-
-              cursor:
-                cursor ??
-                undefined,
-            },
-          );
-        },
-    });
-
-  async function refreshIncidents():
-    Promise<void> {
-    await queryClient
-      .invalidateQueries({
-        queryKey: [
-          'incidents',
-        ],
+        cursor: cursor ?? undefined,
       });
+    },
+  });
+
+  async function refreshIncidents(): Promise<void> {
+    await queryClient.invalidateQueries({
+      queryKey: ["incidents"],
+    });
   }
 
-  const createMutation =
-    useMutation({
-      mutationFn:
-        async (
-          input:
-            CreateIncidentInput,
-        ) => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+  const createMutation = useMutation({
+    mutationFn: async (input: CreateIncidentInput) => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-          return createIncident(
-            tenantId,
-            input,
-            crypto.randomUUID(),
-          );
-        },
+      return createIncident(tenantId, input, crypto.randomUUID());
+    },
 
-      onSuccess:
-        async () => {
-          await refreshIncidents();
+    onSuccess: async () => {
+      await refreshIncidents();
 
-          setCreateOpen(
-            false,
-          );
+      setCreateOpen(false);
 
-          setMutationError(
-            null,
-          );
+      setMutationError(null);
 
-          resetPaging();
+      resetPaging();
 
-          setSuccessMessage(
-            'Incident reported successfully.',
-          );
-        },
+      setSuccessMessage("Incident reported successfully.");
+    },
 
-      onError:
-        (
-          error,
-        ) => {
-          setMutationError(
-            errorMessage(
-              error,
-            ),
-          );
-        },
-    });
+    onError: (error) => {
+      setMutationError(errorMessage(error));
+    },
+  });
 
-  const updateMutation =
-    useMutation({
-      mutationFn:
-        async ({
-          incidentId,
-          input,
-        }: {
-          incidentId:
-            string;
+  const updateMutation = useMutation({
+    mutationFn: async ({
+      incidentId,
+      input,
+    }: {
+      incidentId: string;
 
-          input:
-            UpdateIncidentInput;
-        }) => {
-          if (!tenantId) {
-            throw new Error(
-              'No active tenant',
-            );
-          }
+      input: UpdateIncidentInput;
+    }) => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
 
-          return updateIncident(
-            tenantId,
-            incidentId,
-            input,
-          );
-        },
+      return updateIncident(tenantId, incidentId, input);
+    },
 
-      onSuccess:
-        async () => {
-          await refreshIncidents();
+    onSuccess: async () => {
+      await refreshIncidents();
 
-          setEditingIncident(
-            null,
-          );
+      setEditingIncident(null);
 
-          setMutationError(
-            null,
-          );
+      setMutationError(null);
 
-          setSuccessMessage(
-            'Incident updated successfully.',
-          );
-        },
+      setSuccessMessage("Incident updated successfully.");
+    },
 
-      onError:
-        (
-          error,
-        ) => {
-          setMutationError(
-            errorMessage(
-              error,
-            ),
-          );
-        },
-    });
+    onError: (error) => {
+      setMutationError(errorMessage(error));
+    },
+  });
 
-  const incidents =
-    incidentsQuery.data
-      ?.items ??
-    [];
+  const incidents = incidentsQuery.data?.items ?? [];
 
-  const openCount =
-    incidents.filter(
-      (
-        incident,
-      ) =>
-        incident.status ===
-        'open',
-    ).length;
+  const openCount = incidents.filter(
+    (incident) => incident.status === "open",
+  ).length;
 
-  const criticalCount =
-    incidents.filter(
-      (
-        incident,
-      ) =>
-        incident.severity ===
-        'critical' &&
-        incident.status ===
-        'open',
-    ).length;
+  const criticalCount = incidents.filter(
+    (incident) =>
+      incident.severity === "critical" && incident.status === "open",
+  ).length;
 
   return (
     <Box>
       <Box
         sx={{
-          mb:
-            3,
+          mb: 3,
 
-          display:
-            'flex',
+          display: "flex",
 
-          justifyContent:
-            'space-between',
+          justifyContent: "space-between",
 
           alignItems: {
-            xs:
-              'stretch',
+            xs: "stretch",
 
-            sm:
-              'center',
+            sm: "center",
           },
 
           flexDirection: {
-            xs:
-              'column',
+            xs: "column",
 
-            sm:
-              'row',
+            sm: "row",
           },
 
-          gap:
-            2,
+          gap: 2,
         }}
       >
         <Box>
           <Typography
             component="h1"
             sx={{
-              fontSize:
-                26,
+              fontSize: 26,
 
-              fontWeight:
-                850,
+              fontWeight: 850,
 
-              letterSpacing:
-                '-0.03em',
+              letterSpacing: "-0.03em",
             }}
           >
             Incidents
@@ -541,14 +308,11 @@ export function IncidentsPage() {
 
           <Typography
             sx={{
-              mt:
-                0.5,
+              mt: 0.5,
 
-              color:
-                'text.secondary',
+              color: "text.secondary",
 
-              fontSize:
-                13.5,
+              fontSize: 13.5,
             }}
           >
             Report, investigate and manage safety and operational incidents.
@@ -558,25 +322,13 @@ export function IncidentsPage() {
         {canCreate ? (
           <Button
             variant="contained"
-            startIcon={
-              <AddRounded />
-            }
+            startIcon={<AddRounded />}
             onClick={() => {
-              setMutationError(
-                null,
-              );
+              setMutationError(null);
 
-              setCreateKey(
-                (
-                  value,
-                ) =>
-                  value +
-                  1,
-              );
+              setCreateKey((value) => value + 1);
 
-              setCreateOpen(
-                true,
-              );
+              setCreateOpen(true);
             }}
           >
             Report incident
@@ -586,29 +338,22 @@ export function IncidentsPage() {
 
       {!canRead ? (
         <Paper
-          elevation={
-            0
-          }
+          elevation={0}
           sx={{
-            p:
-              3,
+            p: 3,
 
-            border:
-              '1px solid',
+            border: "1px solid",
 
-            borderColor:
-              'divider',
+            borderColor: "divider",
           }}
         >
           <WarningAmberRounded />
 
           <Typography
             sx={{
-              mt:
-                1,
+              mt: 1,
 
-              fontWeight:
-                800,
+              fontWeight: 800,
             }}
           >
             Incident reporting
@@ -616,275 +361,176 @@ export function IncidentsPage() {
 
           <Typography
             sx={{
-              mt:
-                0.5,
+              mt: 0.5,
 
-              color:
-                'text.secondary',
+              color: "text.secondary",
 
-              fontSize:
-                13,
+              fontSize: 13,
             }}
           >
-            You can report incidents, but your current permissions do not allow access to the tenant-wide incident register.
+            You can report incidents, but your current permissions do not allow
+            access to the tenant-wide incident register.
           </Typography>
         </Paper>
       ) : (
         <>
           <Box
             sx={{
-              mb:
-                2,
+              mb: 2,
 
-              display:
-                'grid',
+              display: "grid",
 
               gridTemplateColumns: {
-                xs:
-                  'repeat(2, minmax(0, 1fr))',
+                xs: "repeat(2, minmax(0, 1fr))",
 
-                md:
-                  'repeat(3, minmax(0, 1fr))',
+                md: "repeat(3, minmax(0, 1fr))",
               },
 
-              gap:
-                1.5,
+              gap: 1.5,
             }}
           >
             {[
               {
-                label:
-                  'Shown',
-                value:
-                  incidents.length,
+                label: "Shown",
+                value: incidents.length,
               },
               {
-                label:
-                  'Open',
-                value:
-                  openCount,
+                label: "Open",
+                value: openCount,
               },
               {
-                label:
-                  'Critical open',
-                value:
-                  criticalCount,
+                label: "Critical open",
+                value: criticalCount,
               },
-            ].map(
-              (
-                item,
-              ) => (
-                <Paper
-                  key={
-                    item.label
-                  }
-                  elevation={
-                    0
-                  }
+            ].map((item) => (
+              <Paper
+                key={item.label}
+                elevation={0}
+                sx={{
+                  p: 2,
+
+                  border: "1px solid",
+
+                  borderColor: "divider",
+                }}
+              >
+                <Typography
                   sx={{
-                    p:
-                      2,
+                    fontSize: 22,
 
-                    border:
-                      '1px solid',
-
-                    borderColor:
-                      'divider',
+                    fontWeight: 850,
                   }}
                 >
-                  <Typography
-                    sx={{
-                      fontSize:
-                        22,
+                  {item.value}
+                </Typography>
 
-                      fontWeight:
-                        850,
-                    }}
-                  >
-                    {item.value}
-                  </Typography>
+                <Typography
+                  sx={{
+                    color: "text.secondary",
 
-                  <Typography
-                    sx={{
-                      color:
-                        'text.secondary',
-
-                      fontSize:
-                        11.5,
-                    }}
-                  >
-                    {item.label}
-                  </Typography>
-                </Paper>
-              ),
-            )}
+                    fontSize: 11.5,
+                  }}
+                >
+                  {item.label}
+                </Typography>
+              </Paper>
+            ))}
           </Box>
 
           <Paper
-            elevation={
-              0
-            }
+            elevation={0}
             sx={{
-              mb:
-                2,
+              mb: 2,
 
-              p:
-                2,
+              p: 2,
 
-              display:
-                'grid',
+              display: "grid",
 
               gridTemplateColumns: {
-                xs:
-                  '1fr',
+                xs: "1fr",
 
-                sm:
-                  'repeat(3, minmax(0, 1fr))',
+                sm: "repeat(3, minmax(0, 1fr))",
               },
 
-              gap:
-                1.5,
+              gap: 1.5,
 
-              border:
-                '1px solid',
+              border: "1px solid",
 
-              borderColor:
-                'divider',
+              borderColor: "divider",
             }}
           >
             <TextField
               select
               size="small"
               label="Status"
-              value={
-                statusFilter
-              }
-              onChange={(
-                event,
-              ) => {
-                setStatusFilter(
-                  event.target
-                    .value as
-                    StatusFilter,
-                );
+              value={statusFilter}
+              onChange={(event) => {
+                setStatusFilter(event.target.value as StatusFilter);
 
                 resetPaging();
               }}
             >
-              <MenuItem value="all">
-                All
-              </MenuItem>
+              <MenuItem value="all">All</MenuItem>
 
-              <MenuItem value="open">
-                Open
-              </MenuItem>
+              <MenuItem value="open">Open</MenuItem>
 
-              <MenuItem value="resolved">
-                Resolved
-              </MenuItem>
+              <MenuItem value="resolved">Resolved</MenuItem>
 
-              <MenuItem value="closed">
-                Closed
-              </MenuItem>
+              <MenuItem value="closed">Closed</MenuItem>
             </TextField>
 
             <TextField
               select
               size="small"
               label="Severity"
-              value={
-                severityFilter
-              }
-              onChange={(
-                event,
-              ) => {
-                setSeverityFilter(
-                  event.target
-                    .value as
-                    SeverityFilter,
-                );
+              value={severityFilter}
+              onChange={(event) => {
+                setSeverityFilter(event.target.value as SeverityFilter);
 
                 resetPaging();
               }}
             >
-              <MenuItem value="all">
-                All
-              </MenuItem>
+              <MenuItem value="all">All</MenuItem>
 
-              <MenuItem value="low">
-                Low
-              </MenuItem>
+              <MenuItem value="low">Low</MenuItem>
 
-              <MenuItem value="medium">
-                Medium
-              </MenuItem>
+              <MenuItem value="medium">Medium</MenuItem>
 
-              <MenuItem value="high">
-                High
-              </MenuItem>
+              <MenuItem value="high">High</MenuItem>
 
-              <MenuItem value="critical">
-                Critical
-              </MenuItem>
+              <MenuItem value="critical">Critical</MenuItem>
             </TextField>
 
             <TextField
               select
               size="small"
               label="Rows"
-              value={
-                limit
-              }
-              onChange={(
-                event,
-              ) => {
-                setLimit(
-                  Number(
-                    event.target
-                      .value,
-                  ),
-                );
+              value={limit}
+              onChange={(event) => {
+                setLimit(Number(event.target.value));
 
                 resetPaging();
               }}
             >
-              {PAGE_SIZES.map(
-                (
-                  size,
-                ) => (
-                  <MenuItem
-                    key={
-                      size
-                    }
-                    value={
-                      size
-                    }
-                  >
-                    {size}
-                  </MenuItem>
-                ),
-              )}
+              {PAGE_SIZES.map((size) => (
+                <MenuItem key={size} value={size}>
+                  {size}
+                </MenuItem>
+              ))}
             </TextField>
           </Paper>
 
           {incidentsQuery.isLoading ? (
             <Box
               sx={{
-                py:
-                  6,
+                py: 6,
 
-                display:
-                  'grid',
+                display: "grid",
 
-                placeItems:
-                  'center',
+                placeItems: "center",
               }}
             >
-              <CircularProgress
-                size={
-                  28
-                }
-              />
+              <CircularProgress size={28} />
             </Box>
           ) : null}
 
@@ -892,42 +538,31 @@ export function IncidentsPage() {
             <Alert
               severity="error"
               sx={{
-                mb:
-                  2,
+                mb: 2,
               }}
             >
-              {errorMessage(
-                incidentsQuery.error,
-              )}
+              {errorMessage(incidentsQuery.error)}
             </Alert>
           ) : null}
 
           {!incidentsQuery.isLoading &&
           !incidentsQuery.isError &&
-          incidents.length ===
-            0 ? (
+          incidents.length === 0 ? (
             <Paper
-              elevation={
-                0
-              }
+              elevation={0}
               sx={{
-                p:
-                  3,
+                p: 3,
 
-                textAlign:
-                  'center',
+                textAlign: "center",
 
-                border:
-                  '1px solid',
+                border: "1px solid",
 
-                borderColor:
-                  'divider',
+                borderColor: "divider",
               }}
             >
               <Typography
                 sx={{
-                  fontWeight:
-                    750,
+                  fontWeight: 750,
                 }}
               >
                 No incidents found
@@ -935,14 +570,11 @@ export function IncidentsPage() {
 
               <Typography
                 sx={{
-                  mt:
-                    0.5,
+                  mt: 0.5,
 
-                  color:
-                    'text.secondary',
+                  color: "text.secondary",
 
-                  fontSize:
-                    12.5,
+                  fontSize: 12.5,
                 }}
               >
                 Try changing the filters or report a new incident.
@@ -950,259 +582,166 @@ export function IncidentsPage() {
             </Paper>
           ) : null}
 
-          {incidents.map(
-            (
-              incident,
-            ) => (
-              <Paper
-                key={
-                  incident.id
-                }
-                elevation={
-                  0
-                }
+          {incidents.map((incident) => (
+            <Paper
+              key={incident.id}
+              elevation={0}
+              sx={{
+                mb: 1.5,
+
+                p: 2.25,
+
+                border: "1px solid",
+
+                borderColor: "divider",
+              }}
+            >
+              <Box
                 sx={{
-                  mb:
-                    1.5,
+                  display: "flex",
 
-                  p:
-                    2.25,
+                  justifyContent: "space-between",
 
-                  border:
-                    '1px solid',
+                  alignItems: {
+                    xs: "flex-start",
 
-                  borderColor:
-                    'divider',
+                    sm: "center",
+                  },
+
+                  flexDirection: {
+                    xs: "column",
+
+                    sm: "row",
+                  },
+
+                  gap: 1.5,
                 }}
               >
                 <Box
                   sx={{
-                    display:
-                      'flex',
-
-                    justifyContent:
-                      'space-between',
-
-                    alignItems: {
-                      xs:
-                        'flex-start',
-
-                      sm:
-                        'center',
-                    },
-
-                    flexDirection: {
-                      xs:
-                        'column',
-
-                      sm:
-                        'row',
-                    },
-
-                    gap:
-                      1.5,
+                    minWidth: 0,
                   }}
                 >
                   <Box
                     sx={{
-                      minWidth:
-                        0,
+                      display: "flex",
+
+                      alignItems: "center",
+
+                      flexWrap: "wrap",
+
+                      gap: 1,
                     }}
                   >
-                    <Box
-                      sx={{
-                        display:
-                          'flex',
-
-                        alignItems:
-                          'center',
-
-                        flexWrap:
-                          'wrap',
-
-                        gap:
-                          1,
-                      }}
-                    >
-                      <Typography
-                        sx={{
-                          fontWeight:
-                            850,
-
-                          fontSize:
-                            15,
-                        }}
-                      >
-                        {incident.type}
-                      </Typography>
-
-                      <Chip
-                        size="small"
-                        label={
-                          severityLabel(
-                            incident.severity,
-                          )
-                        }
-                        color={
-                          severityColor(
-                            incident.severity,
-                          )
-                        }
-                      />
-
-                      <Chip
-                        size="small"
-                        variant="outlined"
-                        label={
-                          statusLabel(
-                            incident.status,
-                          )
-                        }
-                      />
-                    </Box>
-
                     <Typography
                       sx={{
-                        mt:
-                          1,
+                        fontWeight: 850,
 
-                        color:
-                          'text.secondary',
-
-                        fontSize:
-                          13,
-
-                        lineHeight:
-                          1.6,
-
-                        whiteSpace:
-                          'pre-wrap',
+                        fontSize: 15,
                       }}
                     >
-                      {incident.description}
+                      {incident.type}
                     </Typography>
 
-                    <Typography
-                      sx={{
-                        mt:
-                          1,
+                    <Chip
+                      size="small"
+                      label={severityLabel(incident.severity)}
+                      color={severityColor(incident.severity)}
+                    />
 
-                        color:
-                          'text.secondary',
-
-                        fontSize:
-                          11.5,
-                      }}
-                    >
-                      Reported {formatDateTime(
-                        incident.createdAt,
-                      )}
-                    </Typography>
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      label={statusLabel(incident.status)}
+                    />
                   </Box>
 
-                  {canUpdate ? (
-                    <Button
-                      size="small"
-                      startIcon={
-                        <EditRounded />
-                      }
-                      onClick={() => {
-                        setMutationError(
-                          null,
-                        );
+                  <Typography
+                    sx={{
+                      mt: 1,
 
-                        setEditingIncident(
-                          incident,
-                        );
-                      }}
-                    >
-                      Edit
-                    </Button>
-                  ) : null}
+                      color: "text.secondary",
+
+                      fontSize: 13,
+
+                      lineHeight: 1.6,
+
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
+                    {incident.description}
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      mt: 1,
+
+                      color: "text.secondary",
+
+                      fontSize: 11.5,
+                    }}
+                  >
+                    Reported {formatDateTime(incident.createdAt)}
+                  </Typography>
                 </Box>
-              </Paper>
-            ),
-          )}
 
-          {!incidentsQuery.isLoading &&
-          !incidentsQuery.isError ? (
+                {canUpdate ? (
+                  <Button
+                    size="small"
+                    startIcon={<EditRounded />}
+                    onClick={() => {
+                      setMutationError(null);
+
+                      setEditingIncident(incident);
+                    }}
+                  >
+                    Edit
+                  </Button>
+                ) : null}
+              </Box>
+            </Paper>
+          ))}
+
+          {!incidentsQuery.isLoading && !incidentsQuery.isError ? (
             <Box
               sx={{
-                mt:
-                  2,
+                mt: 2,
 
-                display:
-                  'flex',
+                display: "flex",
 
-                justifyContent:
-                  'space-between',
+                justifyContent: "space-between",
 
-                alignItems:
-                  'center',
+                alignItems: "center",
 
-                gap:
-                  1,
+                gap: 1,
               }}
             >
               <Button
-                disabled={
-                  cursorHistory.length ===
-                  0
-                }
+                disabled={cursorHistory.length === 0}
                 onClick={() => {
                   const previous =
-                    cursorHistory[
-                      cursorHistory.length -
-                      1
-                    ] ??
-                    null;
+                    cursorHistory[cursorHistory.length - 1] ?? null;
 
-                  setCursorHistory(
-                    (
-                      history,
-                    ) =>
-                      history.slice(
-                        0,
-                        -1,
-                      ),
-                  );
+                  setCursorHistory((history) => history.slice(0, -1));
 
-                  setCursor(
-                    previous,
-                  );
+                  setCursor(previous);
                 }}
               >
                 Previous
               </Button>
 
               <Button
-                disabled={
-                  !incidentsQuery
-                    .data
-                    ?.nextCursor
-                }
+                disabled={!incidentsQuery.data?.nextCursor}
                 onClick={() => {
-                  const next =
-                    incidentsQuery
-                      .data
-                      ?.nextCursor;
+                  const next = incidentsQuery.data?.nextCursor;
 
                   if (!next) {
                     return;
                   }
 
-                  setCursorHistory(
-                    (
-                      history,
-                    ) => [
-                      ...history,
-                      cursor,
-                    ],
-                  );
+                  setCursorHistory((history) => [...history, cursor]);
 
-                  setCursor(
-                    next,
-                  );
+                  setCursor(next);
                 }}
               >
                 Next
@@ -1213,145 +752,65 @@ export function IncidentsPage() {
       )}
 
       <IncidentFormDialog
-        key={
-          `create-${createKey}`
-        }
-        open={
-          createOpen
-        }
-        incident={
-          null
-        }
-        saving={
-          createMutation
-            .isPending
-        }
-        error={
-          createOpen
-            ? mutationError
-            : null
-        }
-        canUpdate={
-          false
-        }
+        key={`create-${createKey}`}
+        open={createOpen}
+        incident={null}
+        saving={createMutation.isPending}
+        error={createOpen ? mutationError : null}
+        canUpdate={false}
         onClose={() => {
-          if (
-            !createMutation
-              .isPending
-          ) {
-            setCreateOpen(
-              false,
-            );
+          if (!createMutation.isPending) {
+            setCreateOpen(false);
 
-            setMutationError(
-              null,
-            );
+            setMutationError(null);
           }
         }}
-        onSubmit={
-          async (
-            input,
-          ) => {
-            await createMutation
-              .mutateAsync(
-                input as
-                  CreateIncidentInput,
-              );
-          }
-        }
+        onSubmit={async (input) => {
+          await createMutation.mutateAsync(input as CreateIncidentInput);
+        }}
       />
 
       <IncidentFormDialog
-        key={
-          editingIncident
-            ?.id ??
-          'incident-edit'
-        }
-        open={
-          editingIncident !==
-          null
-        }
-        incident={
-          editingIncident
-        }
-        saving={
-          updateMutation
-            .isPending
-        }
-        error={
-          editingIncident
-            ? mutationError
-            : null
-        }
-        canUpdate={
-          canUpdate
-        }
+        key={editingIncident?.id ?? "incident-edit"}
+        open={editingIncident !== null}
+        incident={editingIncident}
+        saving={updateMutation.isPending}
+        error={editingIncident ? mutationError : null}
+        canUpdate={canUpdate}
         onClose={() => {
-          if (
-            !updateMutation
-              .isPending
-          ) {
-            setEditingIncident(
-              null,
-            );
+          if (!updateMutation.isPending) {
+            setEditingIncident(null);
 
-            setMutationError(
-              null,
-            );
+            setMutationError(null);
           }
         }}
-        onSubmit={
-          async (
-            input,
-          ) => {
-            if (
-              !editingIncident
-            ) {
-              return;
-            }
-
-            await updateMutation
-              .mutateAsync({
-                incidentId:
-                  editingIncident.id,
-
-                input:
-                  input as
-                    UpdateIncidentInput,
-              });
+        onSubmit={async (input) => {
+          if (!editingIncident) {
+            return;
           }
-        }
+
+          await updateMutation.mutateAsync({
+            incidentId: editingIncident.id,
+
+            input: input as UpdateIncidentInput,
+          });
+        }}
       />
 
       <Snackbar
-        open={
-          successMessage !==
-          null
-        }
-        autoHideDuration={
-          3500
-        }
-        onClose={() =>
-          setSuccessMessage(
-            null,
-          )
-        }
+        open={successMessage !== null}
+        autoHideDuration={3500}
+        onClose={() => setSuccessMessage(null)}
         anchorOrigin={{
-          vertical:
-            'bottom',
+          vertical: "bottom",
 
-          horizontal:
-            'right',
+          horizontal: "right",
         }}
       >
         <Alert
           severity="success"
           variant="filled"
-          onClose={() =>
-            setSuccessMessage(
-              null,
-            )
-          }
+          onClose={() => setSuccessMessage(null)}
         >
           {successMessage}
         </Alert>
