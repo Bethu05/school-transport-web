@@ -194,7 +194,31 @@ assert(
   "Checkpoint Guardian was unexpectedly already linked",
 );
 
+/*
+ * The checkpoint reuses a real active Student.
+ *
+ * That Student may already have a primary Guardian. The database
+ * correctly allows only one primary Guardian per Student, so this
+ * checkpoint must not assume that promotion to primary is always
+ * available.
+ *
+ * If no primary Guardian exists, prove that this relationship can
+ * become primary. Otherwise keep this relationship non-primary and
+ * continue testing the remaining mutable relationship metadata.
+ */
+const studentAlreadyHasPrimaryGuardian = initialRelationships.some(
+  (relationship) => relationship.isPrimary === true,
+);
+
+const expectedPrimaryAfterUpdate = !studentAlreadyHasPrimaryGuardian;
+
 console.log("✓ initial relationship absent");
+
+console.log(
+  studentAlreadyHasPrimaryGuardian
+    ? "✓ existing primary Guardian detected; checkpoint relationship will remain non-primary"
+    : "✓ no existing primary Guardian; checkpoint relationship will be promoted to primary",
+);
 
 /*
  * 6. Link Guardian to Student.
@@ -262,7 +286,7 @@ const updated = await request(
     body: {
       relationshipType: "parent",
 
-      isPrimary: true,
+      isPrimary: expectedPrimaryAfterUpdate,
 
       receiveNotifications: false,
     },
@@ -274,7 +298,10 @@ assert(
   "Relationship type update failed",
 );
 
-assert(updated.isPrimary === true, "Primary Guardian update failed");
+assert(
+  updated.isPrimary === expectedPrimaryAfterUpdate,
+  "Primary Guardian update did not match the valid relationship state",
+);
 
 assert(
   updated.receiveNotifications === false,
@@ -300,7 +327,7 @@ assert(
 );
 
 assert(
-  persistedUpdate?.isPrimary === true,
+  persistedUpdate?.isPrimary === expectedPrimaryAfterUpdate,
   "Updated primary flag did not persist",
 );
 

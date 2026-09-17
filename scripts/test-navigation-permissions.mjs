@@ -12,6 +12,33 @@ function assert(condition, message) {
   console.log(`✓ ${message}`);
 }
 
+/*
+ * Static checkpoints must validate semantics rather than
+ * Prettier formatting.
+ *
+ * Both of these are equivalent TypeScript:
+ *
+ *   "drivers.read"
+ *   'drivers.read'
+ */
+function includesQuotedValue(source, value) {
+  return source.includes(`"${value}"`) || source.includes(`'${value}'`);
+}
+
+function findNavigationLabel(source, label) {
+  const candidates = [`label: "${label}"`, `label: '${label}'`];
+
+  const positions = candidates
+    .map((candidate) => source.indexOf(candidate))
+    .filter((position) => position >= 0);
+
+  if (positions.length === 0) {
+    return -1;
+  }
+
+  return Math.min(...positions);
+}
+
 const expectedPermissions = [
   "drivers.read",
   "vehicles.read",
@@ -26,7 +53,7 @@ const expectedPermissions = [
 
 for (const permission of expectedPermissions) {
   assert(
-    permissions.includes(`'${permission}'`),
+    includesQuotedValue(permissions, permission),
     `frontend permission constant: ${permission}`,
   );
 }
@@ -42,17 +69,17 @@ assert(
 );
 
 const operationalRules = [
-  ["label: 'Trips'", "FRONTEND_PERMISSIONS.TRIPS_READ"],
-  ["label: 'Routes'", "FRONTEND_PERMISSIONS.ROUTES_READ"],
-  ["label: 'Stops'", "FRONTEND_PERMISSIONS.STOPS_READ"],
-  ["label: 'Vehicles'", "FRONTEND_PERMISSIONS.VEHICLES_READ"],
-  ["label: 'Drivers'", "FRONTEND_PERMISSIONS.DRIVERS_READ"],
-  ["label: 'Students'", "FRONTEND_PERMISSIONS.STUDENTS_READ"],
-  ["label: 'Guardians'", "FRONTEND_PERMISSIONS.GUARDIANS_READ"],
+  ["Trips", "FRONTEND_PERMISSIONS.TRIPS_READ"],
+  ["Routes", "FRONTEND_PERMISSIONS.ROUTES_READ"],
+  ["Stops", "FRONTEND_PERMISSIONS.STOPS_READ"],
+  ["Vehicles", "FRONTEND_PERMISSIONS.VEHICLES_READ"],
+  ["Drivers", "FRONTEND_PERMISSIONS.DRIVERS_READ"],
+  ["Students", "FRONTEND_PERMISSIONS.STUDENTS_READ"],
+  ["Guardians", "FRONTEND_PERMISSIONS.GUARDIANS_READ"],
 ];
 
 for (const [label, permission] of operationalRules) {
-  const start = shell.indexOf(label);
+  const start = findNavigationLabel(shell, label);
 
   assert(start >= 0, `navigation item exists: ${label}`);
 
@@ -65,11 +92,16 @@ for (const [label, permission] of operationalRules) {
   assert(!block.includes("roles:"), `${label} no longer hard-codes roles`);
 }
 
-const incidentStart = shell.indexOf("label: 'Incidents'");
+const incidentStart = findNavigationLabel(shell, "Incidents");
+
+assert(incidentStart >= 0, "navigation item exists: Incidents");
 
 const incidentEnd = shell.indexOf("\n  {", incidentStart + 1);
 
-const incidentBlock = shell.slice(incidentStart, incidentEnd);
+const incidentBlock = shell.slice(
+  incidentStart,
+  incidentEnd >= 0 ? incidentEnd : shell.length,
+);
 
 assert(
   incidentBlock.includes("FRONTEND_PERMISSIONS.INCIDENTS_READ"),
@@ -82,8 +114,8 @@ assert(
 );
 
 assert(
-  shell.includes("label: 'Dashboard'") &&
-    shell.includes("label: 'Live Tracking'"),
+  findNavigationLabel(shell, "Dashboard") >= 0 &&
+    findNavigationLabel(shell, "Live Tracking") >= 0,
   "special Dashboard/Tracking navigation preserved",
 );
 
