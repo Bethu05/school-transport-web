@@ -31,6 +31,9 @@ export const FRONTEND_PERMISSIONS = {
   INCIDENTS_CREATE: "incidents.create",
   INCIDENTS_REPORT_ASSIGNED_TRIP: "incidents.report_assigned_trip",
   INCIDENTS_UPDATE: "incidents.update",
+
+  OPERATIONAL_SAFETY_EVENTS_READ: "operational_safety_events.read",
+
   STOPS_READ: "stops.read",
 
   STOPS_CREATE: "stops.create",

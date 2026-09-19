@@ -104,6 +104,84 @@ export interface TripStopEvent {
   eventType: "trip.stop.arrived" | "trip.stop.departed";
 }
 
+export interface RouteDeviationConfirmedOperationalEvent {
+  eventType: "operational.route_deviation.confirmed";
+
+  eventId: string;
+
+  tenantId: string;
+
+  schoolId: string | null;
+
+  tripId: string;
+
+  routeId: string;
+
+  vehicleId: string;
+
+  routeDeviationId: string;
+
+  severity: "high";
+
+  status: "open";
+
+  occurredAt: string;
+
+  firstObservedAt: string;
+
+  confirmedAt: string;
+
+  triggerDistanceMeters: number;
+
+  recoveryDistanceMeters: number;
+
+  initialDistanceMeters: number;
+
+  maxDistanceMeters: number;
+
+  distanceMeters: number;
+
+  latitude: number;
+
+  longitude: number;
+}
+
+export interface RouteDeviationResolvedOperationalEvent {
+  eventType: "operational.route_deviation.resolved";
+
+  eventId: string;
+
+  tenantId: string;
+
+  schoolId: string | null;
+
+  tripId: string;
+
+  routeId: string;
+
+  vehicleId: string;
+
+  routeDeviationId: string;
+
+  severity: "high";
+
+  status: "resolved";
+
+  occurredAt: string;
+
+  resolvedAt: string;
+
+  distanceMeters: number;
+
+  latitude: number;
+
+  longitude: number;
+}
+
+export type OperationalSafetyRealtimeEvent =
+  | RouteDeviationConfirmedOperationalEvent
+  | RouteDeviationResolvedOperationalEvent;
+
 export interface TrackingConnectionReady {
   tenantId: string;
   userId: string;

@@ -11,7 +11,6 @@ import {
 
 import {
   AccessTimeRounded,
-  ArrowForwardRounded,
   BadgeRounded,
   DirectionsBusRounded,
   LocationOnRounded,
@@ -21,12 +20,13 @@ import {
   PersonRounded,
   RouteRounded,
   SchoolRounded,
-  WarningAmberRounded,
 } from "@mui/icons-material";
 
 import { useAuth } from "../../auth/AuthProvider";
 
 import { useFleetSummary } from "../../vehicles/useFleetSummary";
+
+import { OperationalSafetyPanel } from "../../operational-safety/OperationalSafetyPanel";
 
 import { MetricCard, type Metric } from "../components/MetricCard";
 
@@ -44,14 +44,6 @@ interface TripRow {
   time: string;
 
   status: "Active" | "Scheduled" | "Delayed";
-}
-
-interface IncidentRow {
-  title: string;
-
-  time: string;
-
-  severity: "Low" | "Medium" | "High";
 }
 
 /**
@@ -90,19 +82,6 @@ function statusColor(status: TripRow["status"]): string {
 
     default:
       return tokens.colors.brand.champagneGold;
-  }
-}
-
-function severityColor(severity: IncidentRow["severity"]): string {
-  switch (severity) {
-    case "High":
-      return tokens.colors.status.danger;
-
-    case "Medium":
-      return tokens.colors.status.warning;
-
-    default:
-      return tokens.colors.trip.lowPriority;
   }
 }
 
@@ -261,32 +240,6 @@ export function OperationsDashboard({
       time: "14:45",
 
       status: "Scheduled",
-    },
-  ];
-
-  const incidents: IncidentRow[] = [
-    {
-      title: "Route deviation detected",
-
-      time: "08:14",
-
-      severity: "Medium",
-    },
-
-    {
-      title: "Student boarding exception",
-
-      time: "07:42",
-
-      severity: "Low",
-    },
-
-    {
-      title: "Late departure — BUS-021",
-
-      time: "07:06",
-
-      severity: "Medium",
     },
   ];
 
@@ -1422,145 +1375,9 @@ export function OperationsDashboard({
           </Box>
         </Paper>
 
-        {/* INCIDENTS - PREVIEW */}
+        {/* LIVE OPERATIONAL SAFETY */}
 
-        <Paper
-          elevation={0}
-          sx={{
-            p: 3,
-
-            border: "1px solid",
-
-            borderColor: "divider",
-          }}
-        >
-          <SectionHeader
-            title="Attention Required"
-
-            subtitle="Preview until Incidents API is connected"
-
-            action={
-              <Box
-                sx={{
-                  width: 30,
-                  height: 30,
-
-                  display: "grid",
-
-                  placeItems: "center",
-
-                  borderRadius: "50%",
-
-                  bgcolor: tokens.alpha.warning10,
-
-                  color: tokens.colors.status.warning,
-                }}
-              >
-                <WarningAmberRounded
-                  sx={{
-                    fontSize: 17,
-                  }}
-                />
-              </Box>
-            }
-          />
-
-          <Box
-            sx={{
-              display: "grid",
-
-              gap: 1,
-            }}
-          >
-            {incidents.map((incident) => (
-              <Box
-                key={incident.title}
-                sx={{
-                  p: 1.8,
-
-                  border: "1px solid",
-
-                  borderColor: "divider",
-
-                  borderRadius: 2,
-
-                  bgcolor: "action.hover",
-                }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-
-                    alignItems: "flex-start",
-
-                    gap: 1.2,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 8,
-                      height: 8,
-
-                      mt: 0.7,
-
-                      flexShrink: 0,
-
-                      borderRadius: "50%",
-
-                      bgcolor: severityColor(incident.severity),
-                    }}
-                  />
-
-                  <Box
-                    sx={{
-                      flex: 1,
-
-                      minWidth: 0,
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        fontSize: 12,
-
-                        fontWeight: 700,
-                      }}
-                    >
-                      {incident.title}
-                    </Typography>
-
-                    <Typography
-                      sx={{
-                        mt: 0.5,
-
-                        color: "text.secondary",
-
-                        fontSize: 10.5,
-                      }}
-                    >
-                      {incident.time}
-                      {" · "}
-                      {incident.severity} priority
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-            ))}
-          </Box>
-
-          <Button
-            fullWidth
-
-            variant="outlined"
-
-            sx={{
-              mt: 2,
-            }}
-
-            endIcon={<ArrowForwardRounded />}
-          >
-            Incident centre
-          </Button>
-        </Paper>
+        <OperationalSafetyPanel />
       </Box>
     </Box>
   );
