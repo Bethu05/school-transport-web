@@ -48,7 +48,9 @@
     "test:guardian-tracking-bootstrap": "node scripts/test-guardian-tracking-bootstrap-frontend.mjs",
     "test:operational-safety-dashboard": "node scripts/test-operational-safety-dashboard.mjs",
     "test:operations-dashboard-live": "node scripts/test-operations-dashboard-live.mjs",
-    "test:operational-safety-workflow-realtime": "node scripts/test-operational-safety-workflow-realtime.mjs"
+    "test:operational-safety-workflow-realtime": "node scripts/test-operational-safety-workflow-realtime.mjs",
+    "test:settings-frontend": "node scripts/test-settings-frontend.mjs",
+    "test:settings-api": "node --env-file=.env.development.local scripts/test-settings-api.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

@@ -165,7 +165,7 @@ const navigation: NavigationItem[] = [
     label: "Settings",
     path: "/settings",
     icon: <SettingsRounded />,
-    roles: ["owner", "admin"],
+    permission: FRONTEND_PERMISSIONS.SETTINGS_READ,
   },
 ];
 

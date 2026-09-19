@@ -63,6 +63,16 @@ export const FRONTEND_PERMISSIONS = {
   GUARDIANS_DEACTIVATE: "guardians.deactivate",
 
   GUARDIANS_MANAGE_STUDENTS: "guardians.manage_students",
+
+  /**
+   * Organisation-wide configuration.
+   *
+   * These permissions are issued by /auth/context.
+   * The frontend does not infer them from role names.
+   */
+  SETTINGS_READ: "settings.read",
+
+  SETTINGS_UPDATE: "settings.update",
 } as const;
 
 export type FrontendPermission =

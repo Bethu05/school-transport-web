@@ -32,21 +32,13 @@ import { VehiclesPage } from "./vehicles/VehiclesPage";
 
 import { TrackingPage } from "./tracking/TrackingPage";
 
+import { SettingsPage } from "./settings/SettingsPage";
+
 function ProtectedPage({ children }: { children: ReactNode }) {
   return (
     <ProtectedRoute>
       <AppShell>{children}</AppShell>
     </ProtectedRoute>
-  );
-}
-
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div>
-      <h1>{title}</h1>
-
-      <p>This module will be connected next.</p>
-    </div>
   );
 }
 
@@ -196,7 +188,7 @@ function App() {
         path="/settings"
         element={
           <ProtectedPage>
-            <PlaceholderPage title="Settings" />
+            <SettingsPage />
           </ProtectedPage>
         }
       />

@@ -49,6 +49,8 @@ const expectedPermissions = [
   "guardians.read",
   "incidents.read",
   "incidents.create",
+  "settings.read",
+  "settings.update",
 ];
 
 for (const permission of expectedPermissions) {
@@ -76,6 +78,7 @@ const operationalRules = [
   ["Drivers", "FRONTEND_PERMISSIONS.DRIVERS_READ"],
   ["Students", "FRONTEND_PERMISSIONS.STUDENTS_READ"],
   ["Guardians", "FRONTEND_PERMISSIONS.GUARDIANS_READ"],
+  ["Settings", "FRONTEND_PERMISSIONS.SETTINGS_READ"],
 ];
 
 for (const [label, permission] of operationalRules) {
