@@ -13,27 +13,26 @@ function check(condition, label) {
 }
 
 const map = read("src/tracking/LiveTrackingMap.tsx");
-
 const operational = read("src/tracking/TrackingPage.tsx");
-
 const guardian = read("src/tracking/GuardianTrackingPanel.tsx");
-
 const css = read("src/tracking/live-tracking-map.css");
 
 console.log();
 console.log("Tracking map frontend checkpoint");
-
 console.log("--------------------------------");
 
-check(map.includes("from 'leaflet'"), "Leaflet map engine wired");
+check(/from\s+["']maplibre-gl["']/.test(map), "MapLibre map engine wired");
 
-check(map.includes("openstreetmap.org"), "OpenStreetMap tile layer wired");
+check(map.includes("tiles.openfreemap.org"), "OpenFreeMap vector style wired");
 
 check(map.includes("fitBounds"), "map automatically fits multiple vehicles");
 
-check(map.includes("map.setView"), "single vehicle receives focused map view");
+check(
+  map.includes("easeTo"),
+  "single/select/follow camera uses MapLibre movement",
+);
 
-check(map.includes("accuracyMeters"), "GPS accuracy overlay supported");
+check(map.includes("accuracyMeters"), "GPS accuracy data supported");
 
 check(
   operational.includes("operationalMapMarkers") &&
@@ -63,11 +62,14 @@ check(
 );
 
 check(
-  guardian.includes("activeTripIds,"),
-  "Guardian realtime effect tracks authorised trip dependency",
+  guardian.includes("activeTripIds"),
+  "Guardian map derives only authorised active trips",
 );
 
-check(css.includes(".tracking-map-marker"), "live bus marker styling present");
+check(
+  css.includes(".tracking-map-vehicle"),
+  "live bus marker styling present",
+);
 
 console.log();
 console.log("Tracking map frontend checkpoint PASSED");

@@ -13,6 +13,12 @@ function assert(condition, message) {
   console.log(`✓ ${message}`);
 }
 
+function hasEvent(name) {
+  return new RegExp(`["'\`]${name.replaceAll(".", "\\.")}["'\`]`).test(
+    progress,
+  );
+}
+
 assert(
   progress.includes("createTrackingSocket("),
   "Driver Journey reuses the existing tracking socket client",
@@ -30,23 +36,23 @@ assert(
 );
 
 assert(
-  progress.includes("'trip.stop.arrived'"),
+  hasEvent("trip.stop.arrived"),
   "Driver Journey listens for stop arrival events",
 );
 
 assert(
-  progress.includes("'trip.stop.departed'"),
+  hasEvent("trip.stop.departed"),
   "Driver Journey listens for stop departure events",
 );
 
 assert(
-  progress.includes("'my-driver-journey-progress'") &&
+  progress.includes("my-driver-journey-progress") &&
     progress.includes("invalidateQueries"),
   "stop lifecycle events invalidate Driver Journey Progress",
 );
 
 assert(
-  progress.includes("'vehicle.location.updated'"),
+  hasEvent("vehicle.location.updated"),
   "Driver Journey listens for live vehicle GPS packets",
 );
 
@@ -95,9 +101,9 @@ assert(
 );
 
 assert(
-  progress.includes("'Live updates'"),
+  progress.includes("Live updates"),
   "Driver can see realtime connection status",
 );
 
-console.log("");
+console.log();
 console.log("Driver Journey realtime frontend checkpoint PASSED");

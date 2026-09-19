@@ -13,18 +13,13 @@ function check(condition, label) {
 }
 
 const realtime = read("src/tracking/tracking.realtime.ts");
-
 const progress = read("src/tracking/TrackingProgressPanel.tsx");
-
 const map = read("src/tracking/LiveTrackingMap.tsx");
-
 const operational = read("src/tracking/TrackingPage.tsx");
-
 const guardian = read("src/tracking/GuardianTrackingPanel.tsx");
 
 console.log();
 console.log("Tracking progress frontend checkpoint");
-
 console.log("-------------------------------------");
 
 check(
@@ -55,12 +50,20 @@ check(
 );
 
 check(
-  progress.includes("routeDistanceMeters") &&
-    progress.includes("etaDistanceMeters"),
-  "best available ETA distance displayed",
+  progress.includes("etaDistanceMeters") &&
+    progress.includes("etaDistanceSource"),
+  "backend-authoritative ETA distance displayed",
 );
 
-check(map.includes("'stop'"), "map supports stop marker type");
+check(
+  progress.includes("route_geometry"),
+  "road distance source is identified when canonical geometry is used",
+);
+
+check(
+  map.includes('"stop"') || map.includes("'stop'"),
+  "map supports stop marker type",
+);
 
 check(
   operational.includes("operationalStopMapMarkers"),
