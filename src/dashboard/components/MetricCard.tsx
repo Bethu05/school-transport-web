@@ -1,6 +1,8 @@
 import { Box, Chip, Paper, Typography } from "@mui/material";
 
-import type { ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
+
+import { useNavigate } from "react-router-dom";
 
 import { tokens } from "../../theme/tokens";
 
@@ -11,6 +13,11 @@ export interface Metric {
   accent: string;
   icon: ReactNode;
   source: "live" | "preview";
+
+  /**
+   * Dashboard module opened when the KPI card is selected.
+   */
+  path: string;
 }
 
 interface MetricCardProps {
@@ -24,14 +31,39 @@ interface MetricCardProps {
  * Colour is reserved for the domain accent and real status.
  */
 export function MetricCard({ metric }: MetricCardProps) {
+  const navigate = useNavigate();
+
   const live = metric.source === "live";
+
+  function openMetric(): void {
+    navigate(metric.path);
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLElement>): void {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+
+      openMetric();
+    }
+  }
 
   return (
     <Paper
       elevation={0}
+
+      role="button"
+
+      tabIndex={0}
+
+      aria-label={`Open ${metric.label}`}
+
+      onClick={openMetric}
+
+      onKeyDown={handleKeyDown}
+
       sx={{
-        p: 2.75,
-        minHeight: 164,
+        p: 2,
+        minHeight: 128,
         position: "relative",
         overflow: "hidden",
 
@@ -39,6 +71,14 @@ export function MetricCard({ metric }: MetricCardProps) {
         borderColor: "divider",
 
         bgcolor: "background.paper",
+
+        cursor: "pointer",
+
+        outline: "none",
+
+        "&:focus-visible": {
+          boxShadow: "0 0 0 3px rgba(15,118,110,0.18)",
+        },
 
         transition:
           "transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease",
@@ -97,13 +137,9 @@ export function MetricCard({ metric }: MetricCardProps) {
                 fontSize: 9,
                 fontWeight: 700,
 
-                color: live
-                  ? tokens.colors.status.success
-                  : "text.secondary",
+                color: live ? tokens.colors.status.success : "text.secondary",
 
-                bgcolor: live
-                  ? tokens.alpha.success10
-                  : "action.hover",
+                bgcolor: live ? tokens.alpha.success10 : "action.hover",
               }}
             />
           </Box>
@@ -111,7 +147,7 @@ export function MetricCard({ metric }: MetricCardProps) {
           <Typography
             sx={{
               mt: 1.2,
-              fontSize: 34,
+              fontSize: 30,
               lineHeight: 1,
               fontWeight: 900,
               letterSpacing: "-0.045em",
@@ -142,7 +178,7 @@ export function MetricCard({ metric }: MetricCardProps) {
 
       <Typography
         sx={{
-          mt: 2.5,
+          mt: 1.5,
           color: "text.secondary",
           fontSize: 12.5,
         }}

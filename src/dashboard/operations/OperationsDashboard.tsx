@@ -150,6 +150,8 @@ export function OperationsDashboard({
       icon: <RouteRounded />,
 
       source: operations.isError ? "preview" : "live",
+
+      path: "/trips",
     },
 
     {
@@ -170,6 +172,8 @@ export function OperationsDashboard({
       icon: <DirectionsBusRounded />,
 
       source: fleetSummary.isError ? "preview" : "live",
+
+      path: "/vehicles",
     },
 
     {
@@ -190,6 +194,8 @@ export function OperationsDashboard({
       icon: <BadgeRounded />,
 
       source: operations.isError ? "preview" : "live",
+
+      path: "/drivers",
     },
 
     {
@@ -210,6 +216,8 @@ export function OperationsDashboard({
       icon: <SchoolRounded />,
 
       source: operations.isError ? "preview" : "live",
+
+      path: "/students",
     },
   ];
 
@@ -227,12 +235,17 @@ export function OperationsDashboard({
       <Paper
         elevation={0}
         sx={{
-          p: {
-            xs: 3,
-            md: 4,
+          px: {
+            xs: 2.5,
+            md: 3,
           },
 
-          mb: 2.5,
+          py: {
+            xs: 2,
+            md: 2.25,
+          },
+
+          mb: 2,
 
           border: "1px solid",
           borderColor: "divider",
@@ -256,7 +269,7 @@ export function OperationsDashboard({
 
             justifyContent: "space-between",
 
-            gap: 3,
+            gap: 2,
           }}
         >
           <Box>
@@ -279,11 +292,11 @@ export function OperationsDashboard({
             <Typography
               component="h1"
               sx={{
-                mt: 2,
+                mt: 1,
 
                 fontSize: {
-                  xs: 28,
-                  md: 36,
+                  xs: 25,
+                  md: 30,
                 },
 
                 fontWeight: 900,
@@ -296,10 +309,10 @@ export function OperationsDashboard({
 
             <Typography
               sx={{
-                mt: 1,
+                mt: 0.5,
 
                 color: "text.secondary",
-                fontSize: 14,
+                fontSize: 12.5,
               }}
             >
               {user?.email}
@@ -319,12 +332,10 @@ export function OperationsDashboard({
               variant="outlined"
 
               onClick={() => {
-                document
-                  .getElementById("operational-safety")
-                  ?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start",
-                  });
+                document.getElementById("operational-safety")?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                });
               }}
 
               startIcon={<NotificationsRounded />}
@@ -364,10 +375,7 @@ export function OperationsDashboard({
         }}
       >
         {metrics.map((metric) => (
-          <MetricCard
-            key={metric.label}
-            metric={metric}
-          />
+          <MetricCard key={metric.label} metric={metric} />
         ))}
       </Box>
 
@@ -408,10 +416,7 @@ export function OperationsDashboard({
             title="Current Trips"
             subtitle="Live trips in the active operational lifecycle"
             action={
-              <Button
-                size="small"
-                onClick={() => navigate("/trips")}
-              >
+              <Button size="small" onClick={() => navigate("/trips")}>
                 View trips
               </Button>
             }
@@ -579,7 +584,9 @@ export function OperationsDashboard({
                 />
               </Box>
 
-              {index < (data?.currentTrips.length ?? 0) - 1 ? <Divider /> : null}
+              {index < (data?.currentTrips.length ?? 0) - 1 ? (
+                <Divider />
+              ) : null}
             </Box>
           ))}
         </Paper>
@@ -690,11 +697,7 @@ export function OperationsDashboard({
                     fleet?.inactive ?? 0,
                     tokens.colors.status.inactive,
                   ],
-                  [
-                    "Retired",
-                    fleet?.retired ?? 0,
-                    tokens.colors.status.muted,
-                  ],
+                  ["Retired", fleet?.retired ?? 0, tokens.colors.status.muted],
                 ].map(([label, value, color]) => (
                   <Box
                     key={String(label)}
