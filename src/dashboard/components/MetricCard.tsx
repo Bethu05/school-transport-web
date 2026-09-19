@@ -1,4 +1,4 @@
-import { Box, Chip, Paper, Typography, useTheme } from "@mui/material";
+import { Box, Chip, Paper, Typography } from "@mui/material";
 
 import type { ReactNode } from "react";
 
@@ -6,15 +6,10 @@ import { tokens } from "../../theme/tokens";
 
 export interface Metric {
   label: string;
-
   value: string;
-
   detail: string;
-
   accent: string;
-
   icon: ReactNode;
-
   source: "live" | "preview";
 }
 
@@ -23,16 +18,12 @@ interface MetricCardProps {
 }
 
 /**
- * Standard dashboard KPI tile.
+ * Dashboard KPI tile.
  *
- * Visual constants come from the central design-token file.
- * Business/domain code only supplies the metric content and accent.
+ * Operational cards deliberately use neutral surfaces.
+ * Colour is reserved for the domain accent and real status.
  */
 export function MetricCard({ metric }: MetricCardProps) {
-  const theme = useTheme();
-
-  const dark = theme.palette.mode === "dark";
-
   const live = metric.source === "live";
 
   return (
@@ -40,59 +31,40 @@ export function MetricCard({ metric }: MetricCardProps) {
       elevation={0}
       sx={{
         p: 2.75,
-
+        minHeight: 164,
         position: "relative",
-
         overflow: "hidden",
 
-        minHeight: 174,
-
         border: "1px solid",
+        borderColor: "divider",
 
-        borderColor: dark ? tokens.alpha.white055 : tokens.alpha.warmBorder10,
+        bgcolor: "background.paper",
 
-        background: dark
-          ? tokens.gradients.metricCardDark
-          : tokens.gradients.metricCardLight,
-
-        transition: "transform 160ms ease, box-shadow 160ms ease",
+        transition:
+          "transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease",
 
         "&:hover": {
-          transform: "translateY(-3px)",
-
-          boxShadow: dark
-            ? tokens.shadows.metricCardDark
-            : tokens.shadows.metricCardLight,
+          transform: "translateY(-2px)",
+          boxShadow: "0 12px 30px rgba(15, 23, 42, 0.08)",
         },
       }}
     >
       <Box
         sx={{
           position: "absolute",
-
           top: 0,
           left: 0,
-
-          width: "100%",
-
-          height: 3,
-
-          background: `linear-gradient(
-              90deg,
-              ${metric.accent},
-              transparent 75%
-            )`,
+          bottom: 0,
+          width: 4,
+          bgcolor: metric.accent,
         }}
       />
 
       <Box
         sx={{
           display: "flex",
-
           alignItems: "flex-start",
-
           justifyContent: "space-between",
-
           gap: 2,
         }}
       >
@@ -100,25 +72,18 @@ export function MetricCard({ metric }: MetricCardProps) {
           <Box
             sx={{
               display: "flex",
-
               alignItems: "center",
-
               gap: 0.8,
-
               flexWrap: "wrap",
             }}
           >
             <Typography
               sx={{
                 color: "text.secondary",
-
                 fontSize: 11,
-
                 fontWeight: 800,
-
                 textTransform: "uppercase",
-
-                letterSpacing: "0.10em",
+                letterSpacing: "0.08em",
               }}
             >
               {metric.label}
@@ -126,39 +91,29 @@ export function MetricCard({ metric }: MetricCardProps) {
 
             <Chip
               size="small"
-
-              label={live ? "Live" : "Preview"}
-
+              label={live ? "Live" : "Unavailable"}
               sx={{
                 height: 20,
-
                 fontSize: 9,
+                fontWeight: 700,
 
                 color: live
                   ? tokens.colors.status.success
-                  : tokens.colors.dashboard.previewText,
+                  : "text.secondary",
 
-                bgcolor: live ? tokens.alpha.success10 : tokens.alpha.gold09,
-
-                border: "1px solid",
-
-                borderColor: live
-                  ? tokens.alpha.success20
-                  : tokens.alpha.gold17,
+                bgcolor: live
+                  ? tokens.alpha.success10
+                  : "action.hover",
               }}
             />
           </Box>
 
           <Typography
             sx={{
-              mt: 1,
-
+              mt: 1.2,
               fontSize: 34,
-
               lineHeight: 1,
-
               fontWeight: 900,
-
               letterSpacing: "-0.045em",
             }}
           >
@@ -170,22 +125,15 @@ export function MetricCard({ metric }: MetricCardProps) {
           sx={{
             width: 44,
             height: 44,
-
             flexShrink: 0,
 
             display: "grid",
-
             placeItems: "center",
 
             borderRadius: 2,
 
             color: metric.accent,
-
-            bgcolor: `${metric.accent}16`,
-
-            border: "1px solid",
-
-            borderColor: `${metric.accent}35`,
+            bgcolor: `${metric.accent}12`,
           }}
         >
           {metric.icon}
@@ -195,9 +143,7 @@ export function MetricCard({ metric }: MetricCardProps) {
       <Typography
         sx={{
           mt: 2.5,
-
           color: "text.secondary",
-
           fontSize: 12.5,
         }}
       >

@@ -2,92 +2,117 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
   Divider,
   LinearProgress,
   Paper,
   Typography,
-  useTheme,
 } from "@mui/material";
 
 import {
-  AccessTimeRounded,
   BadgeRounded,
   DirectionsBusRounded,
-  LocationOnRounded,
   MapRounded,
-  NavigationRounded,
   NotificationsRounded,
   PersonRounded,
   RouteRounded,
   SchoolRounded,
+  ScheduleRounded,
 } from "@mui/icons-material";
+
+import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../../auth/AuthProvider";
 
-import { useFleetSummary } from "../../vehicles/useFleetSummary";
-
 import { OperationalSafetyPanel } from "../../operational-safety/OperationalSafetyPanel";
+
+import { tokens } from "../../theme/tokens";
+
+import { useFleetSummary } from "../../vehicles/useFleetSummary";
 
 import { MetricCard, type Metric } from "../components/MetricCard";
 
 import { SectionHeader } from "../components/SectionHeader";
 
-import { tokens } from "../../theme/tokens";
+import { useOperationsDashboardData } from "./useOperationsDashboardData";
 
-interface TripRow {
-  route: string;
-
-  vehicle: string;
-
-  driver: string;
-
-  time: string;
-
-  status: "Active" | "Scheduled" | "Delayed";
-}
-
-/**
- * Translate backend membership role names into
- * human-readable labels.
- */
-function roleLabel(role?: string): string {
-  switch (role) {
-    case "owner":
-      return "Owner";
-
-    case "admin":
-      return "Administrator";
-
-    case "transport_manager":
-      return "Transport Manager";
-
-    case "driver":
-      return "Driver";
-
-    case "guardian":
-      return "Parent";
-
-    default:
-      return "User";
+function metricValue(
+  loading: boolean,
+  error: boolean,
+  value: number | undefined,
+): string {
+  if (loading) {
+    return "—";
   }
+
+  if (error) {
+    return "!";
+  }
+
+  return String(value ?? 0).padStart(2, "0");
 }
 
-function statusColor(status: TripRow["status"]): string {
+function tripStatusLabel(status: string): string {
   switch (status) {
-    case "Active":
-      return tokens.colors.trip.active;
+    case "in_progress":
+      return "In progress";
 
-    case "Delayed":
-      return tokens.colors.trip.delayed;
+    case "boarding":
+      return "Boarding";
+
+    case "scheduled":
+      return "Scheduled";
+
+    case "draft":
+      return "Draft";
+
+    case "completed":
+      return "Completed";
+
+    case "cancelled":
+      return "Cancelled";
 
     default:
-      return tokens.colors.brand.champagneGold;
+      return status;
   }
+}
+
+function tripStatusColor(status: string): string {
+  switch (status) {
+    case "in_progress":
+      return tokens.colors.status.success;
+
+    case "boarding":
+      return tokens.colors.dashboard.vehiclesAccent;
+
+    case "cancelled":
+      return tokens.colors.status.danger;
+
+    default:
+      return tokens.colors.status.inactive;
+  }
+}
+
+function formatTime(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Africa/Nairobi",
+  }).format(date);
 }
 
 /**
  * Administrator / Owner / Transport Manager
  * operational command centre.
+ *
+ * Everything displayed here must either come from a live
+ * backend API or clearly indicate that it is unavailable.
  */
 export function OperationsDashboard({
   managerMode = false,
@@ -96,175 +121,112 @@ export function OperationsDashboard({
 }) {
   const { user, tenant } = useAuth();
 
-  const theme = useTheme();
+  const navigate = useNavigate();
 
-  const dark = theme.palette.mode === "dark";
-
-  /**
-   * First live dashboard domain.
-   *
-   * This data now comes from PostgreSQL through:
-   *
-   * Vehicles API
-   * -> PermissionGuard
-   * -> TenantDatabaseService
-   * -> PostgreSQL RLS
-   * -> React Query.
-   */
   const fleetSummary = useFleetSummary(tenant?.tenantId);
+
+  const operations = useOperationsDashboardData(tenant?.tenantId);
 
   const fleet = fleetSummary.data;
 
-  const fleetLoading = fleetSummary.isLoading;
-
-  const fleetError = fleetSummary.isError;
-
-  const vehicleValue = fleetLoading
-    ? "—"
-    : fleetError
-      ? "!"
-      : String(fleet?.active ?? 0).padStart(2, "0");
-
-  const vehicleDetail = fleetLoading
-    ? "Loading live fleet data..."
-    : fleetError
-      ? "Unable to load fleet data"
-      : `${fleet?.active ?? 0} of ${fleet?.total ?? 0} fleet vehicles active`;
+  const data = operations.data;
 
   const metrics: Metric[] = [
     {
-      label: "Active Trips",
+      label: "Current Trips",
 
-      value: "08",
+      value: metricValue(
+        operations.isLoading,
+        operations.isError,
+        data?.currentTripsTotal,
+      ),
 
-      detail: "6 on time · 2 approaching pickup",
+      detail: operations.isError
+        ? "Unable to load trip data"
+        : "Trips currently in the operational lifecycle",
 
-      accent: tokens.colors.dashboard.tripsAccent,
+      accent: "#2563EB",
 
       icon: <RouteRounded />,
 
-      source: "preview",
+      source: operations.isError ? "preview" : "live",
     },
 
     {
-      label: "Vehicles Active",
+      label: "Active Vehicles",
 
-      value: vehicleValue,
+      value: metricValue(
+        fleetSummary.isLoading,
+        fleetSummary.isError,
+        fleet?.active,
+      ),
 
-      detail: vehicleDetail,
+      detail: fleetSummary.isError
+        ? "Unable to load fleet data"
+        : `${fleet?.active ?? 0} of ${fleet?.total ?? 0} fleet vehicles active`,
 
-      accent: tokens.colors.dashboard.vehiclesAccent,
+      accent: "#0F766E",
 
       icon: <DirectionsBusRounded />,
 
-      source: "live",
+      source: fleetSummary.isError ? "preview" : "live",
     },
 
     {
-      label: "Drivers",
+      label: "Active Drivers",
 
-      value: "31",
+      value: metricValue(
+        operations.isLoading,
+        operations.isError,
+        data?.activeDriversTotal,
+      ),
 
-      detail: "27 assigned · 4 available",
+      detail: operations.isError
+        ? "Unable to load driver data"
+        : "Drivers currently marked active",
 
-      accent: tokens.colors.dashboard.driversAccent,
+      accent: "#7C3AED",
 
       icon: <BadgeRounded />,
 
-      source: "preview",
+      source: operations.isError ? "preview" : "live",
     },
 
     {
-      label: "Students Today",
+      label: "Active Students",
 
-      value: "684",
+      value: metricValue(
+        operations.isLoading,
+        operations.isError,
+        data?.activeStudentsTotal,
+      ),
 
-      detail: "97.8% transport attendance",
+      detail: operations.isError
+        ? "Unable to load student data"
+        : "Students currently active in the tenant",
 
-      accent: tokens.colors.dashboard.studentsAccent,
+      accent: "#0891B2",
 
       icon: <SchoolRounded />,
 
-      source: "preview",
-    },
-  ];
-
-  /**
-   * Trips remain preview data until the Trips API
-   * is connected in its own checkpoint.
-   */
-  const trips: TripRow[] = [
-    {
-      route: "North Route A",
-
-      vehicle: "BUS-012",
-
-      driver: "Daniel M.",
-
-      time: "06:30",
-
-      status: "Active",
-    },
-
-    {
-      route: "Westlands B",
-
-      vehicle: "BUS-008",
-
-      driver: "Peter K.",
-
-      time: "06:45",
-
-      status: "Active",
-    },
-
-    {
-      route: "South Route C",
-
-      vehicle: "BUS-021",
-
-      driver: "Grace N.",
-
-      time: "07:00",
-
-      status: "Delayed",
-    },
-
-    {
-      route: "East Route D",
-
-      vehicle: "BUS-004",
-
-      driver: "James O.",
-
-      time: "14:45",
-
-      status: "Scheduled",
+      source: operations.isError ? "preview" : "live",
     },
   ];
 
   const availabilityPercent =
-    fleetError || fleetLoading ? 0 : (fleet?.availabilityPercent ?? 0);
-
-  const availabilityLabel = fleetLoading
-    ? "Loading"
-    : fleetError
-      ? "Unavailable"
-      : `${availabilityPercent}%`;
+    fleetSummary.isLoading || fleetSummary.isError
+      ? 0
+      : (fleet?.availabilityPercent ?? 0);
 
   return (
     <Box>
-      {/* ================================================
-          COMMAND CENTRE HERO
-          ================================================ */}
+      {/* ==================================================
+          COMMAND CENTRE HEADER
+          ================================================== */}
 
       <Paper
         elevation={0}
         sx={{
-          position: "relative",
-
-          overflow: "hidden",
-
           p: {
             xs: 3,
             md: 4,
@@ -273,44 +235,13 @@ export function OperationsDashboard({
           mb: 2.5,
 
           border: "1px solid",
+          borderColor: "divider",
 
-          borderColor: dark
-            ? tokens.alpha.heroGold18
-            : tokens.alpha.heroBronze17,
-
-          background: dark
-            ? tokens.gradients.dashboardHeroDark
-            : tokens.gradients.dashboardHeroLight,
+          bgcolor: "background.paper",
         }}
       >
         <Box
           sx={{
-            position: "absolute",
-
-            width: 300,
-            height: 300,
-
-            borderRadius: "50%",
-
-            top: -180,
-            right: -80,
-
-            background: `
-                radial-gradient(
-                  circle,
-                  ${tokens.alpha.heroGlow24},
-                  ${tokens.alpha.heroGlow0} 70%
-                )
-              `,
-          }}
-        />
-
-        <Box
-          sx={{
-            position: "relative",
-
-            zIndex: 1,
-
             display: "flex",
 
             flexDirection: {
@@ -320,7 +251,6 @@ export function OperationsDashboard({
 
             alignItems: {
               xs: "flex-start",
-
               md: "center",
             },
 
@@ -330,71 +260,21 @@ export function OperationsDashboard({
           }}
         >
           <Box>
-            <Box
+            <Chip
+              size="small"
+
+              label={
+                managerMode
+                  ? "Transport Operations"
+                  : "Operations Command Centre"
+              }
+
               sx={{
-                display: "flex",
-
-                alignItems: "center",
-
-                gap: 1,
-
-                flexWrap: "wrap",
+                color: "#0F766E",
+                bgcolor: "rgba(15,118,110,0.08)",
+                fontWeight: 700,
               }}
-            >
-              <Chip
-                size="small"
-
-                label={
-                  managerMode
-                    ? "Transport Operations"
-                    : `${roleLabel(tenant?.role)} Command Centre`
-                }
-
-                sx={{
-                  color: dark
-                    ? tokens.colors.dashboard.heroTextDark
-                    : tokens.colors.dashboard.heroTextLight,
-
-                  bgcolor: dark ? tokens.alpha.gold11 : tokens.alpha.gold15,
-
-                  border: "1px solid",
-
-                  borderColor: dark
-                    ? tokens.alpha.lightGold25
-                    : tokens.alpha.bronze20,
-                }}
-              />
-
-              <Chip
-                size="small"
-
-                label="Vehicles live"
-
-                sx={{
-                  color: tokens.colors.status.success,
-
-                  bgcolor: tokens.alpha.success10,
-
-                  border: "1px solid",
-
-                  borderColor: tokens.alpha.success20,
-                }}
-              />
-
-              <Chip
-                size="small"
-
-                label="Trips / drivers / students preview"
-
-                variant="outlined"
-
-                sx={{
-                  color: "text.secondary",
-
-                  borderColor: "divider",
-                }}
-              />
-            </Box>
+            />
 
             <Typography
               component="h1"
@@ -402,18 +282,16 @@ export function OperationsDashboard({
                 mt: 2,
 
                 fontSize: {
-                  xs: 30,
-                  md: 40,
+                  xs: 28,
+                  md: 36,
                 },
 
                 fontWeight: 900,
-
                 lineHeight: 1.08,
-
-                letterSpacing: "-0.045em",
+                letterSpacing: "-0.04em",
               }}
             >
-              Good morning.
+              Operations overview
             </Typography>
 
             <Typography
@@ -421,27 +299,33 @@ export function OperationsDashboard({
                 mt: 1,
 
                 color: "text.secondary",
-
-                fontSize: 14.5,
+                fontSize: 14,
               }}
             >
               {user?.email}
               {" · "}
-              Here's how transport operations are looking today.
+              Live transport activity, fleet readiness and safety alerts.
             </Typography>
           </Box>
 
           <Box
             sx={{
               display: "flex",
-
               gap: 1.25,
-
               flexWrap: "wrap",
             }}
           >
             <Button
               variant="outlined"
+
+              onClick={() => {
+                document
+                  .getElementById("operational-safety")
+                  ?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
+              }}
 
               startIcon={<NotificationsRounded />}
             >
@@ -451,17 +335,19 @@ export function OperationsDashboard({
             <Button
               variant="contained"
 
+              onClick={() => navigate("/tracking")}
+
               startIcon={<MapRounded />}
             >
-              Live fleet
+              Live tracking
             </Button>
           </Box>
         </Box>
       </Paper>
 
-      {/* ================================================
-          KPI GRID
-          ================================================ */}
+      {/* ==================================================
+          LIVE KPI GRID
+          ================================================== */}
 
       <Box
         sx={{
@@ -469,671 +355,33 @@ export function OperationsDashboard({
 
           gridTemplateColumns: {
             xs: "1fr",
-
             sm: "repeat(2, minmax(0, 1fr))",
-
             xl: "repeat(4, minmax(0, 1fr))",
           },
 
           gap: 2,
-
           mb: 2.5,
         }}
       >
         {metrics.map((metric) => (
           <MetricCard
             key={metric.label}
-
             metric={metric}
           />
         ))}
       </Box>
 
-      {/* ================================================
-          LIVE FLEET + SYSTEM STATUS
-          ================================================ */}
-
-      <Box
-        sx={{
-          display: "grid",
-
-          gridTemplateColumns: {
-            xs: "1fr",
-
-            lg: "minmax(0, 1.7fr) minmax(300px, 0.8fr)",
-          },
-
-          gap: 2,
-
-          mb: 2.5,
-        }}
-      >
-        {/* LIVE MAP */}
-
-        <Paper
-          elevation={0}
-          sx={{
-            minHeight: 430,
-
-            overflow: "hidden",
-
-            position: "relative",
-
-            border: "1px solid",
-
-            borderColor: "divider",
-
-            background: dark
-              ? tokens.colors.neutral.graphite850
-              : tokens.colors.neutral.warmCanvas,
-          }}
-        >
-          <Box
-            sx={{
-              px: 3,
-              py: 2.5,
-
-              position: "relative",
-
-              zIndex: 2,
-            }}
-          >
-            <SectionHeader
-              title="Live Fleet"
-
-              subtitle="Realtime GPS vehicle positioning will render here."
-
-              action={
-                <Chip
-                  size="small"
-
-                  icon={<NavigationRounded />}
-
-                  label={
-                    fleetLoading
-                      ? "Loading"
-                      : fleetError
-                        ? "Unavailable"
-                        : `${fleet?.active ?? 0} active`
-                  }
-
-                  sx={{
-                    color: fleetError
-                      ? tokens.colors.status.danger
-                      : tokens.colors.dashboard.liveMapLabel,
-
-                    bgcolor: fleetError
-                      ? tokens.alpha.danger10
-                      : tokens.alpha.gold10,
-                  }}
-                />
-              }
-            />
-          </Box>
-
-          <Box
-            sx={{
-              position: "absolute",
-
-              inset: "92px 0 0",
-
-              overflow: "hidden",
-
-              background: dark
-                ? tokens.gradients.liveMapDark
-                : tokens.gradients.liveMapLight,
-            }}
-          >
-            <Box
-              sx={{
-                position: "absolute",
-
-                width: "120%",
-
-                height: 2,
-
-                left: "-10%",
-
-                top: "42%",
-
-                bgcolor: dark ? tokens.alpha.white08 : tokens.alpha.warmLine10,
-
-                transform: "rotate(-8deg)",
-              }}
-            />
-
-            <Box
-              sx={{
-                position: "absolute",
-
-                width: 2,
-
-                height: "130%",
-
-                left: "56%",
-
-                top: "-15%",
-
-                bgcolor: dark ? tokens.alpha.white065 : tokens.alpha.warmLine09,
-
-                transform: "rotate(18deg)",
-              }}
-            />
-
-            <Box
-              sx={{
-                position: "absolute",
-
-                left: "26%",
-
-                top: "36%",
-
-                width: 38,
-                height: 38,
-
-                display: "grid",
-
-                placeItems: "center",
-
-                borderRadius: "50%",
-
-                bgcolor: tokens.colors.brand.champagneGold,
-
-                color: tokens.colors.neutral.graphite900,
-
-                boxShadow: `0 0 0 8px ${tokens.alpha.gold15}`,
-              }}
-            >
-              <DirectionsBusRounded fontSize="small" />
-            </Box>
-
-            <Box
-              sx={{
-                position: "absolute",
-
-                right: "25%",
-
-                top: "55%",
-
-                width: 34,
-                height: 34,
-
-                display: "grid",
-
-                placeItems: "center",
-
-                borderRadius: "50%",
-
-                bgcolor: tokens.colors.dashboard.mapMarkerSecondary,
-
-                color: tokens.colors.neutral.graphite900,
-
-                boxShadow: `0 0 0 7px ${tokens.alpha.mapMarker15}`,
-              }}
-            >
-              <DirectionsBusRounded
-                sx={{
-                  fontSize: 18,
-                }}
-              />
-            </Box>
-
-            <Box
-              sx={{
-                position: "absolute",
-
-                left: "48%",
-
-                bottom: "22%",
-
-                width: 32,
-                height: 32,
-
-                display: "grid",
-
-                placeItems: "center",
-
-                borderRadius: "50%",
-
-                bgcolor: tokens.colors.dashboard.mapMarkerMuted,
-
-                color: tokens.colors.neutral.white,
-              }}
-            >
-              <DirectionsBusRounded
-                sx={{
-                  fontSize: 17,
-                }}
-              />
-            </Box>
-
-            <Box
-              sx={{
-                position: "absolute",
-
-                left: "50%",
-
-                top: "50%",
-
-                transform: "translate(-50%, -50%)",
-
-                textAlign: "center",
-
-                pointerEvents: "none",
-              }}
-            >
-              <MapRounded
-                sx={{
-                  fontSize: 48,
-
-                  color: dark
-                    ? tokens.alpha.lightGold18
-                    : tokens.alpha.mapWarm20,
-                }}
-              />
-
-              <Typography
-                sx={{
-                  mt: 1,
-
-                  fontSize: 12,
-
-                  fontWeight: 700,
-
-                  color: "text.secondary",
-                }}
-              >
-                GPS map integration next
-              </Typography>
-            </Box>
-          </Box>
-        </Paper>
-
-        {/* FLEET READINESS */}
-
-        <Paper
-          elevation={0}
-          sx={{
-            p: 3,
-
-            border: "1px solid",
-
-            borderColor: "divider",
-          }}
-        >
-          <SectionHeader
-            title="Fleet Readiness"
-
-            subtitle="Operational status"
-          />
-
-          <Box
-            sx={{
-              display: "grid",
-
-              gap: 3,
-            }}
-          >
-            {/* LIVE VEHICLE AVAILABILITY */}
-
-            <Box>
-              <Box
-                sx={{
-                  display: "flex",
-
-                  alignItems: "center",
-
-                  justifyContent: "space-between",
-
-                  gap: 2,
-
-                  mb: 1,
-                }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-
-                    alignItems: "center",
-
-                    gap: 0.8,
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      fontSize: 12.5,
-
-                      fontWeight: 700,
-                    }}
-                  >
-                    Vehicles active
-                  </Typography>
-
-                  <Chip
-                    size="small"
-
-                    label="Live"
-
-                    sx={{
-                      height: 18,
-
-                      fontSize: 8,
-
-                      color: tokens.colors.status.success,
-
-                      bgcolor: tokens.alpha.success10,
-                    }}
-                  />
-                </Box>
-
-                <Typography
-                  sx={{
-                    color: fleetError ? "error.main" : "primary.main",
-
-                    fontSize: 12,
-
-                    fontWeight: 800,
-                  }}
-                >
-                  {availabilityLabel}
-                </Typography>
-              </Box>
-
-              <LinearProgress
-                variant="determinate"
-
-                value={availabilityPercent}
-
-                sx={{
-                  height: 6,
-
-                  borderRadius: 10,
-
-                  bgcolor: "action.hover",
-
-                  "& .MuiLinearProgress-bar": {
-                    borderRadius: 10,
-
-                    bgcolor: fleetError
-                      ? tokens.colors.status.danger
-                      : tokens.colors.brand.champagneGold,
-                  },
-                }}
-              />
-
-              {!fleetLoading && !fleetError ? (
-                <Typography
-                  sx={{
-                    mt: 0.8,
-
-                    color: "text.secondary",
-
-                    fontSize: 10.5,
-                  }}
-                >
-                  {fleet?.active ?? 0} active · {fleet?.maintenance ?? 0}{" "}
-                  maintenance · {fleet?.inactive ?? 0} inactive ·{" "}
-                  {fleet?.retired ?? 0} retired
-                </Typography>
-              ) : null}
-            </Box>
-
-            {/* DRIVER PREVIEW */}
-
-            <Box>
-              <Box
-                sx={{
-                  display: "flex",
-
-                  justifyContent: "space-between",
-
-                  mb: 1,
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontSize: 12.5,
-
-                    fontWeight: 700,
-                  }}
-                >
-                  Drivers assigned
-                </Typography>
-
-                <Typography
-                  sx={{
-                    color: tokens.colors.dashboard.readinessMuted,
-
-                    fontSize: 12,
-
-                    fontWeight: 800,
-                  }}
-                >
-                  87%
-                </Typography>
-              </Box>
-
-              <LinearProgress
-                variant="determinate"
-
-                value={87}
-
-                sx={{
-                  height: 6,
-
-                  borderRadius: 10,
-
-                  bgcolor: "action.hover",
-
-                  "& .MuiLinearProgress-bar": {
-                    borderRadius: 10,
-
-                    bgcolor: tokens.colors.dashboard.readinessMuted,
-                  },
-                }}
-              />
-
-              <Typography
-                sx={{
-                  mt: 0.8,
-
-                  color: "text.secondary",
-
-                  fontSize: 10,
-
-                  fontStyle: "italic",
-                }}
-              >
-                Preview until Drivers API is connected
-              </Typography>
-            </Box>
-
-            {/* ROUTE PREVIEW */}
-
-            <Box>
-              <Box
-                sx={{
-                  display: "flex",
-
-                  justifyContent: "space-between",
-
-                  mb: 1,
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontSize: 12.5,
-
-                    fontWeight: 700,
-                  }}
-                >
-                  Routes on time
-                </Typography>
-
-                <Typography
-                  sx={{
-                    color: tokens.colors.status.success,
-
-                    fontSize: 12,
-
-                    fontWeight: 800,
-                  }}
-                >
-                  94%
-                </Typography>
-              </Box>
-
-              <LinearProgress
-                variant="determinate"
-
-                value={94}
-
-                sx={{
-                  height: 6,
-
-                  borderRadius: 10,
-
-                  bgcolor: "action.hover",
-
-                  "& .MuiLinearProgress-bar": {
-                    borderRadius: 10,
-
-                    bgcolor: tokens.colors.status.success,
-                  },
-                }}
-              />
-
-              <Typography
-                sx={{
-                  mt: 0.8,
-
-                  color: "text.secondary",
-
-                  fontSize: 10,
-
-                  fontStyle: "italic",
-                }}
-              >
-                Preview until Trips API is connected
-              </Typography>
-            </Box>
-          </Box>
-
-          <Divider
-            sx={{
-              my: 3,
-            }}
-          />
-
-          <Box
-            sx={{
-              display: "grid",
-
-              gap: 1.5,
-            }}
-          >
-            {[
-              {
-                label: "Vehicles API",
-
-                value: fleetLoading
-                  ? "Checking"
-                  : fleetError
-                    ? "Error"
-                    : "Connected",
-
-                color: fleetLoading
-                  ? tokens.colors.brand.champagneGold
-                  : fleetError
-                    ? tokens.colors.status.danger
-                    : tokens.colors.status.success,
-              },
-
-              {
-                label: "Realtime gateway",
-
-                value: "Connected",
-
-                color: tokens.colors.status.success,
-              },
-
-              {
-                label: "GPS ingest",
-
-                value: "Healthy",
-
-                color: tokens.colors.status.success,
-              },
-
-              {
-                label: "Odoo sync",
-
-                value: "Pending setup",
-
-                color: tokens.colors.status.warning,
-              },
-            ].map((item) => (
-              <Box
-                key={item.label}
-                sx={{
-                  display: "flex",
-
-                  alignItems: "center",
-
-                  justifyContent: "space-between",
-
-                  gap: 2,
-                }}
-              >
-                <Typography
-                  sx={{
-                    color: "text.secondary",
-
-                    fontSize: 12,
-                  }}
-                >
-                  {item.label}
-                </Typography>
-
-                <Box
-                  sx={{
-                    display: "flex",
-
-                    alignItems: "center",
-
-                    gap: 0.7,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 7,
-                      height: 7,
-
-                      borderRadius: "50%",
-
-                      bgcolor: item.color,
-                    }}
-                  />
-
-                  <Typography
-                    sx={{
-                      fontSize: 11.5,
-
-                      fontWeight: 700,
-                    }}
-                  >
-                    {item.value}
-                  </Typography>
-                </Box>
-              </Box>
-            ))}
-          </Box>
-        </Paper>
+      {/* ==================================================
+          OPERATIONAL SAFETY
+          ================================================== */}
+
+      <Box sx={{ mb: 2.5 }}>
+        <OperationalSafetyPanel />
       </Box>
 
-      {/* ================================================
-          TRIPS + INCIDENTS
-          ================================================ */}
+      {/* ==================================================
+          CURRENT TRIPS + FLEET READINESS
+          ================================================== */}
 
       <Box
         sx={{
@@ -1141,14 +389,200 @@ export function OperationsDashboard({
 
           gridTemplateColumns: {
             xs: "1fr",
-
             xl: "minmax(0, 1.6fr) minmax(320px, 0.8fr)",
           },
 
           gap: 2,
         }}
       >
-        {/* TRIPS - PREVIEW */}
+        <Paper
+          elevation={0}
+          sx={{
+            p: 3,
+
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <SectionHeader
+            title="Current Trips"
+            subtitle="Live trips in the active operational lifecycle"
+            action={
+              <Button
+                size="small"
+                onClick={() => navigate("/trips")}
+              >
+                View trips
+              </Button>
+            }
+          />
+
+          {operations.isLoading ? (
+            <Box
+              sx={{
+                minHeight: 160,
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              <CircularProgress size={26} />
+            </Box>
+          ) : null}
+
+          {operations.isError ? (
+            <Typography
+              sx={{
+                py: 4,
+                color: "error.main",
+                fontSize: 13,
+              }}
+            >
+              Current trips could not be loaded.
+            </Typography>
+          ) : null}
+
+          {!operations.isLoading &&
+          !operations.isError &&
+          (data?.currentTrips.length ?? 0) === 0 ? (
+            <Box
+              sx={{
+                py: 5,
+                textAlign: "center",
+              }}
+            >
+              <ScheduleRounded
+                sx={{
+                  fontSize: 34,
+                  color: "text.disabled",
+                }}
+              />
+
+              <Typography
+                sx={{
+                  mt: 1,
+                  fontWeight: 700,
+                  fontSize: 13,
+                }}
+              >
+                No current trips
+              </Typography>
+
+              <Typography
+                sx={{
+                  mt: 0.5,
+                  color: "text.secondary",
+                  fontSize: 11.5,
+                }}
+              >
+                Scheduled and active trips will appear here.
+              </Typography>
+            </Box>
+          ) : null}
+
+          {(data?.currentTrips ?? []).map((trip, index) => (
+            <Box key={trip.id}>
+              <Box
+                sx={{
+                  py: 1.75,
+
+                  display: "grid",
+
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    md: "minmax(180px,1.3fr) minmax(130px,0.8fr) minmax(120px,0.8fr) 80px 110px",
+                  },
+
+                  alignItems: "center",
+
+                  gap: 1.5,
+                }}
+              >
+                <Box>
+                  <Typography
+                    sx={{
+                      fontSize: 13,
+                      fontWeight: 800,
+                    }}
+                  >
+                    {trip.routeName}
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      mt: 0.25,
+                      color: "text.secondary",
+                      fontSize: 10.5,
+                    }}
+                  >
+                    {trip.vehicleRegistrationNumber ?? "Vehicle unassigned"}
+                  </Typography>
+                </Box>
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.75,
+                  }}
+                >
+                  <PersonRounded
+                    sx={{
+                      fontSize: 16,
+                      color: "text.secondary",
+                    }}
+                  />
+
+                  <Typography
+                    sx={{
+                      color: "text.secondary",
+                      fontSize: 11.5,
+                    }}
+                  >
+                    {trip.driverName ?? "Driver unassigned"}
+                  </Typography>
+                </Box>
+
+                <Typography
+                  sx={{
+                    color: "text.secondary",
+                    fontSize: 11.5,
+                  }}
+                >
+                  {trip.stopCount} stops
+                </Typography>
+
+                <Typography
+                  sx={{
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                  }}
+                >
+                  {formatTime(trip.scheduledStartAt)}
+                </Typography>
+
+                <Chip
+                  size="small"
+
+                  label={tripStatusLabel(trip.status)}
+
+                  sx={{
+                    justifySelf: {
+                      md: "end",
+                    },
+
+                    color: tripStatusColor(trip.status),
+
+                    bgcolor: `${tripStatusColor(trip.status)}12`,
+
+                    fontWeight: 700,
+                  }}
+                />
+              </Box>
+
+              {index < (data?.currentTrips.length ?? 0) - 1 ? <Divider /> : null}
+            </Box>
+          ))}
+        </Paper>
 
         <Paper
           elevation={0}
@@ -1156,236 +590,172 @@ export function OperationsDashboard({
             p: 3,
 
             border: "1px solid",
-
             borderColor: "divider",
           }}
         >
           <SectionHeader
-            title="Today's Trips"
-
-            subtitle="Preview until the Trips API is connected"
-
-            action={
-              <Chip
-                size="small"
-
-                label="Preview"
-
-                sx={{
-                  color: tokens.colors.dashboard.previewText,
-
-                  bgcolor: tokens.alpha.gold09,
-                }}
-              />
-            }
+            title="Fleet Readiness"
+            subtitle="Current vehicle availability"
           />
 
-          <Box
-            sx={{
-              display: "grid",
-            }}
-          >
-            {trips.map((trip, index) => (
-              <Box key={trip.route}>
-                <Box
+          {fleetSummary.isLoading ? (
+            <Box
+              sx={{
+                minHeight: 140,
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              <CircularProgress size={26} />
+            </Box>
+          ) : null}
+
+          {fleetSummary.isError ? (
+            <Typography
+              sx={{
+                py: 4,
+                color: "error.main",
+                fontSize: 13,
+              }}
+            >
+              Fleet readiness could not be loaded.
+            </Typography>
+          ) : null}
+
+          {!fleetSummary.isLoading && !fleetSummary.isError ? (
+            <>
+              <Box
+                sx={{
+                  display: "flex",
+
+                  justifyContent: "space-between",
+                  alignItems: "center",
+
+                  mb: 1,
+                }}
+              >
+                <Typography
                   sx={{
-                    py: 1.7,
-
-                    display: "grid",
-
-                    gridTemplateColumns: {
-                      xs: "1fr",
-
-                      sm: "minmax(180px, 1.3fr) minmax(100px, 0.7fr) minmax(110px, 0.8fr) 70px 95px",
-                    },
-
-                    alignItems: "center",
-
-                    gap: {
-                      xs: 1,
-                      sm: 2,
-                    },
+                    fontSize: 12.5,
+                    fontWeight: 700,
                   }}
                 >
+                  Vehicle availability
+                </Typography>
+
+                <Typography
+                  sx={{
+                    color: "#0F766E",
+                    fontSize: 13,
+                    fontWeight: 800,
+                  }}
+                >
+                  {availabilityPercent}%
+                </Typography>
+              </Box>
+
+              <LinearProgress
+                variant="determinate"
+                value={availabilityPercent}
+
+                sx={{
+                  height: 7,
+                  borderRadius: 10,
+
+                  bgcolor: "action.hover",
+
+                  "& .MuiLinearProgress-bar": {
+                    borderRadius: 10,
+                    bgcolor: "#0F766E",
+                  },
+                }}
+              />
+
+              <Box
+                sx={{
+                  display: "grid",
+                  gap: 1.4,
+                  mt: 3,
+                }}
+              >
+                {[
+                  ["Active", fleet?.active ?? 0, tokens.colors.status.success],
+                  [
+                    "Maintenance",
+                    fleet?.maintenance ?? 0,
+                    tokens.colors.status.warning,
+                  ],
+                  [
+                    "Inactive",
+                    fleet?.inactive ?? 0,
+                    tokens.colors.status.inactive,
+                  ],
+                  [
+                    "Retired",
+                    fleet?.retired ?? 0,
+                    tokens.colors.status.muted,
+                  ],
+                ].map(([label, value, color]) => (
                   <Box
+                    key={String(label)}
                     sx={{
                       display: "flex",
-
                       alignItems: "center",
-
-                      gap: 1.2,
+                      justifyContent: "space-between",
                     }}
                   >
                     <Box
                       sx={{
-                        width: 34,
-                        height: 34,
-
-                        display: "grid",
-
-                        placeItems: "center",
-
-                        borderRadius: 1.5,
-
-                        bgcolor: "action.hover",
-
-                        color: "primary.main",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
                       }}
                     >
-                      <RouteRounded
+                      <Box
                         sx={{
-                          fontSize: 18,
+                          width: 8,
+                          height: 8,
+
+                          borderRadius: "50%",
+                          bgcolor: String(color),
                         }}
                       />
-                    </Box>
-
-                    <Box>
-                      <Typography
-                        sx={{
-                          fontSize: 12.5,
-
-                          fontWeight: 750,
-                        }}
-                      >
-                        {trip.route}
-                      </Typography>
 
                       <Typography
                         sx={{
-                          mt: 0.25,
-
                           color: "text.secondary",
-
-                          fontSize: 10.5,
+                          fontSize: 12,
                         }}
                       >
-                        {trip.vehicle}
+                        {String(label)}
                       </Typography>
                     </Box>
-                  </Box>
-
-                  <Box
-                    sx={{
-                      display: "flex",
-
-                      alignItems: "center",
-
-                      gap: 0.7,
-                    }}
-                  >
-                    <PersonRounded
-                      sx={{
-                        fontSize: 15,
-
-                        color: "text.secondary",
-                      }}
-                    />
 
                     <Typography
                       sx={{
-                        color: "text.secondary",
-
-                        fontSize: 11.5,
+                        fontSize: 12,
+                        fontWeight: 800,
                       }}
                     >
-                      {trip.driver}
+                      {String(value)}
                     </Typography>
                   </Box>
-
-                  <Box
-                    sx={{
-                      display: "flex",
-
-                      alignItems: "center",
-
-                      gap: 0.7,
-                    }}
-                  >
-                    <LocationOnRounded
-                      sx={{
-                        fontSize: 15,
-
-                        color: "text.secondary",
-                      }}
-                    />
-
-                    <Typography
-                      sx={{
-                        color: "text.secondary",
-
-                        fontSize: 11.5,
-                      }}
-                    >
-                      School Campus
-                    </Typography>
-                  </Box>
-
-                  <Box
-                    sx={{
-                      display: "flex",
-
-                      alignItems: "center",
-
-                      gap: 0.5,
-                    }}
-                  >
-                    <AccessTimeRounded
-                      sx={{
-                        fontSize: 14,
-
-                        color: "text.secondary",
-                      }}
-                    />
-
-                    <Typography
-                      sx={{
-                        fontSize: 11.5,
-
-                        fontWeight: 700,
-                      }}
-                    >
-                      {trip.time}
-                    </Typography>
-                  </Box>
-
-                  <Chip
-                    size="small"
-
-                    label={trip.status}
-
-                    sx={{
-                      justifySelf: {
-                        sm: "end",
-                      },
-
-                      color: statusColor(trip.status),
-
-                      bgcolor: `${statusColor(trip.status)}15`,
-
-                      border: "1px solid",
-
-                      borderColor: `${statusColor(trip.status)}30`,
-                    }}
-                  />
-                </Box>
-
-                {index < trips.length - 1 ? <Divider /> : null}
+                ))}
               </Box>
-            ))}
-          </Box>
+
+              <Divider sx={{ my: 3 }} />
+
+              <Button
+                fullWidth
+                variant="outlined"
+                onClick={() => navigate("/vehicles")}
+              >
+                Manage fleet
+              </Button>
+            </>
+          ) : null}
         </Paper>
-
-        {/* LIVE OPERATIONAL SAFETY */}
-
-        <OperationalSafetyPanel />
       </Box>
     </Box>
   );
 }
-
-/**
- * Driver-specific dashboard.
- *
- * Driver data remains separate because Drivers do not
- * receive general fleet-management permissions.
- */
