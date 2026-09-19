@@ -178,9 +178,83 @@ export interface RouteDeviationResolvedOperationalEvent {
   longitude: number;
 }
 
+export type OperationalSafetyTelemetryStatus = "open" | "resolved";
+
+export type OperationalSafetyHandlingStatus =
+  "unacknowledged" | "acknowledged" | "closed";
+
+export type OperationalSafetyDriverReason =
+  | "road_diversion"
+  | "traffic_obstruction"
+  | "emergency"
+  | "wrong_turn"
+  | "other";
+
+export type OperationalSafetyStudentStatus =
+  "all_safe" | "assistance_required" | "emergency";
+
+interface OperationalSafetyWorkflowEventBase {
+  eventId: string;
+
+  tenantId: string;
+
+  safetyEventId: string;
+
+  tripId: string;
+
+  status: OperationalSafetyTelemetryStatus;
+
+  handlingStatus: OperationalSafetyHandlingStatus;
+
+  occurredAt: string;
+}
+
+export interface DriverReasonRecordedOperationalEvent extends OperationalSafetyWorkflowEventBase {
+  eventType: "operational.safety.driver_reason_recorded";
+
+  driverReason: OperationalSafetyDriverReason;
+
+  recordedAt: string;
+}
+
+export interface OperationalSafetyAcknowledgedEvent extends OperationalSafetyWorkflowEventBase {
+  eventType: "operational.safety.acknowledged";
+
+  handlingStatus: "acknowledged";
+
+  acknowledgedAt: string;
+}
+
+export interface OperationalSafetyAssessmentUpdatedEvent extends OperationalSafetyWorkflowEventBase {
+  eventType: "operational.safety.assessment_updated";
+
+  handlingStatus: "acknowledged";
+
+  studentSafetyStatus: OperationalSafetyStudentStatus;
+}
+
+export interface OperationalSafetyClosedEvent extends OperationalSafetyWorkflowEventBase {
+  eventType: "operational.safety.closed";
+
+  status: "resolved";
+
+  handlingStatus: "closed";
+
+  studentSafetyStatus: OperationalSafetyStudentStatus;
+
+  closedAt: string;
+}
+
+export type OperationalSafetyWorkflowRealtimeEvent =
+  | DriverReasonRecordedOperationalEvent
+  | OperationalSafetyAcknowledgedEvent
+  | OperationalSafetyAssessmentUpdatedEvent
+  | OperationalSafetyClosedEvent;
+
 export type OperationalSafetyRealtimeEvent =
   | RouteDeviationConfirmedOperationalEvent
-  | RouteDeviationResolvedOperationalEvent;
+  | RouteDeviationResolvedOperationalEvent
+  | OperationalSafetyWorkflowRealtimeEvent;
 
 export interface TrackingConnectionReady {
   tenantId: string;

@@ -2,39 +2,72 @@ import { apiRequest } from "../api/client";
 
 export type OperationalSafetyEventStatus = "open" | "resolved";
 
+export type OperationalSafetyDriverReason =
+  | "road_diversion"
+  | "traffic_obstruction"
+  | "emergency"
+  | "wrong_turn"
+  | "other";
+
+export type OperationalSafetyHandlingStatus =
+  "unacknowledged" | "acknowledged" | "closed";
+
+export type OperationalSafetyStudentStatus =
+  "all_safe" | "assistance_required" | "emergency";
+
 export interface OperationalSafetyEvent {
   id: string;
 
   tenantId: string;
-
   schoolId: string | null;
 
   tripId: string;
-
   routeId: string;
-
   vehicleId: string;
-
   routeDeviationId: string;
 
   eventType: "route_deviation";
 
   severity: "low" | "medium" | "high" | "critical";
 
+  /**
+   * Physical GPS lifecycle.
+   */
   status: OperationalSafetyEventStatus;
 
+  driverReason: OperationalSafetyDriverReason | null;
+
+  driverReasonRecordedAt: string | null;
+
+  driverReasonRecordedByUserId: string | null;
+
+  /**
+   * Human handling lifecycle.
+   *
+   * A physically recovered route can still require human
+   * follow-up until this reaches "closed".
+   */
+  handlingStatus: OperationalSafetyHandlingStatus;
+
+  acknowledgedAt: string | null;
+
+  acknowledgedByUserId: string | null;
+
+  studentSafetyStatus: OperationalSafetyStudentStatus | null;
+
+  teacherNote: string | null;
+
+  closedAt: string | null;
+
+  closedByUserId: string | null;
+
   firstObservedAt: string;
-
   confirmedAt: string;
-
   lastObservedAt: string;
-
   resolvedAt: string | null;
 
   initialDistanceMeters: number;
-
   maxDistanceMeters: number;
-
   lastDistanceMeters: number;
 }
 
@@ -44,18 +77,32 @@ export interface OperationalSafetyEventPage {
   nextCursor: string | null;
 }
 
+export interface ListOperationalSafetyEventsQuery {
+  limit?: number;
+
+  status?: OperationalSafetyEventStatus;
+
+  cursor?: string;
+}
+
 /**
- * Bootstrap the dashboard from durable PostgreSQL state.
- *
- * Realtime events are layered over this response separately.
+ * Cursor-paginated operational safety history.
  */
-export function listOperationalSafetyEvents(
+export function listOperationalSafetyEventsPage(
   tenantId: string,
-  limit = 20,
+  query: ListOperationalSafetyEventsQuery = {},
 ): Promise<OperationalSafetyEventPage> {
-  const params = new URLSearchParams({
-    limit: String(limit),
-  });
+  const params = new URLSearchParams();
+
+  params.set("limit", String(query.limit ?? 20));
+
+  if (query.status) {
+    params.set("status", query.status);
+  }
+
+  if (query.cursor) {
+    params.set("cursor", query.cursor);
+  }
 
   return apiRequest<OperationalSafetyEventPage>(
     `/operational-safety-events?${params.toString()}`,
@@ -63,4 +110,16 @@ export function listOperationalSafetyEvents(
       tenantId,
     },
   );
+}
+
+/**
+ * Backward-compatible dashboard bootstrap.
+ */
+export function listOperationalSafetyEvents(
+  tenantId: string,
+  limit = 20,
+): Promise<OperationalSafetyEventPage> {
+  return listOperationalSafetyEventsPage(tenantId, {
+    limit,
+  });
 }
