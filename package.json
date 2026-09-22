@@ -64,7 +64,8 @@
     "test:tenant-capacity-frontend": "node scripts/test-tenant-capacity-frontend.mjs",
     "test:platform-plan-editor-frontend": "node scripts/test-platform-plan-editor-frontend.mjs",
     "test:tenant-feature-locks-frontend": "node scripts/test-tenant-feature-locks-frontend.mjs",
-    "test:plan-capacity-defaults-frontend": "node scripts/test-plan-capacity-defaults-frontend.mjs"
+    "test:plan-capacity-defaults-frontend": "node scripts/test-plan-capacity-defaults-frontend.mjs",
+    "test:platform-onboarding-frontend": "node scripts/test-platform-onboarding-frontend.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

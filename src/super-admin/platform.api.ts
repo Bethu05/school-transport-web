@@ -662,3 +662,320 @@ export function setPlatformPlanFeature(
     },
   );
 }
+
+// ============================================================
+// PLATFORM TENANT ONBOARDING WORKFLOW
+//
+// These are Platform Super Admin calls.
+//
+// They deliberately do NOT supply x-tenant-id. The target tenant
+// is identified by the platform endpoint path and independently
+// authorized by the backend.
+// ============================================================
+
+export type PlatformOnboardingApprovalStatus =
+  "pending_review" | "approved" | "rejected";
+
+export type PlatformOnboardingStepStatus =
+  "pending" | "in_progress" | "completed" | "skipped" | "blocked";
+
+export type PlatformOnboardingStage =
+  | "registration"
+  | "approval"
+  | "provisioning"
+  | "commercial_setup"
+  | "account_setup"
+  | "data_migration"
+  | "data_validation"
+  | "ready_to_launch"
+  | "live";
+
+export interface PlatformOnboardingStep {
+  stepKey: string;
+
+  stepOrder: number;
+
+  stepName: string;
+
+  status: PlatformOnboardingStepStatus;
+
+  requiredForActivation: boolean;
+
+  completionMethod: string | null;
+
+  completedBy: string | null;
+
+  completedAt: string | null;
+
+  notes: string | null;
+
+  metadata: Record<string, unknown>;
+
+  updatedBy: string | null;
+
+  updatedAt: string;
+}
+
+export interface PlatformOnboardingWorkflow {
+  tenantId: string;
+
+  tenantName: string;
+
+  tenantSlug: string;
+
+  approvalStatus: PlatformOnboardingApprovalStatus;
+
+  currentStage: PlatformOnboardingStage;
+
+  approvedBy: string | null;
+
+  approvedAt: string | null;
+
+  rejectedBy: string | null;
+
+  rejectedAt: string | null;
+
+  rejectionReason: string | null;
+
+  activatedBy: string | null;
+
+  activatedAt: string | null;
+
+  createdAt: string;
+
+  updatedAt: string;
+
+  steps: PlatformOnboardingStep[];
+}
+
+export interface PlatformOnboardingQueueItem {
+  tenantId: string;
+
+  tenantName: string;
+
+  tenantSlug: string;
+
+  tenantStatus: string;
+
+  approvalStatus: PlatformOnboardingApprovalStatus;
+
+  currentStage: PlatformOnboardingStage;
+
+  completedRequiredSteps: number;
+
+  requiredSteps: number;
+
+  updatedAt: string;
+}
+
+export interface PlatformOnboardingQueue {
+  items: PlatformOnboardingQueueItem[];
+}
+
+export interface PlatformOnboardingSummary {
+  tenant: {
+    id: string;
+
+    name: string;
+
+    slug: string;
+
+    status: string;
+
+    timezone: string;
+  };
+
+  workflow: {
+    approvalStatus: PlatformOnboardingApprovalStatus;
+
+    currentStage: PlatformOnboardingStage;
+
+    approvedAt: string | null;
+
+    activatedAt: string | null;
+
+    readyToActivate: boolean;
+
+    live: boolean;
+  };
+
+  progress: {
+    requiredSteps: number;
+
+    completedRequiredSteps: number;
+
+    remainingRequiredSteps: number;
+
+    percent: number;
+  };
+
+  blockers: Array<{
+    stepKey: string;
+
+    stepOrder: number;
+
+    stepName: string;
+
+    status: PlatformOnboardingStepStatus;
+  }>;
+
+  commercial: {
+    planId: string;
+
+    planCode: string;
+
+    planName: string;
+
+    subscriptionStatus: string;
+
+    startsAt: string;
+
+    endsAt: string | null;
+
+    externalReference: string | null;
+  } | null;
+
+  initialAdmin: {
+    userId: string;
+
+    email: string;
+
+    firstName: string;
+
+    lastName: string;
+
+    userStatus: string;
+
+    membershipStatus: string;
+  } | null;
+
+  step13: {
+    status: PlatformOnboardingStepStatus;
+
+    completionMethod: string | null;
+
+    completedAt: string | null;
+  } | null;
+}
+
+export interface SetPlatformOnboardingApprovalInput {
+  approvalStatus: PlatformOnboardingApprovalStatus;
+
+  notes?: string;
+}
+
+export interface UpdatePlatformOnboardingStepInput {
+  status: PlatformOnboardingStepStatus;
+
+  completionMethod?: string;
+
+  notes?: string;
+
+  metadata?: Record<string, unknown>;
+}
+
+export interface ActivatePlatformOnboardingInput {
+  notes?: string;
+}
+
+/**
+ * Global approval/readiness queue.
+ *
+ * This is wired now for the later top-level Onboarding workspace.
+ */
+export function listPlatformOnboardingQueue(): Promise<PlatformOnboardingQueue> {
+  return apiRequest<PlatformOnboardingQueue>("/platform/onboarding/queue");
+}
+
+/**
+ * Canonical persisted 15-step workflow.
+ */
+export function getPlatformOnboardingWorkflow(
+  tenantId: string,
+): Promise<PlatformOnboardingWorkflow> {
+  return apiRequest<PlatformOnboardingWorkflow>(
+    `/platform/onboarding/tenants/${tenantId}`,
+  );
+}
+
+/**
+ * Read launch readiness, blockers, commercial configuration and
+ * administrator evidence for one tenant.
+ */
+export function getPlatformOnboardingSummary(
+  tenantId: string,
+): Promise<PlatformOnboardingSummary> {
+  return apiRequest<PlatformOnboardingSummary>(
+    `/platform/onboarding/tenants/${tenantId}/summary`,
+  );
+}
+
+/**
+ * Super Admin approval decision.
+ */
+export function setPlatformOnboardingApproval(
+  tenantId: string,
+  input: SetPlatformOnboardingApprovalInput,
+): Promise<PlatformOnboardingWorkflow> {
+  return apiRequest<PlatformOnboardingWorkflow>(
+    `/platform/onboarding/tenants/${tenantId}/approval`,
+    {
+      method: "PUT",
+
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+/**
+ * Manual workflow evidence update.
+ *
+ * The UI deliberately uses this only where human evidence is
+ * appropriate. System-managed steps are never given generic
+ * completion buttons.
+ */
+export function updatePlatformOnboardingStep(
+  tenantId: string,
+  stepKey: string,
+  input: UpdatePlatformOnboardingStepInput,
+): Promise<PlatformOnboardingWorkflow> {
+  return apiRequest<PlatformOnboardingWorkflow>(
+    `/platform/onboarding/tenants/${tenantId}/steps/${stepKey}`,
+    {
+      method: "PUT",
+
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+/**
+ * Re-read verified platform evidence and reconcile automatic steps.
+ */
+export function reconcilePlatformOnboarding(
+  tenantId: string,
+): Promise<PlatformOnboardingWorkflow> {
+  return apiRequest<PlatformOnboardingWorkflow>(
+    `/platform/onboarding/tenants/${tenantId}/reconcile`,
+    {
+      method: "POST",
+    },
+  );
+}
+
+/**
+ * Step 12 activation gate.
+ */
+export function activatePlatformOnboarding(
+  tenantId: string,
+  input: ActivatePlatformOnboardingInput,
+): Promise<PlatformOnboardingWorkflow> {
+  return apiRequest<PlatformOnboardingWorkflow>(
+    `/platform/onboarding/tenants/${tenantId}/activate`,
+    {
+      method: "PUT",
+
+      body: JSON.stringify(input),
+    },
+  );
+}

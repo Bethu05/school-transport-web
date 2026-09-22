@@ -1,6 +1,7 @@
 import {
   ArrowBackRounded,
   BusinessRounded,
+  FactCheckRounded,
   GroupsRounded,
   LockRounded,
   PaymentsRounded,
@@ -35,6 +36,8 @@ import { TenantFeatureLimits } from "./TenantFeatureLimits";
 
 import { TenantInitialAdminActions } from "./TenantInitialAdminActions";
 
+import { TenantOnboardingPanel } from "./TenantOnboardingPanel";
+
 import {
   getPlatformTenantCapacity,
   getPlatformTenantOnboardingStatus,
@@ -42,7 +45,12 @@ import {
 } from "./platform.api";
 
 type ManagementPanel =
-  "subscription" | "capacity" | "features" | "administrator" | null;
+  | "onboarding"
+  | "subscription"
+  | "capacity"
+  | "features"
+  | "administrator"
+  | null;
 
 interface TenantManagementPageProps {
   tenant: PlatformTenantListItem;
@@ -239,6 +247,9 @@ export function TenantManagementPage({
 
   function dialogTitle(): string {
     switch (activePanel) {
+      case "onboarding":
+        return "Onboarding control centre";
+
       case "subscription":
         return "Subscription & access";
 
@@ -395,6 +406,50 @@ export function TenantManagementPage({
           gap: 1.5,
         }}
       >
+        {/* ----------------------------------------------------
+            ONBOARDING
+            ---------------------------------------------------- */}
+
+        <ControlCard
+          title="Onboarding"
+          description="15-step approval, setup, readiness and activation workflow."
+          icon={<FactCheckRounded fontSize="small" />}
+          onClick={() => setActivePanel("onboarding")}
+        >
+          <Stack
+            direction="row"
+            spacing={1}
+            useFlexGap
+            sx={{
+              flexWrap: "wrap",
+            }}
+          >
+            <Chip
+              size="small"
+              label="15 canonical steps"
+              color="primary"
+              variant="outlined"
+            />
+
+            <Chip size="small" label="Activation gated" variant="outlined" />
+          </Stack>
+
+          <Typography
+            sx={{
+              mt: 1.25,
+
+              color: "text.secondary",
+
+              fontSize: 10,
+
+              lineHeight: 1.5,
+            }}
+          >
+            Review approval, evidence, migration and launch readiness. Demo
+            reset and journey simulation remain isolated as Steps 14–15.
+          </Typography>
+        </ControlCard>
+
         {/* ----------------------------------------------------
             SUBSCRIPTION
             ---------------------------------------------------- */}
@@ -636,7 +691,13 @@ export function TenantManagementPage({
         open={activePanel !== null}
         onClose={() => setActivePanel(null)}
         fullWidth
-        maxWidth={activePanel === "capacity" ? "md" : "sm"}
+        maxWidth={
+          activePanel === "onboarding"
+            ? "lg"
+            : activePanel === "capacity"
+              ? "md"
+              : "sm"
+        }
         scroll="paper"
       >
         <DialogTitle>
@@ -669,6 +730,10 @@ export function TenantManagementPage({
             p: 2.5,
           }}
         >
+          {activePanel === "onboarding" ? (
+            <TenantOnboardingPanel tenant={tenant} />
+          ) : null}
+
           {activePanel === "subscription" ? (
             <TenantCommercialActions
               tenant={tenant}
