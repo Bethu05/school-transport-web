@@ -36,6 +36,7 @@ import {
   type AuthenticatedUser,
   type LoginRequest,
   type TenantCommercialAccess,
+  type TenantFeatureAccess,
 } from "./auth.api";
 
 export interface AuthLoginOutcome {
@@ -56,6 +57,11 @@ interface AuthContextValue {
    * Effective permissions returned by the backend.
    */
   permissions: readonly string[];
+
+  /**
+   * Effective tenant feature entitlements returned by /auth/context.
+   */
+  features: readonly TenantFeatureAccess[];
 
   /**
    * Current tenant commercial access returned by /auth/context.
@@ -146,6 +152,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const [permissions, setPermissions] = useState<readonly string[]>([]);
 
+  const [features, setFeatures] =
+    useState<readonly TenantFeatureAccess[]>([]);
+
   const [access, setAccess] = useState<TenantCommercialAccess | null>(null);
 
   const [passwordChangeRequired, setPasswordChangeRequired] = useState(false);
@@ -162,6 +171,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setTenant(null);
 
     setPermissions([]);
+
+    setFeatures([]);
 
     setAccess(null);
   }
@@ -221,6 +232,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setTenant(context.tenant);
 
           setPermissions(context.permissions);
+
+      setFeatures(context.features);
 
           setAccess(context.access);
 
@@ -297,6 +310,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setTenant(context.tenant);
 
       setPermissions(context.permissions);
+
+      setFeatures(context.features);
 
       setAccess(context.access);
     } else {
@@ -379,6 +394,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         setPermissions(context.permissions);
 
+      setFeatures(context.features);
+
         setAccess(context.access);
       } catch {
         /**
@@ -413,6 +430,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       permissions,
 
+      features,
+
       access,
 
       passwordChangeRequired,
@@ -431,6 +450,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       user,
       tenant,
       permissions,
+      features,
       access,
       passwordChangeRequired,
       isSuperAdmin,

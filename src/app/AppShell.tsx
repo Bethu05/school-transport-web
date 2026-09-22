@@ -23,6 +23,7 @@ import {
   DomainRounded,
   FamilyRestroomRounded,
   LightModeRounded,
+  LockRounded,
   LogoutRounded,
   ManageAccountsRounded,
   MapRounded,
@@ -44,6 +45,8 @@ import {
   hasFrontendPermission,
   type FrontendPermission,
 } from "../auth/frontend-permissions";
+
+import { UpgradeRequiredDialog } from "../commercial/UpgradeRequiredDialog";
 
 import { useColorMode } from "../theme/AppThemeProvider";
 
@@ -74,6 +77,14 @@ interface NavigationItem {
   anyPermissions?: readonly FrontendPermission[];
 
   /**
+   * Optional tenant commercial feature required for the whole page.
+   *
+   * Permission determines whether the USER may use the page.
+   * Feature entitlement determines whether the TENANT owns it.
+   */
+  feature?: string;
+
+  /**
    * Temporary fallback for special navigation whose access is
    * role/relationship-specific rather than a simple page permission.
    */
@@ -94,6 +105,7 @@ const navigation: NavigationItem[] = [
     label: "Live Tracking",
     path: "/tracking",
     icon: <MapRounded />,
+    feature: "tracking.live",
     roles: ALL_ROLES,
   },
 
@@ -216,7 +228,7 @@ function initials(email?: string): string {
 }
 
 export function AppShell({ children }: AppShellProps) {
-  const { permissions, user, tenant, logout } = useAuth();
+  const { permissions, features, user, tenant, logout } = useAuth();
 
   const { mode, toggleColorMode } = useColorMode();
 
@@ -226,7 +238,16 @@ export function AppShell({ children }: AppShellProps) {
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const [lockedNavigationItem, setLockedNavigationItem] =
+    useState<NavigationItem | null>(null);
+
   const role = tenant?.role;
+
+  const enabledFeatureKeys = new Set(
+    features
+      .filter((feature) => feature.enabled)
+      .map((feature) => feature.key),
+  );
 
   const visibleNavigation = navigation.filter((item) => {
     if (
@@ -351,11 +372,25 @@ export function AppShell({ children }: AppShellProps) {
         {visibleNavigation.map((item) => {
           const selected = location.pathname === item.path;
 
+          const locked =
+            Boolean(item.feature) &&
+            !enabledFeatureKeys.has(item.feature!);
+
           return (
             <ListItemButton
               key={item.path}
               selected={selected}
-              onClick={() => navigateTo(item.path)}
+              onClick={() => {
+                if (locked) {
+                  setLockedNavigationItem(item);
+
+                  setMobileOpen(false);
+
+                  return;
+                }
+
+                navigateTo(item.path);
+              }}
               sx={{
                 mb: 0.5,
 
@@ -396,6 +431,18 @@ export function AppShell({ children }: AppShellProps) {
                   },
                 }}
               />
+
+              {locked ? (
+                <Tooltip title="Upgrade required">
+                  <LockRounded
+                    sx={{
+                      ml: 1,
+                      fontSize: 16,
+                      color: "warning.main",
+                    }}
+                  />
+                </Tooltip>
+              ) : null}
             </ListItemButton>
           );
         })}
@@ -703,6 +750,12 @@ export function AppShell({ children }: AppShellProps) {
           {children}
         </Box>
       </Box>
+      <UpgradeRequiredDialog
+        open={lockedNavigationItem !== null}
+        featureName={lockedNavigationItem?.label ?? "Feature"}
+        onClose={() => setLockedNavigationItem(null)}
+      />
+
     </Box>
   );
 }

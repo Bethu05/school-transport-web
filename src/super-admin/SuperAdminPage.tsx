@@ -15,9 +15,9 @@ import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
 
-import { TenantCommercialActions } from "./TenantCommercialActions";
+import { PlanEditor } from "./PlanEditor";
 
-import { TenantInitialAdminActions } from "./TenantInitialAdminActions";
+import { TenantManagementPage } from "./TenantManagementPage";
 
 import { TenantsPanel } from "./TenantsPanel";
 
@@ -55,6 +55,9 @@ export function SuperAdminPage() {
   const [activeSection, setActiveSection] = useState("Overview");
 
   const [selectedTenant, setSelectedTenant] =
+    useState<PlatformTenantListItem | null>(null);
+
+  const [managingTenant, setManagingTenant] =
     useState<PlatformTenantListItem | null>(null);
 
   function handleLogout(): void {
@@ -161,7 +164,11 @@ export function SuperAdminPage() {
             <Button
               key={item.label}
               startIcon={item.icon}
-              onClick={() => setActiveSection(item.label)}
+              onClick={() => {
+                setActiveSection(item.label);
+
+                setManagingTenant(null);
+              }}
               fullWidth
               sx={{
                 justifyContent: "flex-start",
@@ -284,7 +291,9 @@ export function SuperAdminPage() {
             letterSpacing: "-0.04em",
           }}
         >
-          {activeSection}
+          {activeSection === "Tenants" && managingTenant
+            ? `Manage ${managingTenant.name}`
+            : activeSection}
         </Typography>
 
         <Typography
@@ -299,7 +308,9 @@ export function SuperAdminPage() {
             lineHeight: 1.7,
           }}
         >
-          Manage tenants, subscriptions, plans and platform operations.
+          {activeSection === "Tenants" && managingTenant
+            ? "Manage this tenant's subscription, operating capacity, feature access and administrator account."
+            : "Manage tenants, subscriptions, plans and platform operations."}
         </Typography>
 
         <Paper
@@ -316,10 +327,25 @@ export function SuperAdminPage() {
           }}
         >
           {activeSection === "Tenants" ? (
-            <TenantsPanel
-              selectedTenantId={selectedTenant?.id ?? null}
-              onSelectTenant={setSelectedTenant}
-            />
+            managingTenant ? (
+              <TenantManagementPage
+                tenant={managingTenant}
+                onBack={() => setManagingTenant(null)}
+                onTenantUpdated={(tenant) => {
+                  setManagingTenant(tenant);
+
+                  setSelectedTenant(tenant);
+                }}
+              />
+            ) : (
+              <TenantsPanel
+                selectedTenantId={selectedTenant?.id ?? null}
+                onSelectTenant={setSelectedTenant}
+                onManageTenant={setManagingTenant}
+              />
+            )
+          ) : activeSection === "Plans" ? (
+            <PlanEditor />
           ) : (
             <>
               <Typography
@@ -377,7 +403,7 @@ export function SuperAdminPage() {
             fontWeight: 800,
           }}
         >
-          {activeSection === "Tenants" ? "Tenant details" : "Platform status"}
+          {activeSection === "Tenants" ? "Tenant overview" : "Platform status"}
         </Typography>
 
         <Typography
@@ -548,17 +574,6 @@ export function SuperAdminPage() {
                   {selectedTenant.id}
                 </Typography>
               </Box>
-
-              <TenantCommercialActions
-                key={selectedTenant.id}
-                tenant={selectedTenant}
-                onTenantUpdated={setSelectedTenant}
-              />
-
-              <TenantInitialAdminActions
-                key={selectedTenant.id}
-                tenant={selectedTenant}
-              />
             </Stack>
           ) : (
             <Typography

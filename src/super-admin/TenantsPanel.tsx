@@ -15,7 +15,7 @@ import {
   Typography,
 } from "@mui/material";
 
-import { AddRounded } from "@mui/icons-material";
+import { AddRounded, TuneRounded } from "@mui/icons-material";
 
 import { useQuery } from "@tanstack/react-query";
 
@@ -33,6 +33,7 @@ function formatDate(value: string | null): string {
 
   return new Intl.DateTimeFormat("en-KE", {
     dateStyle: "medium",
+
     timeZone: "Africa/Nairobi",
   }).format(new Date(value));
 }
@@ -61,11 +62,14 @@ interface TenantsPanelProps {
   selectedTenantId: string | null;
 
   onSelectTenant: (tenant: PlatformTenantListItem) => void;
+
+  onManageTenant: (tenant: PlatformTenantListItem) => void;
 }
 
 export function TenantsPanel({
   selectedTenantId,
   onSelectTenant,
+  onManageTenant,
 }: TenantsPanelProps) {
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -80,7 +84,9 @@ export function TenantsPanel({
       <Box
         sx={{
           minHeight: 300,
+
           display: "grid",
+
           placeItems: "center",
         }}
       >
@@ -106,14 +112,20 @@ export function TenantsPanel({
       <Box
         sx={{
           display: "flex",
+
           alignItems: {
             xs: "flex-start",
+
             sm: "center",
           },
+
           justifyContent: "space-between",
+
           gap: 2,
+
           flexDirection: {
             xs: "column",
+
             sm: "row",
           },
         }}
@@ -122,6 +134,7 @@ export function TenantsPanel({
           <Typography
             sx={{
               fontSize: 17,
+
               fontWeight: 800,
             }}
           >
@@ -131,7 +144,9 @@ export function TenantsPanel({
           <Typography
             sx={{
               mt: 0.5,
+
               color: "text.secondary",
+
               fontSize: 12,
             }}
           >
@@ -142,7 +157,9 @@ export function TenantsPanel({
         <Box
           sx={{
             display: "flex",
+
             alignItems: "center",
+
             gap: 1,
           }}
         >
@@ -168,6 +185,7 @@ export function TenantsPanel({
         <Box
           sx={{
             py: 8,
+
             textAlign: "center",
           }}
         >
@@ -182,7 +200,9 @@ export function TenantsPanel({
           <Typography
             sx={{
               mt: 0.75,
+
               color: "text.secondary",
+
               fontSize: 12,
             }}
           >
@@ -193,8 +213,11 @@ export function TenantsPanel({
         <TableContainer
           sx={{
             mt: 3,
+
             border: "1px solid",
+
             borderColor: "divider",
+
             borderRadius: 2,
           }}
         >
@@ -212,6 +235,8 @@ export function TenantsPanel({
                 <TableCell>Ends</TableCell>
 
                 <TableCell>Timezone</TableCell>
+
+                <TableCell align="right">Manage</TableCell>
               </TableRow>
             </TableHead>
 
@@ -224,16 +249,13 @@ export function TenantsPanel({
                   onClick={() => onSelectTenant(tenant)}
                   sx={{
                     cursor: "pointer",
-
-                    "&:last-child td": {
-                      borderBottom: 0,
-                    },
                   }}
                 >
                   <TableCell>
                     <Typography
                       sx={{
                         fontSize: 13,
+
                         fontWeight: 700,
                       }}
                     >
@@ -243,7 +265,9 @@ export function TenantsPanel({
                     <Typography
                       sx={{
                         mt: 0.25,
+
                         color: "text.secondary",
+
                         fontSize: 10,
                       }}
                     >
@@ -264,22 +288,24 @@ export function TenantsPanel({
                     <Typography
                       sx={{
                         fontSize: 12,
+
                         fontWeight: 600,
                       }}
                     >
                       {tenant.planName ?? "No plan"}
                     </Typography>
 
-                    {tenant.planCode && (
+                    {tenant.planCode ? (
                       <Typography
                         sx={{
                           color: "text.secondary",
+
                           fontSize: 10,
                         }}
                       >
                         {tenant.planCode}
                       </Typography>
-                    )}
+                    ) : null}
                   </TableCell>
 
                   <TableCell>
@@ -309,11 +335,36 @@ export function TenantsPanel({
                     <Typography
                       sx={{
                         color: "text.secondary",
+
                         fontSize: 11,
                       }}
                     >
                       {tenant.timezone}
                     </Typography>
+                  </TableCell>
+
+                  <TableCell align="right">
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<TuneRounded fontSize="small" />}
+                      onClick={(event) => {
+                        event.stopPropagation();
+
+                        onSelectTenant(tenant);
+
+                        onManageTenant(tenant);
+                      }}
+                      sx={{
+                        whiteSpace: "nowrap",
+
+                        textTransform: "none",
+
+                        fontWeight: 700,
+                      }}
+                    >
+                      Manage tenant
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}

@@ -111,6 +111,10 @@ export function TenantCommercialActions({
         onTenantUpdated(refreshedTenant);
       }
 
+      await queryClient.invalidateQueries({
+        queryKey: ["platform", "tenant-feature-states", tenant.id],
+      });
+
       setSuccessMessage(
         variables.status === "trialing"
           ? "Trial started successfully."
@@ -135,6 +139,10 @@ export function TenantCommercialActions({
         onTenantUpdated(refreshedTenant);
       }
 
+      await queryClient.invalidateQueries({
+        queryKey: ["platform", "tenant-feature-states", tenant.id],
+      });
+
       setPauseOpen(false);
 
       setSuccessMessage(
@@ -151,12 +159,6 @@ export function TenantCommercialActions({
 
   return (
     <Box>
-      <Divider
-        sx={{
-          my: 3,
-        }}
-      />
-
       <Typography
         sx={{
           fontSize: 12,

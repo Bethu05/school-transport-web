@@ -75,6 +75,21 @@ export interface CurrentUserResponse {
   security: PasswordSecurityState;
 }
 
+export type TenantFeatureAccessSource =
+  | "override"
+  | "plan"
+  | "none";
+
+export interface TenantFeatureAccess {
+  key: string;
+
+  enabled: boolean;
+
+  source: TenantFeatureAccessSource;
+
+  limitValue: number | null;
+}
+
 export interface AuthContextResponse {
   user: AuthenticatedUser;
 
@@ -86,6 +101,13 @@ export interface AuthContextResponse {
    * This is the frontend authorization source of truth.
    */
   permissions: string[];
+
+  /**
+   * Effective commercial capabilities for the selected tenant.
+   *
+   * Permission and entitlement remain separate concerns.
+   */
+  features: TenantFeatureAccess[];
 
   /**
    * Commercial access is calculated by the backend.

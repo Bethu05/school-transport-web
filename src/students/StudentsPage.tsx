@@ -32,11 +32,15 @@ import {
   PlaceRounded,
   SchoolRounded,
   SearchRounded,
+  LockRounded,
+  TuneRounded,
 } from "@mui/icons-material";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../auth/AuthProvider";
+
+import { UpgradeRequiredDialog } from "../commercial/UpgradeRequiredDialog";
 
 import {
   FRONTEND_PERMISSIONS,
@@ -59,6 +63,8 @@ import {
 } from "./students.api";
 
 import { StudentFormDialog } from "./StudentFormDialog";
+
+import { StudentCustomFieldsDialog } from "./StudentCustomFieldsDialog";
 
 import { StudentGuardiansDialog } from "./StudentGuardiansDialog";
 
@@ -85,7 +91,7 @@ function errorMessage(error: unknown): string {
 }
 
 export function StudentsPage() {
-  const { permissions, tenant } = useAuth();
+  const { permissions, tenant, features } = useAuth();
 
   const queryClient = useQueryClient();
 
@@ -136,6 +142,17 @@ export function StudentsPage() {
     FRONTEND_PERMISSIONS.STUDENTS_MANAGE_STOPS,
   );
 
+  const canManageStudentCustomFields = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.STUDENTS_MANAGE_CUSTOM_FIELDS,
+  );
+
+  const studentCustomFieldsEnabled = features.some(
+    (feature) =>
+      feature.key === "students.custom_fields" &&
+      feature.enabled,
+  );
+
   const [search, setSearch] = useState("");
 
   const [schoolId, setSchoolId] = useState("all");
@@ -155,6 +172,11 @@ export function StudentsPage() {
   );
 
   const [stopsStudent, setStopsStudent] = useState<Student | null>(null);
+
+  const [customFieldsOpen, setCustomFieldsOpen] = useState(false);
+
+  const [customFieldsUpgradeOpen, setCustomFieldsUpgradeOpen] =
+    useState(false);
 
   const [mutationError, setMutationError] = useState<string | null>(null);
 
@@ -505,6 +527,39 @@ export function StudentsPage() {
             }}
           />
 
+          {canManageStudentCustomFields ? (
+            <Button
+              variant="outlined"
+
+              color={studentCustomFieldsEnabled ? "primary" : "warning"}
+
+              startIcon={
+                studentCustomFieldsEnabled ? (
+                  <TuneRounded />
+                ) : (
+                  <LockRounded />
+                )
+              }
+
+              disabled={
+                studentCustomFieldsEnabled &&
+                schools.length === 0
+              }
+
+              onClick={() => {
+                if (!studentCustomFieldsEnabled) {
+                  setCustomFieldsUpgradeOpen(true);
+
+                  return;
+                }
+
+                setCustomFieldsOpen(true);
+              }}
+            >
+              Custom fields
+            </Button>
+          ) : null}
+
           <Button
             variant="contained"
 
@@ -688,7 +743,7 @@ export function StudentsPage() {
 
             label="Search students"
 
-            placeholder="Name or external reference"
+            placeholder="Name, reference or custom field"
 
             slotProps={{
               input: {
@@ -864,7 +919,7 @@ export function StudentsPage() {
               "Student",
               "School",
               "Grade / Class",
-              "Reference",
+              "Identifiers",
               "Status",
               "Actions",
             ].map((heading) => (
@@ -1001,17 +1056,45 @@ export function StudentsPage() {
                   {student.grade}
                 </Typography>
 
-                <Typography
-                  sx={{
-                    fontSize: 11.5,
+                <Box>
+                  {(student.customFields ?? []).slice(0, 2).map((field) => (
+                    <Typography
+                      key={field.fieldDefinitionId}
 
-                    color: student.externalRef
-                      ? "text.primary"
-                      : "text.secondary",
-                  }}
-                >
-                  {student.externalRef ?? "Not set"}
-                </Typography>
+                      sx={{
+                        fontSize: 11,
+
+                        fontWeight: 700,
+                      }}
+                    >
+                      {field.label}: {field.value}
+                    </Typography>
+                  ))}
+
+                  {student.externalRef ? (
+                    <Typography
+                      sx={{
+                        mt: student.customFields?.length ? 0.3 : 0,
+
+                        color: "text.secondary",
+
+                        fontSize: 10.5,
+                      }}
+                    >
+                      External: {student.externalRef}
+                    </Typography>
+                  ) : (student.customFields?.length ?? 0) === 0 ? (
+                    <Typography
+                      sx={{
+                        color: "text.secondary",
+
+                        fontSize: 11.5,
+                      }}
+                    >
+                      Not set
+                    </Typography>
+                  ) : null}
+                </Box>
 
                 <Chip
                   size="small"
@@ -1154,6 +1237,8 @@ export function StudentsPage() {
 
         open={formOpen}
 
+        tenantId={tenantId}
+
         student={editingStudent}
 
         schools={schools}
@@ -1169,6 +1254,22 @@ export function StudentsPage() {
 
       {tenantId ? (
         <>
+          <UpgradeRequiredDialog
+            open={customFieldsUpgradeOpen}
+            featureName="Student Custom Fields"
+            onClose={() => setCustomFieldsUpgradeOpen(false)}
+          />
+
+          <StudentCustomFieldsDialog
+            open={customFieldsOpen}
+
+            tenantId={tenantId}
+
+            schools={schools}
+
+            onClose={() => setCustomFieldsOpen(false)}
+          />
+
           <StudentStopsDialog
             key={stopsStudent?.id ?? "no-student"}
 

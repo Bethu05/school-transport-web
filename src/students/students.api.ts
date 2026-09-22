@@ -2,6 +2,26 @@ import { apiRequest } from "../api/client";
 
 export type StudentStatus = "active" | "inactive";
 
+export interface StudentCustomFieldValue {
+  id: string;
+
+  fieldDefinitionId: string;
+
+  key: string;
+
+  label: string;
+
+  fieldType: "text" | "number" | "date" | "boolean" | "select";
+
+  value: string;
+}
+
+export interface StudentCustomFieldInput {
+  fieldDefinitionId: string;
+
+  value: string | null;
+}
+
 export interface Student {
   id: string;
 
@@ -24,6 +44,8 @@ export interface Student {
   createdAt: string;
 
   updatedAt: string;
+
+  customFields?: StudentCustomFieldValue[];
 }
 
 export interface PaginatedStudents {
@@ -62,15 +84,13 @@ export interface CreateStudentInput {
   grade: string;
 
   photoUrl?: string;
+
+  customFields?: StudentCustomFieldInput[];
 }
 
 /**
  * School reassignment is deliberately not exposed through
  * the web edit form.
- *
- * Once Students are linked to guardians, stops and trips,
- * changing school becomes a relationship migration rather
- * than an ordinary profile edit.
  */
 export interface UpdateStudentInput {
   externalRef?: string;
@@ -81,10 +101,9 @@ export interface UpdateStudentInput {
 
   grade?: string;
 
-  /**
-   * Empty string clears the current photograph.
-   */
   photoUrl?: string;
+
+  customFields?: StudentCustomFieldInput[];
 }
 
 function buildQueryString(query: ListStudentsQuery): string {
@@ -115,9 +134,6 @@ function buildQueryString(query: ListStudentsQuery): string {
   return value ? `?${value}` : "";
 }
 
-/**
- * Server-side paginated Student list.
- */
 export function listStudentsPage(
   tenantId: string,
   query: ListStudentsQuery = {},
@@ -154,11 +170,6 @@ export function updateStudent(
   });
 }
 
-/**
- * Current committed Student lifecycle contract.
- *
- * Student records are preserved for historical relationships.
- */
 export function deactivateStudent(
   tenantId: string,
   studentId: string,

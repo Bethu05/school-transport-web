@@ -56,6 +56,8 @@ export const FRONTEND_PERMISSIONS = {
 
   STUDENTS_MANAGE_STOPS: "students.manage_stops",
 
+  STUDENTS_MANAGE_CUSTOM_FIELDS: "students.manage_custom_fields",
+
   GUARDIANS_READ: "guardians.read",
 
   GUARDIANS_CREATE: "guardians.create",
