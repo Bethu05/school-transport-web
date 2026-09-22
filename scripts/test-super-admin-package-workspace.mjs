@@ -42,7 +42,7 @@ check(
 );
 
 check(
-  management.includes("Back to tenants"),
+  management.includes("Back to schools"),
   "dedicated workspace provides clear return navigation",
 );
 
@@ -70,8 +70,8 @@ check(
 );
 
 check(
-  page.includes("Tenant overview"),
-  "right sidebar remains a lightweight tenant summary",
+  page.includes("School overview"),
+  "right sidebar remains a lightweight school summary",
 );
 
 if (process.exitCode) {

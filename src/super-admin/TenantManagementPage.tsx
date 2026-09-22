@@ -307,7 +307,7 @@ export function TenantManagementPage({
               textTransform: "none",
             }}
           >
-            Back to tenants
+            Back to schools
           </Button>
 
           <Box
@@ -693,12 +693,31 @@ export function TenantManagementPage({
         fullWidth
         maxWidth={
           activePanel === "onboarding"
-            ? "lg"
+            ? false
             : activePanel === "capacity"
               ? "md"
               : "sm"
         }
         scroll="paper"
+        sx={
+          activePanel === "onboarding"
+            ? {
+                "& .MuiDialog-paper": {
+                  width: {
+                    xs: "96vw",
+                    md: "92vw",
+                  },
+                  maxWidth: "92vw",
+                  height: {
+                    xs: "94vh",
+                    md: "90vh",
+                  },
+                  maxHeight: "94vh",
+                  overflow: "hidden",
+                },
+              }
+            : undefined
+        }
       >
         <DialogTitle>
           <Typography
@@ -726,12 +745,31 @@ export function TenantManagementPage({
 
         <DialogContent
           dividers
-          sx={{
-            p: 2.5,
-          }}
+          sx={
+            activePanel === "onboarding"
+              ? {
+                  p: 0,
+                  minHeight: 0,
+                  overflow: "hidden",
+                  display: "flex",
+                }
+              : {
+                  p: 2.5,
+                }
+          }
         >
           {activePanel === "onboarding" ? (
-            <TenantOnboardingPanel tenant={tenant} />
+            <Box
+              sx={{
+                width: "100%",
+                minHeight: 0,
+              }}
+            >
+              <TenantOnboardingPanel
+                tenant={tenant}
+                onTenantUpdated={onTenantUpdated}
+              />
+            </Box>
           ) : null}
 
           {activePanel === "subscription" ? (

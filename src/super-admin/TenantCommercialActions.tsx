@@ -24,6 +24,7 @@ import {
   listPlatformPlans,
   listPlatformTenants,
   pausePlatformTenantAccess,
+  reconcilePlatformOnboarding,
   setPlatformTenantSubscription,
   type PlatformTenantListItem,
 } from "./platform.api";
@@ -42,6 +43,15 @@ function defaultTrialEndDate(): string {
   return date.toISOString().slice(0, 10);
 }
 
+/**
+ * Existing trials must open with the date that is actually persisted
+ * by the backend. Only a tenant without a saved end date receives the
+ * default 14-day suggestion.
+ */
+function initialTrialEndDate(tenant: PlatformTenantListItem): string {
+  return tenant.subscriptionEndsAt?.slice(0, 10) ?? defaultTrialEndDate();
+}
+
 export function TenantCommercialActions({
   tenant,
   onTenantUpdated,
@@ -50,7 +60,9 @@ export function TenantCommercialActions({
 
   const [planId, setPlanId] = useState("");
 
-  const [trialEndDate, setTrialEndDate] = useState(defaultTrialEndDate());
+  const [trialEndDate, setTrialEndDate] = useState(() =>
+    initialTrialEndDate(tenant),
+  );
 
   const [pauseOpen, setPauseOpen] = useState(false);
 
@@ -77,6 +89,54 @@ export function TenantCommercialActions({
 
   const selectedPlanId = planId || existingPlanId;
 
+  const savedTrialEndDate = tenant.subscriptionEndsAt?.slice(0, 10) ?? "";
+
+  const trialDateDirty =
+    tenant.subscriptionStatus === "trialing" &&
+    Boolean(savedTrialEndDate) &&
+    trialEndDate !== savedTrialEndDate;
+
+  /**
+   * A commercial save is not considered visually complete until we
+   * have re-read the tenant from the backend and reconciled the
+   * canonical onboarding workflow.
+   *
+   * This is what allows Steps 5/8 (and any evidence-driven dependent
+   * step) to immediately change state in the numbered onboarding rail.
+   */
+  async function refreshCommercialAndOnboarding(): Promise<void> {
+    const tenants = await listPlatformTenants();
+
+    queryClient.setQueryData(["platform", "tenants"], tenants);
+
+    const refreshedTenant = tenants.find((item) => item.id === tenant.id);
+
+    if (refreshedTenant) {
+      onTenantUpdated(refreshedTenant);
+    }
+
+    const workflow = await reconcilePlatformOnboarding(tenant.id);
+
+    queryClient.setQueryData(
+      ["platform", "onboarding", "workflow", tenant.id],
+      workflow,
+    );
+
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ["platform", "tenant-feature-states", tenant.id],
+      }),
+
+      queryClient.invalidateQueries({
+        queryKey: ["platform", "onboarding", "summary", tenant.id],
+      }),
+
+      queryClient.invalidateQueries({
+        queryKey: ["platform", "onboarding", "queue"],
+      }),
+    ]);
+  }
+
   const subscriptionMutation = useMutation({
     mutationFn: async ({ status }: { status: "active" | "trialing" }) => {
       if (!selectedPlanId) {
@@ -101,26 +161,18 @@ export function TenantCommercialActions({
     },
 
     onSuccess: async (_result, variables) => {
-      const tenants = await listPlatformTenants();
-
-      queryClient.setQueryData(["platform", "tenants"], tenants);
-
-      const refreshedTenant = tenants.find((item) => item.id === tenant.id);
-
-      if (refreshedTenant) {
-        onTenantUpdated(refreshedTenant);
-      }
-
-      await queryClient.invalidateQueries({
-        queryKey: ["platform", "tenant-feature-states", tenant.id],
-      });
+      await refreshCommercialAndOnboarding();
 
       setSuccessMessage(
         variables.status === "trialing"
-          ? "Trial started successfully."
+          ? tenant.subscriptionStatus === "trialing"
+            ? "Trial changes saved successfully."
+            : "Trial started successfully."
           : tenant.subscriptionStatus === "cancelled"
             ? "Tenant access reactivated successfully."
-            : "Plan assigned successfully.",
+            : tenant.subscriptionStatus === "active"
+              ? "Active plan saved successfully."
+              : "Plan assigned successfully.",
       );
     },
   });
@@ -129,19 +181,7 @@ export function TenantCommercialActions({
     mutationFn: () => pausePlatformTenantAccess(tenant.id),
 
     onSuccess: async () => {
-      const tenants = await listPlatformTenants();
-
-      queryClient.setQueryData(["platform", "tenants"], tenants);
-
-      const refreshedTenant = tenants.find((item) => item.id === tenant.id);
-
-      if (refreshedTenant) {
-        onTenantUpdated(refreshedTenant);
-      }
-
-      await queryClient.invalidateQueries({
-        queryKey: ["platform", "tenant-feature-states", tenant.id],
-      });
+      await refreshCommercialAndOnboarding();
 
       setPauseOpen(false);
 
@@ -253,16 +293,23 @@ export function TenantCommercialActions({
 
           fullWidth
         >
-          {subscriptionMutation.isPending ? (
-            <CircularProgress
-              size={18}
+          {subscriptionMutation.isPending &&
+          subscriptionMutation.variables?.status === "active" ? (
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{
+                alignItems: "center",
+              }}
+            >
+              <CircularProgress size={16} color="inherit" />
 
-              color="inherit"
-            />
+              <span>Saving...</span>
+            </Stack>
           ) : paused ? (
             "Reactivate access"
           ) : (
-            "Assign active plan"
+            "Save active plan"
           )}
         </Button>
 
@@ -297,6 +344,14 @@ export function TenantCommercialActions({
 
           disabled={busy}
 
+          helperText={
+            tenant.subscriptionStatus === "trialing" && savedTrialEndDate
+              ? trialDateDirty
+                ? `Saved trial end: ${savedTrialEndDate} • unsaved change`
+                : `Saved trial end: ${savedTrialEndDate}`
+              : "Choose the end date, then save the trial."
+          }
+
           slotProps={{
             inputLabel: {
               shrink: true,
@@ -321,7 +376,12 @@ export function TenantCommercialActions({
 
           fullWidth
         >
-          Start trial
+          {subscriptionMutation.isPending &&
+          subscriptionMutation.variables?.status === "trialing"
+            ? "Saving..."
+            : tenant.subscriptionStatus === "trialing"
+              ? "Save trial changes"
+              : "Start trial"}
         </Button>
 
         {tenant.subscriptionEffective ? (

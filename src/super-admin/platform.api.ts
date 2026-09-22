@@ -979,3 +979,111 @@ export function activatePlatformOnboarding(
     },
   );
 }
+
+
+// ============================================================
+// REVIEWED TENANT SALES CONFIGURATION
+//
+// This is the canonical onboarding commercial transaction for
+// Steps 5-8. The backend persists subscription, capacity and
+// feature exceptions atomically and emits the parent commercial
+// audit event consumed by onboarding reconciliation.
+// ============================================================
+
+export type PlatformSalesCapacitySource =
+  | "billing"
+  | "contract"
+  | "promotion"
+  | "manual";
+
+export type PlatformSalesFeatureExceptionSource =
+  | "addon"
+  | "trial"
+  | "manual"
+  | "contract"
+  | "promotion"
+  | "billing";
+
+export interface PlatformSalesCapacityInput {
+  schools: number;
+
+  students: number;
+
+  vehicles: number;
+
+  drivers: number;
+
+  source?: PlatformSalesCapacitySource;
+
+  reason?: string;
+}
+
+export interface PlatformSalesFeatureExceptionInput {
+  featureId: string;
+
+  enabled: boolean;
+
+  source: PlatformSalesFeatureExceptionSource;
+
+  reason: string;
+
+  limitValue?: number;
+
+  endsAt?: string;
+}
+
+export interface ApplyPlatformTenantSalesConfigurationInput {
+  planId: string;
+
+  status: "active" | "trialing";
+
+  endsAt?: string;
+
+  capacity: PlatformSalesCapacityInput;
+
+  featureExceptions: PlatformSalesFeatureExceptionInput[];
+
+  dealReference?: string;
+
+  dealNotes?: string;
+}
+
+export interface PlatformSalesConfigurationResult {
+  auditEventId: number;
+
+  subscription: {
+    planId: string;
+
+    status: "active" | "trialing" | "cancelled" | "expired";
+
+    startsAt: string;
+
+    endsAt: string | null;
+
+    externalReference: string | null;
+  };
+
+  capacity: PlatformTenantCapacityState;
+
+  featureStates: PlatformTenantFeatureState[];
+}
+
+/**
+ * Apply the complete reviewed commercial deal atomically.
+ *
+ * This endpoint is intentionally different from the ordinary
+ * post-onboarding subscription/capacity/feature admin controls.
+ */
+export function applyPlatformTenantSalesConfiguration(
+  tenantId: string,
+  input: ApplyPlatformTenantSalesConfigurationInput,
+): Promise<PlatformSalesConfigurationResult> {
+  return apiRequest<PlatformSalesConfigurationResult>(
+    `/platform/tenants/${tenantId}/commercial/sales-configuration`,
+    {
+      method: "PUT",
+
+      body: JSON.stringify(input),
+    },
+  );
+}
