@@ -2,6 +2,26 @@ const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 const ACCESS_TOKEN_KEY = "school_transport_access_token";
 
+/**
+ * Raised when the backend tells an already-authenticated browser
+ * that tenant operational access is no longer active.
+ *
+ * AuthProvider listens for this and refreshes /auth/context so the
+ * route layer can move the user to /account-status.
+ */
+export const TENANT_ACCESS_INACTIVE_EVENT =
+  "school-transport:tenant-access-inactive";
+
+/**
+ * Raised when the backend detects that the authenticated user's
+ * global identity is now in forced-password-change state.
+ *
+ * This can happen while the browser is already open if a tenant
+ * administrator resets the user's password.
+ */
+export const PASSWORD_CHANGE_REQUIRED_EVENT =
+  "school-transport:password-change-required";
+
 export function getAccessToken(): string | null {
   return localStorage.getItem(ACCESS_TOKEN_KEY);
 }
@@ -145,6 +165,49 @@ export async function apiRequest<T>(
   }
 
   if (!response.ok) {
+    /**
+     * Commercial access may change while the browser session is
+     * already open.
+     *
+     * Do not log the user out. Tell AuthProvider to refresh the
+     * verified tenant context instead.
+     */
+    if (
+      typeof window !== "undefined" &&
+      typeof body === "object" &&
+      body !== null &&
+      "code" in body &&
+      (
+        body as {
+          code?: unknown;
+        }
+      ).code === "TENANT_ACCESS_INACTIVE"
+    ) {
+      window.dispatchEvent(new CustomEvent(TENANT_ACCESS_INACTIVE_EVENT));
+    }
+
+    /**
+     * A password may be reset while an existing short-lived JWT
+     * is still present in the browser.
+     *
+     * The backend reads live must_change_password state and returns
+     * PASSWORD_CHANGE_REQUIRED. Notify AuthProvider immediately so
+     * the route layer can move the user into credential recovery.
+     */
+    if (
+      typeof window !== "undefined" &&
+      typeof body === "object" &&
+      body !== null &&
+      "code" in body &&
+      (
+        body as {
+          code?: unknown;
+        }
+      ).code === "PASSWORD_CHANGE_REQUIRED"
+    ) {
+      window.dispatchEvent(new CustomEvent(PASSWORD_CHANGE_REQUIRED_EVENT));
+    }
+
     const fallback =
       typeof body === "string"
         ? body

@@ -13,6 +13,8 @@ import {
 } from "@mui/material";
 
 import {
+  LockResetRounded,
+  ManageAccountsRounded,
   PublicRounded,
   RestartAltRounded,
   SaveRounded,
@@ -20,6 +22,8 @@ import {
 } from "@mui/icons-material";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
 
@@ -164,6 +168,8 @@ function updatedAtLabel(value: string): string {
 export function SettingsPage() {
   const { tenant, permissions } = useAuth();
 
+  const navigate = useNavigate();
+
   const queryClient = useQueryClient();
 
   const tenantId = tenant?.tenantId;
@@ -176,6 +182,11 @@ export function SettingsPage() {
   const canUpdate = hasFrontendPermission(
     permissions,
     FRONTEND_PERMISSIONS.SETTINGS_UPDATE,
+  );
+
+  const canReadUsers = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.USERS_READ,
   );
 
   /**
@@ -894,6 +905,101 @@ export function SettingsPage() {
           </Box>
         </Box>
       ) : null}
+
+      {/* ====================================================
+          ACCOUNT SECURITY
+          ==================================================== */}
+
+      <Paper
+        elevation={0}
+        sx={{
+          mt: 3,
+
+          p: {
+            xs: 2,
+            sm: 3,
+          },
+
+          maxWidth: 1080,
+
+          border: "1px solid",
+
+          borderColor: "divider",
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+
+            flexDirection: {
+              xs: "column",
+              sm: "row",
+            },
+
+            justifyContent: "space-between",
+
+            gap: 2,
+
+            alignItems: {
+              xs: "flex-start",
+              sm: "center",
+            },
+          }}
+        >
+          <Box>
+            <Typography
+              sx={{
+                fontWeight: 850,
+
+                fontSize: 16,
+              }}
+            >
+              Account security
+            </Typography>
+
+            <Typography
+              sx={{
+                mt: 0.5,
+
+                color: "text.secondary",
+
+                fontSize: 11.5,
+              }}
+            >
+              Manage your own password and, where authorised, organisation user
+              access.
+            </Typography>
+          </Box>
+
+          <Box
+            sx={{
+              display: "flex",
+
+              gap: 1,
+
+              flexWrap: "wrap",
+            }}
+          >
+            <Button
+              variant="outlined"
+              startIcon={<LockResetRounded />}
+              onClick={() => navigate("/change-password")}
+            >
+              Change password
+            </Button>
+
+            {canReadUsers ? (
+              <Button
+                variant="outlined"
+                startIcon={<ManageAccountsRounded />}
+                onClick={() => navigate("/users-access")}
+              >
+                Users &amp; access
+              </Button>
+            ) : null}
+          </Box>
+        </Box>
+      </Paper>
 
       {/* ====================================================
           SUCCESS

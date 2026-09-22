@@ -20,9 +20,11 @@ import {
   DarkModeRounded,
   DashboardRounded,
   DirectionsBusRounded,
+  DomainRounded,
   FamilyRestroomRounded,
   LightModeRounded,
   LogoutRounded,
+  ManageAccountsRounded,
   MapRounded,
   MenuRounded,
   NotificationsRounded,
@@ -162,10 +164,24 @@ const navigation: NavigationItem[] = [
   },
 
   {
+    label: "Schools",
+    path: "/schools",
+    icon: <DomainRounded />,
+    permission: FRONTEND_PERMISSIONS.SCHOOLS_READ,
+  },
+
+  {
     label: "Settings",
     path: "/settings",
     icon: <SettingsRounded />,
     permission: FRONTEND_PERMISSIONS.SETTINGS_READ,
+  },
+
+  {
+    label: "Users & Access",
+    path: "/users-access",
+    icon: <ManageAccountsRounded />,
+    permission: FRONTEND_PERMISSIONS.USERS_READ,
   },
 ];
 
@@ -322,10 +338,14 @@ export function AppShell({ children }: AppShellProps) {
         sx={{
           flex: 1,
 
+          minHeight: 0,
+
           px: 1.25,
           py: 2,
 
           overflowY: "auto",
+
+          overscrollBehavior: "contain",
         }}
       >
         {visibleNavigation.map((item) => {
@@ -420,6 +440,26 @@ export function AppShell({ children }: AppShellProps) {
             }}
           />
         </ListItemButton>
+
+        <Typography
+          sx={{
+            mt: 1.25,
+
+            px: 1.5,
+
+            color: "text.disabled",
+
+            fontSize: 9.5,
+
+            lineHeight: 1.5,
+
+            textAlign: "center",
+
+            letterSpacing: "0.02em",
+          }}
+        >
+          © sirb-Technologies 2026
+        </Typography>
       </Box>
     </Box>
   );
@@ -454,6 +494,16 @@ export function AppShell({ children }: AppShellProps) {
             width: DRAWER_WIDTH,
 
             boxSizing: "border-box",
+
+            position: "fixed",
+
+            top: 0,
+
+            bottom: 0,
+
+            height: "100vh",
+
+            overflow: "hidden",
 
             borderRight: "1px solid",
 
@@ -604,24 +654,34 @@ export function AppShell({ children }: AppShellProps) {
             </IconButton>
           </Tooltip>
 
-          {/* USER AVATAR */}
+          {/* USER ACCOUNT SECURITY */}
 
-          <Avatar
-            sx={{
-              width: 38,
-              height: 38,
+          <Tooltip title="Change password">
+            <IconButton
+              aria-label="Change password"
+              onClick={() => navigate("/change-password")}
+              sx={{
+                p: 0.25,
+              }}
+            >
+              <Avatar
+                sx={{
+                  width: 38,
+                  height: 38,
 
-              bgcolor: "primary.main",
+                  bgcolor: "primary.main",
 
-              color: "primary.contrastText",
+                  color: "primary.contrastText",
 
-              fontSize: 13,
+                  fontSize: 13,
 
-              fontWeight: 800,
-            }}
-          >
-            {initials(user?.email)}
-          </Avatar>
+                  fontWeight: 800,
+                }}
+              >
+                {initials(user?.email)}
+              </Avatar>
+            </IconButton>
+          </Tooltip>
         </Box>
 
         {/* ==============================================

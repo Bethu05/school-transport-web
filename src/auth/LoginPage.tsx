@@ -18,16 +18,19 @@ import {
   PersonOutlineRounded,
 } from "@mui/icons-material";
 
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "./AuthProvider";
 
 import { devLoginPresets, type DevLoginPreset } from "./dev-login-presets";
 
 export function LoginPage() {
-  const { login, authenticated } = useAuth();
+  const { login, authenticated, isSuperAdmin, passwordChangeRequired } =
+    useAuth();
 
   const navigate = useNavigate();
+
+  const [searchParams] = useSearchParams();
 
   const [email, setEmail] = useState("");
 
@@ -40,7 +43,11 @@ export function LoginPage() {
   const [devSubmitting, setDevSubmitting] = useState<string | null>(null);
 
   if (authenticated) {
-    return <Navigate to="/dashboard" replace />;
+    if (passwordChangeRequired) {
+      return <Navigate to="/change-password" replace />;
+    }
+
+    return <Navigate to={isSuperAdmin ? "/platform" : "/dashboard"} replace />;
   }
 
   async function handleDevLogin(preset: DevLoginPreset): Promise<void> {
@@ -57,14 +64,21 @@ export function LoginPage() {
     setDevSubmitting(preset.label);
 
     try {
-      await login({
+      const outcome = await login({
         email: preset.email,
         password: preset.password,
       });
 
-      navigate("/dashboard", {
-        replace: true,
-      });
+      navigate(
+        outcome.passwordChangeRequired
+          ? "/change-password"
+          : outcome.isSuperAdmin
+            ? "/platform"
+            : "/dashboard",
+        {
+          replace: true,
+        },
+      );
     } catch (loginError) {
       setError(
         loginError instanceof Error ? loginError.message : "Unable to sign in",
@@ -83,14 +97,21 @@ export function LoginPage() {
     setSubmitting(true);
 
     try {
-      await login({
+      const outcome = await login({
         email,
         password,
       });
 
-      navigate("/dashboard", {
-        replace: true,
-      });
+      navigate(
+        outcome.passwordChangeRequired
+          ? "/change-password"
+          : outcome.isSuperAdmin
+            ? "/platform"
+            : "/dashboard",
+        {
+          replace: true,
+        },
+      );
     } catch (loginError) {
       setError(
         loginError instanceof Error ? loginError.message : "Unable to sign in",
@@ -462,6 +483,13 @@ export function LoginPage() {
                     required
                     fullWidth
                   />
+
+                  {searchParams.get("passwordChanged") === "1" ? (
+                    <Alert severity="success">
+                      Password changed successfully. Sign in with your new
+                      password.
+                    </Alert>
+                  ) : null}
 
                   {error && <Alert severity="error">{error}</Alert>}
 

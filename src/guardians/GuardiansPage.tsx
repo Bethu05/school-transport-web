@@ -25,6 +25,7 @@ import {
   PersonAddAlt1Rounded,
   PersonOffRounded,
   SearchRounded,
+  SmartphoneRounded,
 } from "@mui/icons-material";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -39,16 +40,25 @@ import {
 import {
   activateGuardian,
   createGuardian,
+  createGuardianWithParentAppAccess,
   deactivateGuardian,
   listGuardians,
+  setGuardianParentAppAccess,
   updateGuardian,
   type CreateGuardianInput,
   type Guardian,
+  type GuardianParentAppAccessResult,
   type GuardianStatus,
+  type SetGuardianParentAppAccessInput,
   type UpdateGuardianInput,
 } from "./guardians.api";
 
-import { GuardianFormDialog } from "./GuardianFormDialog";
+import {
+  GuardianFormDialog,
+  type GuardianFormSubmission,
+} from "./GuardianFormDialog";
+
+import { GuardianParentAppAccessDialog } from "./GuardianParentAppAccessDialog";
 
 const PAGE_SIZES = [10, 25, 50, 100] as const;
 
@@ -89,6 +99,11 @@ export function GuardiansPage() {
     FRONTEND_PERMISSIONS.GUARDIANS_DEACTIVATE,
   );
 
+  const canManageAppAccess = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.GUARDIANS_MANAGE_APP_ACCESS,
+  );
+
   const [page, setPage] = useState(1);
 
   const [limit, setLimit] = useState(10);
@@ -106,6 +121,8 @@ export function GuardiansPage() {
   const [deactivateTarget, setDeactivateTarget] = useState<Guardian | null>(
     null,
   );
+
+  const [appAccessTarget, setAppAccessTarget] = useState<Guardian | null>(null);
 
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -131,32 +148,86 @@ export function GuardiansPage() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: async (input: CreateGuardianInput | UpdateGuardianInput) => {
+    mutationFn: async (
+      submission: GuardianFormSubmission,
+    ): Promise<{
+      guardian: Guardian;
+      appAccess: GuardianParentAppAccessResult | null;
+    }> => {
       if (!tenantId) {
         throw new Error("Tenant is unavailable");
       }
 
       if (editTarget) {
-        return updateGuardian(
+        const guardian = await updateGuardian(
           tenantId,
           editTarget.id,
-          input as UpdateGuardianInput,
+          submission.profile as UpdateGuardianInput,
         );
+
+        return {
+          guardian,
+
+          appAccess: null,
+        };
       }
 
-      return createGuardian(tenantId, input as CreateGuardianInput);
+      if (submission.giveParentAppAccess) {
+        if (!submission.temporaryPassword) {
+          throw new Error(
+            "A temporary password is required for Parent App access.",
+          );
+        }
+
+        const result = await createGuardianWithParentAppAccess(tenantId, {
+          ...(submission.profile as CreateGuardianInput),
+
+          temporaryPassword: submission.temporaryPassword,
+        });
+
+        return result;
+      }
+
+      const guardian = await createGuardian(
+        tenantId,
+        submission.profile as CreateGuardianInput,
+      );
+
+      return {
+        guardian,
+
+        appAccess: null,
+      };
     },
 
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await queryClient.invalidateQueries({
         queryKey: ["guardians"],
       });
 
-      setSuccessMessage(
-        editTarget
-          ? "Guardian updated successfully."
-          : "Guardian created successfully.",
-      );
+      if (editTarget) {
+        setSuccessMessage("Guardian updated successfully.");
+      } else if (!result.appAccess) {
+        setSuccessMessage(
+          "Guardian created successfully as a contact-only profile.",
+        );
+      } else if (result.appAccess.identityMode === "existing") {
+        setSuccessMessage(
+          `Guardian created and existing account linked for ${
+            result.appAccess.accountEmail ??
+            result.guardian.email ??
+            "the parent"
+          }. They should continue using their existing password; the temporary password was not applied.`,
+        );
+      } else {
+        setSuccessMessage(
+          `Guardian created with Parent App access for ${
+            result.appAccess.accountEmail ??
+            result.guardian.email ??
+            "the parent"
+          }. Give them the temporary password securely. They must change it when they first sign in.`,
+        );
+      }
 
       setFormOpen(false);
 
@@ -199,6 +270,50 @@ export function GuardiansPage() {
       setSuccessMessage("Guardian deactivated successfully.");
 
       setDeactivateTarget(null);
+    },
+  });
+
+  const appAccessMutation = useMutation({
+    mutationFn: async ({
+      guardian,
+      input,
+    }: {
+      guardian: Guardian;
+      input: SetGuardianParentAppAccessInput;
+    }) => {
+      if (!tenantId) {
+        throw new Error("Tenant is unavailable");
+      }
+
+      return setGuardianParentAppAccess(tenantId, guardian.id, input);
+    },
+
+    onSuccess: async (result, variables) => {
+      await queryClient.invalidateQueries({
+        queryKey: ["guardians"],
+      });
+
+      if (!result.enabled) {
+        setSuccessMessage(
+          result.membershipMode === "preserved"
+            ? `Parent App access removed for ${variables.guardian.firstName} ${variables.guardian.lastName}. Their existing organisational role remains active.`
+            : `Parent App access removed for ${variables.guardian.firstName} ${variables.guardian.lastName}. Their Parent-only tenant membership was suspended.`,
+        );
+      } else if (result.identityMode === "existing") {
+        setSuccessMessage(
+          `Existing account linked successfully for ${
+            result.accountEmail ?? variables.guardian.email ?? "this parent"
+          }. They should continue using their existing password; the temporary password was not applied.`,
+        );
+      } else {
+        setSuccessMessage(
+          `Parent App access enabled for ${
+            result.accountEmail ?? variables.guardian.email ?? "this parent"
+          }. Give them the temporary password securely. They must change it at first login.`,
+        );
+      }
+
+      setAppAccessTarget(null);
     },
   });
 
@@ -397,7 +512,7 @@ export function GuardiansPage() {
           sx={{
             display: "grid",
 
-            gridTemplateColumns: "1.25fr 1.25fr .7fr 1fr 100px",
+            gridTemplateColumns: "1.2fr 1.2fr .65fr .8fr 1fr 130px",
 
             gap: 2,
 
@@ -427,6 +542,8 @@ export function GuardiansPage() {
           <Box>Contact</Box>
 
           <Box>Status</Box>
+
+          <Box>Parent App</Box>
 
           <Box>Notifications</Box>
 
@@ -482,7 +599,7 @@ export function GuardiansPage() {
             sx={{
               display: "grid",
 
-              gridTemplateColumns: "1.25fr 1.25fr .7fr 1fr 100px",
+              gridTemplateColumns: "1.2fr 1.2fr .65fr .8fr 1fr 130px",
 
               gap: 2,
 
@@ -581,6 +698,20 @@ export function GuardiansPage() {
               }}
             />
 
+            <Chip
+              size="small"
+
+              label={guardian.userId ? "Enabled" : "Not enabled"}
+
+              color={guardian.userId ? "success" : "default"}
+
+              variant="outlined"
+
+              sx={{
+                width: "fit-content",
+              }}
+            />
+
             <Box
               sx={{
                 display: "flex",
@@ -610,6 +741,29 @@ export function GuardiansPage() {
                 gap: 0.5,
               }}
             >
+              {canManageAppAccess &&
+              (guardian.userId !== null || guardian.status === "active") ? (
+                <Tooltip
+                  title={
+                    guardian.userId
+                      ? "Remove Parent App access"
+                      : "Give Parent App access"
+                  }
+                >
+                  <IconButton
+                    size="small"
+
+                    onClick={() => {
+                      setAppAccessTarget(guardian);
+
+                      setSuccessMessage(null);
+                    }}
+                  >
+                    <SmartphoneRounded fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              ) : null}
+
               {canUpdate ? (
                 <Tooltip title="Edit Guardian">
                   <IconButton
@@ -782,6 +936,34 @@ export function GuardiansPage() {
           onSubmit={(input) => saveMutation.mutate(input)}
         />
       ) : null}
+
+      <GuardianParentAppAccessDialog
+        key={appAccessTarget?.id ?? "no-parent-app-guardian"}
+
+        open={appAccessTarget !== null}
+
+        guardian={appAccessTarget}
+
+        onClose={() => {
+          if (!appAccessMutation.isPending) {
+            setAppAccessTarget(null);
+
+            appAccessMutation.reset();
+          }
+        }}
+
+        onSubmit={(input) => {
+          if (!appAccessTarget) {
+            return Promise.reject(new Error("No Guardian selected"));
+          }
+
+          return appAccessMutation.mutateAsync({
+            guardian: appAccessTarget,
+
+            input,
+          });
+        }}
+      />
 
       <Dialog
         open={deactivateTarget !== null}

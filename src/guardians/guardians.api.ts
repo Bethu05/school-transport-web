@@ -4,22 +4,33 @@ export type GuardianStatus = "active" | "inactive";
 
 export interface Guardian {
   id: string;
+
   tenantId: string;
+
+  /**
+   * Non-null means this Guardian profile is linked to a global
+   * login identity.
+   */
   userId: string | null;
 
   firstName: string;
+
   lastName: string;
 
   email: string | null;
+
   phone: string | null;
 
   status: GuardianStatus;
 
   notifyBoarded: boolean;
+
   notifyDroppedOff: boolean;
+
   notifyTripUpdates: boolean;
 
   createdAt: string;
+
   updatedAt: string;
 }
 
@@ -27,40 +38,95 @@ export interface PaginatedGuardians {
   items: Guardian[];
 
   page: number;
+
   limit: number;
+
   total: number;
+
   totalPages: number;
 }
 
 export interface ListGuardiansQuery {
   page?: number;
+
   limit?: number;
+
   search?: string;
+
   status?: GuardianStatus;
 }
 
 export interface CreateGuardianInput {
   firstName: string;
+
   lastName: string;
 
   email?: string;
+
   phone?: string;
 
   notifyBoarded?: boolean;
+
   notifyDroppedOff?: boolean;
+
   notifyTripUpdates?: boolean;
 }
 
 export interface UpdateGuardianInput {
   firstName?: string;
+
   lastName?: string;
 
   email?: string | null;
+
   phone?: string | null;
 
   notifyBoarded?: boolean;
+
   notifyDroppedOff?: boolean;
+
   notifyTripUpdates?: boolean;
+}
+
+export interface CreateGuardianWithParentAppAccessInput extends CreateGuardianInput {
+  temporaryPassword: string;
+}
+
+export type GuardianIdentityMode = "created" | "existing" | null;
+
+export type GuardianMembershipMode =
+  "created" | "existing" | "reactivated" | "suspended" | "preserved" | "none";
+
+export interface GuardianParentAppAccessResult {
+  enabled: boolean;
+
+  guardianId: string;
+
+  userId: string | null;
+
+  accountEmail: string | null;
+
+  identityMode: GuardianIdentityMode;
+
+  membershipMode: GuardianMembershipMode;
+
+  temporaryPasswordApplied: boolean;
+
+  membershipRole: string | null;
+
+  membershipStatus: string | null;
+}
+
+export interface GuardianCreateWithParentAppAccessResult {
+  guardian: Guardian;
+
+  appAccess: GuardianParentAppAccessResult;
+}
+
+export interface SetGuardianParentAppAccessInput {
+  enabled: boolean;
+
+  temporaryPassword?: string;
 }
 
 export function listGuardians(
@@ -90,6 +156,11 @@ export function listGuardians(
   });
 }
 
+/**
+ * Create a contact-only Guardian profile.
+ *
+ * No login identity is created.
+ */
 export function createGuardian(
   tenantId: string,
   input: CreateGuardianInput,
@@ -101,6 +172,33 @@ export function createGuardian(
 
     body: JSON.stringify(input),
   });
+}
+
+/**
+ * Atomically create:
+ *
+ * Guardian profile
+ *   +
+ * global login identity/link
+ *   +
+ * tenant Parent App access
+ *
+ * Existing global identities keep their existing password.
+ */
+export function createGuardianWithParentAppAccess(
+  tenantId: string,
+  input: CreateGuardianWithParentAppAccessInput,
+): Promise<GuardianCreateWithParentAppAccessResult> {
+  return apiRequest<GuardianCreateWithParentAppAccessResult>(
+    "/guardians/with-parent-app-access",
+    {
+      method: "POST",
+
+      tenantId,
+
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export function updateGuardian(
@@ -115,6 +213,28 @@ export function updateGuardian(
 
     body: JSON.stringify(input),
   });
+}
+
+/**
+ * Enable or remove Parent App access for an existing Guardian.
+ *
+ * Parent App access is separate from the Guardian business profile.
+ */
+export function setGuardianParentAppAccess(
+  tenantId: string,
+  guardianId: string,
+  input: SetGuardianParentAppAccessInput,
+): Promise<GuardianParentAppAccessResult> {
+  return apiRequest<GuardianParentAppAccessResult>(
+    `/guardians/${guardianId}/app-access`,
+    {
+      method: "PUT",
+
+      tenantId,
+
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export function activateGuardian(

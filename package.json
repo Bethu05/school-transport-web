@@ -50,7 +50,13 @@
     "test:operations-dashboard-live": "node scripts/test-operations-dashboard-live.mjs",
     "test:operational-safety-workflow-realtime": "node scripts/test-operational-safety-workflow-realtime.mjs",
     "test:settings-frontend": "node scripts/test-settings-frontend.mjs",
-    "test:settings-api": "node --env-file=.env.development.local scripts/test-settings-api.mjs"
+    "test:settings-api": "node --env-file=.env.development.local scripts/test-settings-api.mjs",
+    "test:schools-frontend": "node scripts/test-schools-frontend.mjs",
+    "test:commercial-access-frontend": "node scripts/test-commercial-access-frontend.mjs",
+    "test:platform-access-pause-frontend": "node scripts/test-platform-access-pause-frontend.mjs",
+    "test:password-management-frontend": "node scripts/test-password-management-frontend.mjs",
+    "test:user-lifecycle-frontend": "node scripts/test-user-lifecycle-frontend.mjs",
+    "test:guardian-parent-app-access-frontend": "node scripts/test-guardian-parent-app-access-frontend.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

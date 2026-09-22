@@ -4,11 +4,21 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import { AppShell } from "./app/AppShell";
 
+import { AccountStatusPage } from "./account-status/AccountStatusPage";
+
 import { LoginPage } from "./auth/LoginPage";
+
+import { useAuth } from "./auth/AuthProvider";
+
+import { PasswordChangeBoundary } from "./auth/PasswordChangeBoundary";
 
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 
+import { SuperAdminRoute } from "./auth/SuperAdminRoute";
+
 import { DashboardPage } from "./dashboard/DashboardPage";
+
+import { SuperAdminPage } from "./super-admin/SuperAdminPage";
 
 import { DriversPage } from "./drivers/DriversPage";
 
@@ -32,7 +42,13 @@ import { VehiclesPage } from "./vehicles/VehiclesPage";
 
 import { TrackingPage } from "./tracking/TrackingPage";
 
+import { SchoolsPage } from "./schools/SchoolsPage";
+
 import { SettingsPage } from "./settings/SettingsPage";
+
+import { ChangePasswordPage } from "./security/ChangePasswordPage";
+
+import { UsersAccessPage } from "./users/UsersAccessPage";
 
 function ProtectedPage({ children }: { children: ReactNode }) {
   return (
@@ -40,6 +56,38 @@ function ProtectedPage({ children }: { children: ReactNode }) {
       <AppShell>{children}</AppShell>
     </ProtectedRoute>
   );
+}
+
+function UnknownRouteRedirect() {
+  const {
+    authenticated,
+    isSuperAdmin,
+    loading,
+    access,
+    passwordChangeRequired,
+  } = useAuth();
+
+  if (loading) {
+    return null;
+  }
+
+  if (authenticated && passwordChangeRequired) {
+    return <Navigate to="/change-password" replace />;
+  }
+
+  if (isSuperAdmin) {
+    return <Navigate to="/platform" replace />;
+  }
+
+  if (authenticated && access && !access.operational) {
+    return <Navigate to="/account-status" replace />;
+  }
+
+  if (authenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <Navigate to="/" replace />;
 }
 
 function App() {
@@ -52,6 +100,25 @@ function App() {
       <Route path="/" element={<HomePage />} />
 
       <Route path="/login" element={<LoginPage />} />
+
+      <Route path="/change-password" element={<ChangePasswordPage />} />
+
+      <Route path="/account-status" element={<AccountStatusPage />} />
+
+      {/* ======================================================
+          PLATFORM SUPER ADMIN
+          ====================================================== */}
+
+      <Route
+        path="/platform"
+        element={
+          <PasswordChangeBoundary>
+            <SuperAdminRoute>
+              <SuperAdminPage />
+            </SuperAdminRoute>
+          </PasswordChangeBoundary>
+        }
+      />
 
       {/* ======================================================
           DASHBOARD
@@ -185,6 +252,15 @@ function App() {
       />
 
       <Route
+        path="/schools"
+        element={
+          <ProtectedPage>
+            <SchoolsPage />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
         path="/settings"
         element={
           <ProtectedPage>
@@ -193,11 +269,29 @@ function App() {
         }
       />
 
+      {/*
+       * Identity administration deliberately bypasses commercial
+       * access gating.
+       *
+       * Tenant membership + users.read/users.reset_password remain
+       * authoritative at the backend.
+       */}
+      <Route
+        path="/users-access"
+        element={
+          <PasswordChangeBoundary>
+            <AppShell>
+              <UsersAccessPage />
+            </AppShell>
+          </PasswordChangeBoundary>
+        }
+      />
+
       {/* ======================================================
           UNKNOWN ROUTES
           ====================================================== */}
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<UnknownRouteRedirect />} />
     </Routes>
   );
 }

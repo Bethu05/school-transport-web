@@ -124,6 +124,7 @@ const requiredPermissions = [
   "guardians.activate",
   "guardians.deactivate",
   "guardians.manage_students",
+  "guardians.manage_app_access",
 ];
 
 for (const permission of requiredPermissions) {

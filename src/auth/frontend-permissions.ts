@@ -16,6 +16,10 @@
  */
 
 export const FRONTEND_PERMISSIONS = {
+  SCHOOLS_READ: "schools.read",
+
+  SCHOOLS_CREATE: "schools.create",
+
   DRIVERS_READ: "drivers.read",
   VEHICLES_READ: "vehicles.read",
   ROUTES_READ: "routes.read",
@@ -63,6 +67,26 @@ export const FRONTEND_PERMISSIONS = {
   GUARDIANS_DEACTIVATE: "guardians.deactivate",
 
   GUARDIANS_MANAGE_STUDENTS: "guardians.manage_students",
+
+  GUARDIANS_MANAGE_APP_ACCESS: "guardians.manage_app_access",
+
+  /**
+   * Tenant identity administration.
+   *
+   * These values only control frontend visibility. Backend
+   * PermissionGuard remains authoritative.
+   */
+  USERS_READ: "users.read",
+
+  USERS_CREATE: "users.create",
+
+  USERS_UPDATE_ROLE: "users.update_role",
+
+  USERS_ACTIVATE: "users.activate",
+
+  USERS_DEACTIVATE: "users.deactivate",
+
+  USERS_RESET_PASSWORD: "users.reset_password",
 
   /**
    * Organisation-wide configuration.

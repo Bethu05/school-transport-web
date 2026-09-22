@@ -20,6 +20,20 @@ import type {
   UpdateGuardianInput,
 } from "./guardians.api";
 
+export interface GuardianFormSubmission {
+  profile: CreateGuardianInput | UpdateGuardianInput;
+
+  /**
+   * Used only while creating a Guardian.
+   *
+   * Existing Guardian Parent App access is managed by the
+   * dedicated access workflow.
+   */
+  giveParentAppAccess: boolean;
+
+  temporaryPassword?: string;
+}
+
 interface GuardianFormDialogProps {
   open: boolean;
 
@@ -31,32 +45,53 @@ interface GuardianFormDialogProps {
 
   onClose: () => void;
 
-  onSubmit: (input: CreateGuardianInput | UpdateGuardianInput) => void;
+  onSubmit: (input: GuardianFormSubmission) => void;
 }
 
 interface GuardianForm {
   firstName: string;
+
   lastName: string;
 
   email: string;
+
   phone: string;
 
   notifyBoarded: boolean;
+
   notifyDroppedOff: boolean;
+
   notifyTripUpdates: boolean;
+
+  giveParentAppAccess: boolean;
+
+  temporaryPassword: string;
+
+  confirmTemporaryPassword: string;
 }
 
 function initialForm(guardian: Guardian | null): GuardianForm {
   if (!guardian) {
     return {
       firstName: "",
+
       lastName: "",
+
       email: "",
+
       phone: "",
 
       notifyBoarded: true,
+
       notifyDroppedOff: true,
+
       notifyTripUpdates: true,
+
+      giveParentAppAccess: false,
+
+      temporaryPassword: "",
+
+      confirmTemporaryPassword: "",
     };
   }
 
@@ -74,6 +109,12 @@ function initialForm(guardian: Guardian | null): GuardianForm {
     notifyDroppedOff: guardian.notifyDroppedOff,
 
     notifyTripUpdates: guardian.notifyTripUpdates,
+
+    giveParentAppAccess: guardian.userId !== null,
+
+    temporaryPassword: "",
+
+    confirmTemporaryPassword: "",
   };
 }
 
@@ -92,7 +133,13 @@ export function GuardianFormDialog({
   const editing = Boolean(guardian);
 
   function updateText(
-    field: "firstName" | "lastName" | "email" | "phone",
+    field:
+      | "firstName"
+      | "lastName"
+      | "email"
+      | "phone"
+      | "temporaryPassword"
+      | "confirmTemporaryPassword",
     value: string,
   ): void {
     setForm((current) => ({
@@ -100,6 +147,8 @@ export function GuardianFormDialog({
 
       [field]: value,
     }));
+
+    setValidationError(null);
   }
 
   function submit(): void {
@@ -123,29 +172,52 @@ export function GuardianFormDialog({
       return;
     }
 
-    /*
-     * The backend requires at least one contact method
-     * unless a Guardian is linked directly to a user.
-     *
-     * User-account linking is deliberately not exposed
-     * in this form yet.
-     */
     if (!email && !phone) {
       setValidationError("Enter at least an email address or phone number.");
 
       return;
     }
 
+    if (!editing && form.giveParentAppAccess) {
+      if (!email) {
+        setValidationError(
+          "An email address is required for Parent App access.",
+        );
+
+        return;
+      }
+
+      if (form.temporaryPassword.length < 12) {
+        setValidationError(
+          "Temporary password must contain at least 12 characters.",
+        );
+
+        return;
+      }
+
+      if (form.temporaryPassword.length > 128) {
+        setValidationError(
+          "Temporary password must not exceed 128 characters.",
+        );
+
+        return;
+      }
+
+      if (form.temporaryPassword !== form.confirmTemporaryPassword) {
+        setValidationError("Temporary password and confirmation do not match.");
+
+        return;
+      }
+    }
+
     setValidationError(null);
 
     if (editing) {
-      const input: UpdateGuardianInput = {
+      const profile: UpdateGuardianInput = {
         firstName,
+
         lastName,
 
-        /*
-         * null explicitly clears an existing contact value.
-         */
         email: email || null,
 
         phone: phone || null,
@@ -157,13 +229,18 @@ export function GuardianFormDialog({
         notifyTripUpdates: form.notifyTripUpdates,
       };
 
-      onSubmit(input);
+      onSubmit({
+        profile,
+
+        giveParentAppAccess: guardian?.userId !== null,
+      });
 
       return;
     }
 
-    const input: CreateGuardianInput = {
+    const profile: CreateGuardianInput = {
       firstName,
+
       lastName,
 
       email: email || undefined,
@@ -177,17 +254,24 @@ export function GuardianFormDialog({
       notifyTripUpdates: form.notifyTripUpdates,
     };
 
-    onSubmit(input);
+    onSubmit({
+      profile,
+
+      giveParentAppAccess: form.giveParentAppAccess,
+
+      ...(form.giveParentAppAccess
+        ? {
+            temporaryPassword: form.temporaryPassword,
+          }
+        : {}),
+    });
   }
 
   return (
     <Dialog
       open={open}
-
       onClose={submitting ? undefined : onClose}
-
       fullWidth
-
       maxWidth="sm"
     >
       <DialogTitle
@@ -208,14 +292,13 @@ export function GuardianFormDialog({
             fontSize: 12.5,
           }}
         >
-          Keep the Guardian profile simple. Student relationships are managed
-          separately.
+          Guardian profiles and login accounts are deliberately separate.
+          Student relationships are managed independently.
         </Typography>
 
         {validationError ? (
           <Alert
             severity="warning"
-
             sx={{
               mb: 2,
             }}
@@ -227,7 +310,6 @@ export function GuardianFormDialog({
         {error ? (
           <Alert
             severity="error"
-
             sx={{
               mb: 2,
             }}
@@ -251,13 +333,9 @@ export function GuardianFormDialog({
         >
           <TextField
             required
-
             label="First name"
-
             value={form.firstName}
-
             onChange={(event) => updateText("firstName", event.target.value)}
-
             slotProps={{
               htmlInput: {
                 maxLength: 100,
@@ -267,13 +345,9 @@ export function GuardianFormDialog({
 
           <TextField
             required
-
             label="Last name"
-
             value={form.lastName}
-
             onChange={(event) => updateText("lastName", event.target.value)}
-
             slotProps={{
               htmlInput: {
                 maxLength: 100,
@@ -283,15 +357,10 @@ export function GuardianFormDialog({
 
           <TextField
             type="email"
-
             label="Email"
-
             value={form.email}
-
             onChange={(event) => updateText("email", event.target.value)}
-
             placeholder="parent@example.com"
-
             slotProps={{
               htmlInput: {
                 maxLength: 320,
@@ -301,13 +370,9 @@ export function GuardianFormDialog({
 
           <TextField
             label="Phone"
-
             value={form.phone}
-
             onChange={(event) => updateText("phone", event.target.value)}
-
             placeholder="+254..."
-
             slotProps={{
               htmlInput: {
                 maxLength: 50,
@@ -315,6 +380,128 @@ export function GuardianFormDialog({
             }}
           />
         </Box>
+
+        {!editing ? (
+          <Box
+            sx={{
+              mt: 3,
+
+              p: 2,
+
+              border: "1px solid",
+
+              borderColor: form.giveParentAppAccess
+                ? "primary.main"
+                : "divider",
+
+              borderRadius: 2.5,
+
+              bgcolor: "action.hover",
+            }}
+          >
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={form.giveParentAppAccess}
+                  onChange={(event) => {
+                    setForm((current) => ({
+                      ...current,
+
+                      giveParentAppAccess: event.target.checked,
+                    }));
+
+                    setValidationError(null);
+                  }}
+                />
+              }
+              label="Give Parent App access"
+            />
+
+            <Typography
+              sx={{
+                mt: 0.5,
+
+                color: "text.secondary",
+
+                fontSize: 11.5,
+
+                lineHeight: 1.6,
+              }}
+            >
+              Creates or links a secure login account for this parent. An
+              existing global account keeps its existing password.
+            </Typography>
+
+            {form.giveParentAppAccess ? (
+              <>
+                <Alert
+                  severity="info"
+                  sx={{
+                    mt: 2,
+                  }}
+                >
+                  Enter a temporary password in case this is a new account. If
+                  the email already belongs to an existing account, the
+                  temporary password will not replace it.
+                </Alert>
+
+                <TextField
+                  label="Temporary password"
+                  type="password"
+                  value={form.temporaryPassword}
+                  onChange={(event) =>
+                    updateText("temporaryPassword", event.target.value)
+                  }
+                  autoComplete="new-password"
+                  required
+                  fullWidth
+                  helperText="Minimum 12 characters"
+                  slotProps={{
+                    htmlInput: {
+                      minLength: 12,
+                      maxLength: 128,
+                    },
+                  }}
+                  sx={{
+                    mt: 2,
+                  }}
+                />
+
+                <TextField
+                  label="Confirm temporary password"
+                  type="password"
+                  value={form.confirmTemporaryPassword}
+                  onChange={(event) =>
+                    updateText("confirmTemporaryPassword", event.target.value)
+                  }
+                  autoComplete="new-password"
+                  required
+                  fullWidth
+                  slotProps={{
+                    htmlInput: {
+                      minLength: 12,
+                      maxLength: 128,
+                    },
+                  }}
+                  sx={{
+                    mt: 2,
+                  }}
+                />
+              </>
+            ) : null}
+          </Box>
+        ) : (
+          <Alert
+            severity={guardian?.userId ? "success" : "info"}
+            sx={{
+              mt: 3,
+            }}
+          >
+            {guardian?.userId
+              ? "Parent App access is currently enabled. Use the Parent App action on the Guardian list to remove or manage access."
+              : "Parent App access is not enabled. Use the Parent App action on the Guardian list to enable it."}
+          </Alert>
+        )}
 
         <Box
           sx={{
@@ -343,7 +530,6 @@ export function GuardianFormDialog({
             control={
               <Switch
                 checked={form.notifyBoarded}
-
                 onChange={(event) =>
                   setForm((current) => ({
                     ...current,
@@ -353,7 +539,6 @@ export function GuardianFormDialog({
                 }
               />
             }
-
             label="Notify when student boards"
           />
 
@@ -361,7 +546,6 @@ export function GuardianFormDialog({
             control={
               <Switch
                 checked={form.notifyDroppedOff}
-
                 onChange={(event) =>
                   setForm((current) => ({
                     ...current,
@@ -371,7 +555,6 @@ export function GuardianFormDialog({
                 }
               />
             }
-
             label="Notify when student is dropped off"
           />
 
@@ -379,7 +562,6 @@ export function GuardianFormDialog({
             control={
               <Switch
                 checked={form.notifyTripUpdates}
-
                 onChange={(event) =>
                   setForm((current) => ({
                     ...current,
@@ -389,7 +571,6 @@ export function GuardianFormDialog({
                 }
               />
             }
-
             label="Receive trip updates"
           />
         </Box>
@@ -402,21 +583,11 @@ export function GuardianFormDialog({
           pb: 3,
         }}
       >
-        <Button
-          disabled={submitting}
-
-          onClick={onClose}
-        >
+        <Button disabled={submitting} onClick={onClose}>
           Cancel
         </Button>
 
-        <Button
-          variant="contained"
-
-          disabled={submitting}
-
-          onClick={submit}
-        >
+        <Button variant="contained" disabled={submitting} onClick={submit}>
           {submitting ? "Saving..." : editing ? "Save changes" : "Add Guardian"}
         </Button>
       </DialogActions>
