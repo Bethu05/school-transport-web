@@ -16,13 +16,11 @@ import {
   Typography,
 } from "@mui/material";
 
-import { AddRounded, TuneRounded } from "@mui/icons-material";
+import { TuneRounded } from "@mui/icons-material";
 
 import { useQuery } from "@tanstack/react-query";
 
 import { useState } from "react";
-
-import { CreateTenantDialog } from "./CreateTenantDialog";
 
 import {
   listPlatformTenants,
@@ -175,8 +173,6 @@ export function SchoolsWorkspace({
 
   const [search, setSearch] = useState("");
 
-  const [createOpen, setCreateOpen] = useState(false);
-
   const tenantsQuery = useQuery({
     queryKey: ["platform", "tenants"],
 
@@ -286,17 +282,6 @@ export function SchoolsWorkspace({
             school accounts.
           </Typography>
         </Box>
-
-        <Button
-          variant="contained"
-          startIcon={<AddRounded />}
-          onClick={() => setCreateOpen(true)}
-          sx={{
-            textTransform: "none",
-          }}
-        >
-          Create school
-        </Button>
       </Box>
 
       <Stack
@@ -505,16 +490,6 @@ export function SchoolsWorkspace({
           </Table>
         </TableContainer>
       )}
-
-      <CreateTenantDialog
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onTenantCreated={(tenant) => {
-          onSelectTenant(tenant);
-
-          onManageTenant(tenant);
-        }}
-      />
     </Stack>
   );
 }

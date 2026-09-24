@@ -1,5 +1,7 @@
 import { apiRequest, setAccessToken } from "../api/client";
 
+import type { School } from "../schools/schools.api";
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -60,11 +62,19 @@ interface AuthTenantListResponse {
   items: AuthTenantMembership[];
 }
 
+interface AuthSchoolListResponse {
+  items: School[];
+}
+
 export interface CurrentUserResponse {
   user: AuthenticatedUser;
 
   platform: {
     isSuperAdmin: boolean;
+
+    roles: string[];
+
+    permissions: string[];
   };
 
   /**
@@ -75,10 +85,7 @@ export interface CurrentUserResponse {
   security: PasswordSecurityState;
 }
 
-export type TenantFeatureAccessSource =
-  | "override"
-  | "plan"
-  | "none";
+export type TenantFeatureAccessSource = "override" | "plan" | "none";
 
 export interface TenantFeatureAccess {
   key: string;
@@ -186,4 +193,24 @@ export function getAuthContext(tenantId: string): Promise<AuthContextResponse> {
   return apiRequest<AuthContextResponse>("/auth/context", {
     tenantId,
   });
+}
+
+/**
+ * Discover schools the authenticated identity may enter inside
+ * the already-verified tenant.
+ *
+ * The backend remains authoritative:
+ *
+ * - tenant-wide school readers receive permitted active schools;
+ * - Drivers receive relationship-derived schools;
+ * - Guardians receive child-relationship-derived schools.
+ *
+ * Browser storage and URL slugs never grant school access.
+ */
+export async function getAuthSchools(tenantId: string): Promise<School[]> {
+  const response = await apiRequest<AuthSchoolListResponse>("/auth/schools", {
+    tenantId,
+  });
+
+  return response.items;
 }

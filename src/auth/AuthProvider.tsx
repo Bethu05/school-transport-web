@@ -28,6 +28,7 @@ import {
 
 import {
   getAuthContext,
+  getAuthSchools,
   getAuthTenants,
   getCurrentUser,
   login as loginRequest,
@@ -39,8 +40,12 @@ import {
   type TenantFeatureAccess,
 } from "./auth.api";
 
+import type { School } from "../schools/schools.api";
+
 export interface AuthLoginOutcome {
   isSuperAdmin: boolean;
+
+  isPlatformUser: boolean;
 
   passwordChangeRequired: boolean;
 }
@@ -52,6 +57,35 @@ interface AuthContextValue {
    * Active tenant and backend-verified membership role.
    */
   tenant: ActiveTenant | null;
+
+  /**
+   * Metadata for the selected backend-authorised tenant.
+   *
+   * /auth/context deliberately carries only tenantId + role.
+   * Name/slug/timezone come from the authenticated /auth/tenants
+   * discovery response.
+   */
+  tenantMembership: AuthTenantMembership | null;
+
+  /**
+   * Schools the authenticated identity may enter in the current
+   * tenant according to /auth/schools.
+   */
+  schools: readonly School[];
+
+  /**
+   * Current frontend school context.
+   *
+   * This is always selected from `schools`; arbitrary browser
+   * input can never create an active school.
+   */
+  activeSchool: School | null;
+
+  /**
+   * Change school context only to a school already returned by
+   * the backend-authorised discovery endpoint.
+   */
+  selectSchool: (schoolId: string) => void;
 
   /**
    * Effective permissions returned by the backend.
@@ -78,6 +112,12 @@ interface AuthContextValue {
 
   isSuperAdmin: boolean;
 
+  isPlatformUser: boolean;
+
+  platformRoles: readonly string[];
+
+  platformPermissions: readonly string[];
+
   loading: boolean;
 
   authenticated: boolean;
@@ -95,8 +135,14 @@ interface AuthProviderProps {
 
 const TENANT_STORAGE_KEY = "school_transport_tenant_id";
 
+const SCHOOL_STORAGE_KEY = "school_transport_school_id";
+
 function clearTenantSelection(): void {
   localStorage.removeItem(TENANT_STORAGE_KEY);
+}
+
+function clearSchoolSelection(): void {
+  localStorage.removeItem(SCHOOL_STORAGE_KEY);
 }
 
 /**
@@ -145,21 +191,87 @@ function resolveAuthorizedTenantId(
   return null;
 }
 
+/**
+ * Resolve school preference ONLY from the list already returned
+ * by the authenticated backend.
+ *
+ * Storage is therefore just a UX preference.
+ *
+ * Rules:
+ *
+ * - saved authorised school -> restore it;
+ * - exactly one authorised school -> select automatically;
+ * - multiple schools with no saved preference -> no selection,
+ *   so the routing layer can show the school selector;
+ * - zero schools -> no context.
+ */
+function resolveAuthorizedSchoolId(schools: readonly School[]): string | null {
+  const storedSchoolId = localStorage.getItem(SCHOOL_STORAGE_KEY);
+
+  if (
+    storedSchoolId &&
+    schools.some((school) => school.id === storedSchoolId)
+  ) {
+    return storedSchoolId;
+  }
+
+  const configuredDefaultSchoolSlug =
+    import.meta.env.VITE_DEFAULT_SCHOOL_SLUG?.trim();
+
+  if (configuredDefaultSchoolSlug) {
+    const configuredDefaultSchool =
+      schools.find((school) => school.slug === configuredDefaultSchoolSlug) ??
+      null;
+
+    if (configuredDefaultSchool) {
+      localStorage.setItem(SCHOOL_STORAGE_KEY, configuredDefaultSchool.id);
+
+      return configuredDefaultSchool.id;
+    }
+  }
+
+  if (schools.length === 1) {
+    const schoolId = schools[0].id;
+
+    localStorage.setItem(SCHOOL_STORAGE_KEY, schoolId);
+
+    return schoolId;
+  }
+
+  clearSchoolSelection();
+
+  return null;
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
 
   const [tenant, setTenant] = useState<ActiveTenant | null>(null);
 
+  const [tenantMembership, setTenantMembership] =
+    useState<AuthTenantMembership | null>(null);
+
+  const [schools, setSchools] = useState<readonly School[]>([]);
+
+  const [activeSchool, setActiveSchool] = useState<School | null>(null);
+
   const [permissions, setPermissions] = useState<readonly string[]>([]);
 
-  const [features, setFeatures] =
-    useState<readonly TenantFeatureAccess[]>([]);
+  const [features, setFeatures] = useState<readonly TenantFeatureAccess[]>([]);
 
   const [access, setAccess] = useState<TenantCommercialAccess | null>(null);
 
   const [passwordChangeRequired, setPasswordChangeRequired] = useState(false);
 
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  const [platformRoles, setPlatformRoles] = useState<readonly string[]>([]);
+
+  const [platformPermissions, setPlatformPermissions] = useState<
+    readonly string[]
+  >([]);
+
+  const isPlatformUser = platformRoles.length > 0;
 
   const [loading, setLoading] = useState(true);
 
@@ -169,6 +281,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   function clearTenantRuntimeState(): void {
     setTenant(null);
+
+    setTenantMembership(null);
+
+    setSchools([]);
+
+    setActiveSchool(null);
 
     setPermissions([]);
 
@@ -197,6 +315,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         setIsSuperAdmin(response.platform.isSuperAdmin);
 
+        setPlatformRoles(response.platform.roles);
+
+        setPlatformPermissions(response.platform.permissions);
+
         setPasswordChangeRequired(response.security.mustChangePassword);
 
         /**
@@ -212,8 +334,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
           return;
         }
 
-        if (response.platform.isSuperAdmin) {
+        if (response.platform.roles.length > 0) {
           clearTenantSelection();
+
+          clearSchoolSelection();
 
           clearTenantRuntimeState();
 
@@ -225,17 +349,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const tenantId = resolveAuthorizedTenantId(memberships);
 
         if (tenantId) {
-          const context = await getAuthContext(tenantId);
+          const membership =
+            memberships.find((item) => item.tenantId === tenantId) ?? null;
+
+          const [context, authorizedSchools] = await Promise.all([
+            getAuthContext(tenantId),
+            getAuthSchools(tenantId),
+          ]);
 
           setUser(context.user);
 
           setTenant(context.tenant);
 
+          setTenantMembership(membership);
+
           setPermissions(context.permissions);
 
-      setFeatures(context.features);
+          setFeatures(context.features);
 
           setAccess(context.access);
+
+          setSchools(authorizedSchools);
+
+          const schoolId = resolveAuthorizedSchoolId(authorizedSchools);
+
+          setActiveSchool(
+            authorizedSchools.find((school) => school.id === schoolId) ?? null,
+          );
 
           return;
         }
@@ -246,6 +386,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         clearTenantSelection();
 
+        clearSchoolSelection();
+
         setUser(null);
 
         clearTenantRuntimeState();
@@ -253,6 +395,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setPasswordChangeRequired(false);
 
         setIsSuperAdmin(false);
+
+        setPlatformRoles([]);
+
+        setPlatformPermissions([]);
       } finally {
         setLoading(false);
       }
@@ -274,6 +420,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     setIsSuperAdmin(response.platform.isSuperAdmin);
 
+    setPlatformRoles(response.platform.roles);
+
+    setPlatformPermissions(response.platform.permissions);
+
     setPasswordChangeRequired(response.security.mustChangePassword);
 
     if (response.security.mustChangePassword) {
@@ -282,17 +432,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return {
         isSuperAdmin: response.platform.isSuperAdmin,
 
+        isPlatformUser: response.platform.roles.length > 0,
+
         passwordChangeRequired: true,
       };
     }
 
-    if (response.platform.isSuperAdmin) {
+    if (response.platform.roles.length > 0) {
       clearTenantSelection();
+
+      clearSchoolSelection();
 
       clearTenantRuntimeState();
 
       return {
-        isSuperAdmin: true,
+        isSuperAdmin: response.platform.isSuperAdmin,
+
+        isPlatformUser: true,
 
         passwordChangeRequired: false,
       };
@@ -303,17 +459,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const tenantId = resolveAuthorizedTenantId(memberships);
 
     if (tenantId) {
-      const context = await getAuthContext(tenantId);
+      const membership =
+        memberships.find((item) => item.tenantId === tenantId) ?? null;
+
+      const [context, authorizedSchools] = await Promise.all([
+        getAuthContext(tenantId),
+        getAuthSchools(tenantId),
+      ]);
 
       setUser(context.user);
 
       setTenant(context.tenant);
+
+      setTenantMembership(membership);
 
       setPermissions(context.permissions);
 
       setFeatures(context.features);
 
       setAccess(context.access);
+
+      setSchools(authorizedSchools);
+
+      const schoolId = resolveAuthorizedSchoolId(authorizedSchools);
+
+      setActiveSchool(
+        authorizedSchools.find((school) => school.id === schoolId) ?? null,
+      );
     } else {
       clearTenantRuntimeState();
     }
@@ -321,8 +493,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return {
       isSuperAdmin: false,
 
+      isPlatformUser: false,
+
       passwordChangeRequired: false,
     };
+  }
+
+  /**
+   * Change current school only to an identity already returned by
+   * /auth/schools.
+   *
+   * The routing layer will subsequently encode this verified
+   * selection into the canonical URL.
+   */
+  function selectSchool(schoolId: string): void {
+    const school =
+      schools.find((candidate) => candidate.id === schoolId) ?? null;
+
+    if (!school) {
+      return;
+    }
+
+    localStorage.setItem(SCHOOL_STORAGE_KEY, school.id);
+
+    setActiveSchool(school);
   }
 
   /**
@@ -333,6 +527,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     clearTenantSelection();
 
+    clearSchoolSelection();
+
     setUser(null);
 
     clearTenantRuntimeState();
@@ -340,6 +536,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setPasswordChangeRequired(false);
 
     setIsSuperAdmin(false);
+
+    setPlatformRoles([]);
+
+    setPlatformPermissions([]);
   }
 
   /**
@@ -394,7 +594,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         setPermissions(context.permissions);
 
-      setFeatures(context.features);
+        setFeatures(context.features);
 
         setAccess(context.access);
       } catch {
@@ -428,6 +628,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       tenant,
 
+      tenantMembership,
+
+      schools,
+
+      activeSchool,
+
+      selectSchool,
+
       permissions,
 
       features,
@@ -437,6 +645,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       passwordChangeRequired,
 
       isSuperAdmin,
+
+      isPlatformUser,
+
+      platformRoles,
+
+      platformPermissions,
 
       loading,
 
@@ -449,11 +663,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [
       user,
       tenant,
+      tenantMembership,
+      schools,
+      activeSchool,
       permissions,
       features,
       access,
       passwordChangeRequired,
       isSuperAdmin,
+      isPlatformUser,
+      platformRoles,
+      platformPermissions,
       loading,
     ],
   );

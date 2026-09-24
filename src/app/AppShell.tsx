@@ -10,6 +10,8 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  MenuItem,
+  Select,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -47,6 +49,10 @@ import {
 } from "../auth/frontend-permissions";
 
 import { UpgradeRequiredDialog } from "../commercial/UpgradeRequiredDialog";
+
+import { buildSchoolPath } from "../schools/school-routing";
+
+import { buildTenantPath } from "../tenancy/tenant-routing";
 
 import { useColorMode } from "../theme/AppThemeProvider";
 
@@ -228,7 +234,17 @@ function initials(email?: string): string {
 }
 
 export function AppShell({ children }: AppShellProps) {
-  const { permissions, features, user, tenant, logout } = useAuth();
+  const {
+    permissions,
+    features,
+    user,
+    tenant,
+    tenantMembership,
+    schools,
+    activeSchool,
+    selectSchool,
+    logout,
+  } = useAuth();
 
   const { mode, toggleColorMode } = useColorMode();
 
@@ -244,9 +260,7 @@ export function AppShell({ children }: AppShellProps) {
   const role = tenant?.role;
 
   const enabledFeatureKeys = new Set(
-    features
-      .filter((feature) => feature.enabled)
-      .map((feature) => feature.key),
+    features.filter((feature) => feature.enabled).map((feature) => feature.key),
   );
 
   const visibleNavigation = navigation.filter((item) => {
@@ -279,6 +293,134 @@ export function AppShell({ children }: AppShellProps) {
     navigate("/login", {
       replace: true,
     });
+  }
+
+  /**
+   * Resolve only modules that have actually completed their
+   * school-context migration.
+   *
+   * Other modules deliberately retain their existing tenant-wide
+   * URLs until their backend/frontend data contracts are migrated.
+   */
+  function navigationPath(item: NavigationItem): string {
+    const schoolSection =
+      item.path === "/students"
+        ? "students"
+        : item.path === "/trips"
+          ? "trips"
+          : item.path === "/routes"
+            ? "routes"
+            : item.path === "/stops"
+              ? "stops"
+              : item.path === "/vehicles"
+                ? "vehicles"
+                : item.path === "/drivers"
+                  ? "drivers"
+                  : item.path === "/incidents"
+                    ? "incidents"
+                    : null;
+
+    if (schoolSection && tenantMembership && activeSchool) {
+      return buildSchoolPath(
+        tenantMembership.slug,
+        activeSchool.slug,
+        schoolSection,
+      );
+    }
+
+    if (tenantMembership) {
+      if (item.path === "/dashboard") {
+        return buildTenantPath(tenantMembership.slug);
+      }
+
+      const tenantSection =
+        item.path === "/tracking"
+          ? "tracking"
+          : item.path === "/guardians"
+            ? "guardians"
+            : item.path === "/notifications"
+              ? "notifications"
+              : item.path === "/schools"
+                ? "schools"
+                : item.path === "/settings"
+                  ? "settings"
+                  : item.path === "/users-access"
+                    ? "users-access"
+                    : null;
+
+      if (tenantSection) {
+        return buildTenantPath(tenantMembership.slug, tenantSection);
+      }
+    }
+
+    return item.path;
+  }
+
+  function handleSchoolChange(schoolId: string): void {
+    const school =
+      schools.find((candidate) => candidate.id === schoolId) ?? null;
+
+    if (!school) {
+      return;
+    }
+
+    selectSchool(school.id);
+
+    if (!tenantMembership) {
+      return;
+    }
+
+    /**
+     * Preserve the current school-scoped section when switching
+     * between authorised schools.
+     */
+    if (location.pathname.startsWith("/school/")) {
+      const segments = location.pathname.split("/").filter(Boolean);
+
+      const section = segments[3];
+
+      if (section) {
+        navigate(buildSchoolPath(tenantMembership.slug, school.slug, section), {
+          replace: true,
+        });
+
+        return;
+      }
+    }
+
+    /**
+     * Compatibility entries become canonical as soon as a school
+     * is selected.
+     */
+    const compatibilitySection =
+      location.pathname === "/students"
+        ? "students"
+        : location.pathname === "/trips"
+          ? "trips"
+          : location.pathname === "/routes"
+            ? "routes"
+            : location.pathname === "/stops"
+              ? "stops"
+              : location.pathname === "/vehicles"
+                ? "vehicles"
+                : location.pathname === "/drivers"
+                  ? "drivers"
+                  : location.pathname === "/incidents"
+                    ? "incidents"
+                    : null;
+
+    if (compatibilitySection) {
+      navigate(
+        buildSchoolPath(
+          tenantMembership.slug,
+          school.slug,
+          compatibilitySection,
+        ),
+        {
+          replace: true,
+        },
+      );
+    }
   }
 
   function navigateTo(path: string): void {
@@ -370,11 +512,12 @@ export function AppShell({ children }: AppShellProps) {
         }}
       >
         {visibleNavigation.map((item) => {
-          const selected = location.pathname === item.path;
+          const resolvedPath = navigationPath(item);
+
+          const selected = location.pathname === resolvedPath;
 
           const locked =
-            Boolean(item.feature) &&
-            !enabledFeatureKeys.has(item.feature!);
+            Boolean(item.feature) && !enabledFeatureKeys.has(item.feature!);
 
           return (
             <ListItemButton
@@ -389,7 +532,7 @@ export function AppShell({ children }: AppShellProps) {
                   return;
                 }
 
-                navigateTo(item.path);
+                navigateTo(resolvedPath);
               }}
               sx={{
                 mb: 0.5,
@@ -680,6 +823,59 @@ export function AppShell({ children }: AppShellProps) {
           </Box>
 
           {/* ============================================
+              SCHOOL CONTEXT
+
+              Deliberately shown only on modules that have already
+              been migrated to school-scoped behaviour.
+              ============================================ */}
+
+          {(location.pathname === "/students" ||
+            location.pathname === "/trips" ||
+            location.pathname === "/routes" ||
+            location.pathname === "/stops" ||
+            location.pathname === "/vehicles" ||
+            location.pathname === "/drivers" ||
+            location.pathname === "/incidents" ||
+            location.pathname.startsWith("/school/")) &&
+          tenantMembership &&
+          schools.length > 0 ? (
+            <Select
+              size="small"
+              value={activeSchool?.id ?? ""}
+              displayEmpty
+              aria-label="Current school"
+              onChange={(event) => {
+                handleSchoolChange(event.target.value);
+              }}
+              sx={{
+                mr: 1,
+
+                minWidth: {
+                  xs: 120,
+                  sm: 180,
+                },
+
+                maxWidth: {
+                  xs: 150,
+                  sm: 240,
+                },
+
+                fontSize: 11.5,
+              }}
+            >
+              <MenuItem value="" disabled>
+                Select school
+              </MenuItem>
+
+              {schools.map((school) => (
+                <MenuItem key={school.id} value={school.id}>
+                  {school.shortName ?? school.name}
+                </MenuItem>
+              ))}
+            </Select>
+          ) : null}
+
+          {/* ============================================
               LIGHT / DARK MODE
               ============================================ */}
 
@@ -755,7 +951,6 @@ export function AppShell({ children }: AppShellProps) {
         featureName={lockedNavigationItem?.label ?? "Feature"}
         onClose={() => setLockedNavigationItem(null)}
       />
-
     </Box>
   );
 }

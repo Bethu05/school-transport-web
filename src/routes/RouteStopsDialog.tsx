@@ -137,16 +137,20 @@ export function RouteStopsDialog({
   });
 
   const stopsQuery = useQuery({
-    queryKey: ["stops", tenantId],
+    queryKey: ["stops", "route-selector", tenantId, route?.schoolId],
 
-    enabled: Boolean(open && tenantId),
+    enabled: Boolean(open && tenantId && route),
 
     queryFn: async () => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !route) {
+        throw new Error("Route context is unavailable");
       }
 
-      return listStops(tenantId);
+      return listStops(tenantId, {
+        schoolId: route.schoolId,
+        includeShared: true,
+        status: "active",
+      });
     },
   });
 

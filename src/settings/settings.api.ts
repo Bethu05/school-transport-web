@@ -31,8 +31,84 @@ export interface GeneralSettings {
   updatedAt: string;
 }
 
+export interface OrganisationProfile {
+  tenantId: string;
+
+  displayName: string | null;
+
+  countryCode: string | null;
+
+  region: string | null;
+
+  city: string | null;
+
+  addressLine1: string | null;
+
+  addressLine2: string | null;
+
+  postalCode: string | null;
+
+  phone: string | null;
+
+  email: string | null;
+
+  website: string | null;
+
+  operationalContactName: string | null;
+
+  operationalContactEmail: string | null;
+
+  operationalContactPhone: string | null;
+
+  motto: string | null;
+
+  vision: string | null;
+
+  about: string | null;
+
+  logoAssetKey: string | null;
+
+  updatedAt: string;
+}
+
+export interface UpdateOrganisationProfileInput {
+  displayName?: string | null;
+
+  countryCode?: string | null;
+
+  region?: string | null;
+
+  city?: string | null;
+
+  addressLine1?: string | null;
+
+  addressLine2?: string | null;
+
+  postalCode?: string | null;
+
+  phone?: string | null;
+
+  email?: string | null;
+
+  website?: string | null;
+
+  operationalContactName?: string | null;
+
+  operationalContactEmail?: string | null;
+
+  operationalContactPhone?: string | null;
+
+  motto?: string | null;
+
+  vision?: string | null;
+
+  about?: string | null;
+}
+
 export interface SettingsResponse {
   general: GeneralSettings;
+
+  profile: OrganisationProfile;
 }
 
 export interface UpdateGeneralSettingsInput {
@@ -76,6 +152,19 @@ export function updateGeneralSettings(
   input: UpdateGeneralSettingsInput,
 ): Promise<SettingsResponse> {
   return apiRequest<SettingsResponse>("/settings/general", {
+    method: "PATCH",
+
+    tenantId,
+
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateOrganisationProfile(
+  tenantId: string,
+  input: UpdateOrganisationProfileInput,
+): Promise<SettingsResponse> {
+  return apiRequest<SettingsResponse>("/settings/profile", {
     method: "PATCH",
 
     tenantId,

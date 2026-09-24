@@ -17,15 +17,11 @@ function check(condition, message) {
 }
 
 const page = read("src/super-admin/SuperAdminPage.tsx");
-
 const overview = read("src/super-admin/SuperAdminOverview.tsx");
-
 const onboarding = read("src/super-admin/OnboardingWorkspace.tsx");
-
 const schools = read("src/super-admin/SchoolsWorkspace.tsx");
 
 console.log("Super Admin school lifecycle dashboard checkpoint");
-
 console.log("------------------------------------------------");
 
 check(
@@ -60,17 +56,17 @@ check(
 );
 
 check(
-  overview.includes("listPlatformOnboardingQueue") &&
+  overview.includes("listPlatformSchoolSetupRequestsForReview") &&
+    overview.includes("listPlatformOnboardingQueue") &&
     overview.includes("listPlatformTenants"),
-  "overview reads canonical onboarding and school data",
+  "overview reads pre-tenant review, canonical onboarding and school data",
 );
 
 check(
-  onboarding.includes("Needs review") &&
-    onboarding.includes("In onboarding") &&
-    onboarding.includes("Ready to launch") &&
-    onboarding.includes("Rejected"),
-  "onboarding queue supports lifecycle filtering",
+  onboarding.includes("School applications") &&
+    onboarding.includes("15-step onboarding") &&
+    onboarding.includes("<SchoolSetupReviewPanel"),
+  "onboarding separates pre-tenant applications from post-approval workflow",
 );
 
 check(
@@ -88,8 +84,10 @@ check(
 );
 
 check(
-  schools.includes("Manage school") && schools.includes("<CreateTenantDialog"),
-  "schools workspace retains account creation and tenant management",
+  schools.includes("Manage school") &&
+    !schools.includes("<CreateTenantDialog") &&
+    !schools.includes("Create school"),
+  "schools workspace manages existing schools without bypassing application approval",
 );
 
 check(
@@ -101,10 +99,8 @@ check(
 
 if (process.exitCode) {
   console.error();
-
   console.error("Super Admin school lifecycle dashboard checkpoint FAILED");
 } else {
   console.log();
-
   console.log("Super Admin school lifecycle dashboard checkpoint PASSED");
 }

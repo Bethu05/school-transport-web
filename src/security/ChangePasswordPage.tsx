@@ -13,6 +13,8 @@ import {
 
 import {
   ArrowBackRounded,
+  AutoAwesomeRounded,
+  ContentCopyRounded,
   DirectionsBusRounded,
   LockResetRounded,
   LogoutRounded,
@@ -24,6 +26,63 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 
 import { changePassword } from "../auth/auth.api";
+
+function secureRandomIndex(length: number): number {
+  if (length <= 0) {
+    throw new Error("Password character set cannot be empty");
+  }
+
+  const maximum = 0x1_0000_0000;
+  const usableMaximum = Math.floor(maximum / length) * length;
+
+  const random = new Uint32Array(1);
+
+  let value = 0;
+
+  do {
+    globalThis.crypto.getRandomValues(random);
+
+    value = random[0] ?? 0;
+  } while (value >= usableMaximum);
+
+  return value % length;
+}
+
+function secureCharacter(characters: string): string {
+  return characters[secureRandomIndex(characters.length)] ?? "";
+}
+
+function generateStrongPassword(): string {
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const digits = "23456789";
+  const symbols = "!@#$%*-_+=";
+
+  const all = upper + lower + digits + symbols;
+
+  const password = [
+    secureCharacter(upper),
+    secureCharacter(lower),
+    secureCharacter(digits),
+    secureCharacter(symbols),
+  ];
+
+  while (password.length < 20) {
+    password.push(secureCharacter(all));
+  }
+
+  for (let index = password.length - 1; index > 0; index -= 1) {
+    const swapIndex = secureRandomIndex(index + 1);
+
+    const temporary = password[index] ?? "";
+
+    password[index] = password[swapIndex] ?? "";
+
+    password[swapIndex] = temporary;
+  }
+
+  return password.join("");
+}
 
 export function ChangePasswordPage() {
   const {
@@ -43,6 +102,10 @@ export function ChangePasswordPage() {
   const [newPassword, setNewPassword] = useState("");
 
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [showNewPassword, setShowNewPassword] = useState(false);
+
+  const [passwordCopied, setPasswordCopied] = useState(false);
 
   const [error, setError] = useState("");
 
@@ -74,6 +137,32 @@ export function ChangePasswordPage() {
     navigate("/login", {
       replace: true,
     });
+  }
+
+  function handleGeneratePassword(): void {
+    const generated = generateStrongPassword();
+
+    setNewPassword(generated);
+    setConfirmPassword(generated);
+    setShowNewPassword(true);
+    setPasswordCopied(false);
+    setError("");
+  }
+
+  async function handleCopyPassword(): Promise<void> {
+    if (!newPassword) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(newPassword);
+
+      setPasswordCopied(true);
+    } catch {
+      setError(
+        "Password could not be copied automatically. Select and copy it manually.",
+      );
+    }
   }
 
   async function handleSubmit(
@@ -356,12 +445,63 @@ export function ChangePasswordPage() {
                 fullWidth
               />
 
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 1,
+                  flexWrap: "wrap",
+                }}
+              >
+                <Button
+                  type="button"
+                  variant="outlined"
+                  startIcon={<AutoAwesomeRounded />}
+                  onClick={handleGeneratePassword}
+                >
+                  Generate strong password
+                </Button>
+
+                <Button
+                  type="button"
+                  color="inherit"
+                  onClick={() => {
+                    setShowNewPassword((visible) => !visible);
+                  }}
+                >
+                  {showNewPassword ? "Hide password" : "Show password"}
+                </Button>
+
+                <Button
+                  type="button"
+                  color="inherit"
+                  disabled={!newPassword}
+                  startIcon={<ContentCopyRounded />}
+                  onClick={() => {
+                    void handleCopyPassword();
+                  }}
+                >
+                  {passwordCopied ? "Copied" : "Copy password"}
+                </Button>
+              </Box>
+
+              <Typography
+                sx={{
+                  color: "text.secondary",
+                  fontSize: 10.5,
+                  lineHeight: 1.6,
+                }}
+              >
+                Generated passwords are created locally in this browser.
+              </Typography>
+
               <TextField
                 label="New password"
-                type="password"
+                type={showNewPassword ? "text" : "password"}
                 value={newPassword}
                 onChange={(event) => {
                   setNewPassword(event.target.value);
+
+                  setPasswordCopied(false);
 
                   setError("");
                 }}
@@ -379,7 +519,7 @@ export function ChangePasswordPage() {
 
               <TextField
                 label="Confirm new password"
-                type="password"
+                type={showNewPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(event) => {
                   setConfirmPassword(event.target.value);

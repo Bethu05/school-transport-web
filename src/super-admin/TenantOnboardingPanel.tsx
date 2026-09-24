@@ -153,36 +153,6 @@ const commercialBackendStepKeys = new Set([
   "trial_configuration",
 ]);
 
-const hiddenCommercialRailStepKeys = new Set([
-  "package_limits",
-  "feature_exceptions",
-  "trial_configuration",
-]);
-
-function commercialGroupStatus(
-  steps: PlatformOnboardingStep[],
-): PlatformOnboardingStepStatus {
-  if (steps.length === 4 && steps.every(stepComplete)) {
-    return "completed";
-  }
-
-  if (steps.some((step) => step.status === "blocked")) {
-    return "blocked";
-  }
-
-  if (
-    steps.some((step) => step.status === "in_progress" || stepComplete(step))
-  ) {
-    return "in_progress";
-  }
-
-  return "pending";
-}
-
-function commercialGroupComplete(steps: PlatformOnboardingStep[]): boolean {
-  return steps.length === 4 && steps.every(stepComplete);
-}
-
 function StepEvidence({ step }: { step: PlatformOnboardingStep }) {
   return (
     <Paper
@@ -532,9 +502,9 @@ export function TenantOnboardingPanel({
    */
   const workflow: PlatformOnboardingWorkflow = workflowQuery.data;
 
-  const steps = [...workflow.steps].sort(
-    (left, right) => left.stepOrder - right.stepOrder,
-  );
+  const steps = [...workflow.steps]
+    .filter((step) => step.stepOrder <= 13)
+    .sort((left, right) => left.stepOrder - right.stepOrder);
 
   if (steps.length === 0) {
     return <Alert severity="error">Onboarding steps are unavailable.</Alert>;
@@ -547,27 +517,19 @@ export function TenantOnboardingPanel({
    * Persisted backend evidence remains authoritative.
    */
   /*
-   * Backend Steps 5-8 remain independent audited records.
-   *
-   * The admin UI presents them as one Commercial Setup stage because
-   * they are reviewed and persisted as one sales configuration.
+   * Backend Steps 5-8 remain one transactional commercial
+   * configuration, but every persisted onboarding record is now
+   * visible as its own canonical numbered step.
    */
   const commercialSteps = steps.filter((step) =>
     commercialBackendStepKeys.has(step.stepKey),
   );
 
-  const visibleSteps = steps.filter(
-    (step) => !hiddenCommercialRailStepKeys.has(step.stepKey),
-  );
+  const visibleSteps = steps;
 
   const defaultStep =
-    visibleSteps.find((step) => {
-      if (step.stepKey === "package_selection") {
-        return !commercialGroupComplete(commercialSteps);
-      }
-
-      return !stepComplete(step);
-    }) ?? visibleSteps[visibleSteps.length - 1];
+    visibleSteps.find((step) => !stepComplete(step)) ??
+    visibleSteps[visibleSteps.length - 1];
 
   const activeStep =
     visibleSteps.find((step) => step.stepOrder === selectedStepOrder) ??
@@ -584,15 +546,9 @@ export function TenantOnboardingPanel({
       ? visibleSteps[activeIndex + 1]
       : null;
 
-  const activeVisualStatus =
-    activeStep.stepKey === "package_selection"
-      ? commercialGroupStatus(commercialSteps)
-      : activeStep.status;
+  const activeVisualStatus = activeStep.status;
 
-  const activeVisualName =
-    activeStep.stepKey === "package_selection"
-      ? "Commercial Setup"
-      : activeStep.stepName;
+  const activeVisualName = activeStep.stepName;
 
   const summary = summaryQuery.data;
 
@@ -1226,28 +1182,6 @@ export function TenantOnboardingPanel({
           </Stack>
         );
 
-      case "demo_data_reset":
-      case "demo_journey_simulation":
-        return (
-          <Stack spacing={2}>
-            <Alert severity="info">
-              Docker Demo tooling — not available from the shared
-              production-capable workflow.
-            </Alert>
-
-            <Typography
-              sx={{
-                color: "text.secondary",
-                fontSize: 12,
-                lineHeight: 1.7,
-              }}
-            >
-              This stage is deliberately reserved for the isolated
-              synthetic-data demo environment.
-            </Typography>
-          </Stack>
-        );
-
       default:
         return (
           <Typography
@@ -1348,7 +1282,7 @@ export function TenantOnboardingPanel({
           >
             <Chip
               size="small"
-              label={`Step ${activeIndex + 1} of ${visibleSteps.length}`}
+              label={`Step ${activeStep.stepOrder} of ${steps.length}`}
               color="primary"
             />
 
@@ -1428,22 +1362,14 @@ export function TenantOnboardingPanel({
           }}
         >
           <Box sx={{ p: 1.25 }}>
-            {visibleSteps.map((step, visualIndex) => {
+            {visibleSteps.map((step) => {
               const selected = step.stepOrder === activeStep.stepOrder;
 
-              const commercial = step.stepKey === "package_selection";
+              const complete = stepComplete(step);
 
-              const complete = commercial
-                ? commercialGroupComplete(commercialSteps)
-                : stepComplete(step);
+              const visualStatus = step.status;
 
-              const visualStatus = commercial
-                ? commercialGroupStatus(commercialSteps)
-                : step.status;
-
-              const visualName = commercial
-                ? "Commercial Setup"
-                : step.stepName;
+              const visualName = step.stepName;
 
               const demoOnly = step.stepOrder >= 14;
 
@@ -1526,7 +1452,7 @@ export function TenantOnboardingPanel({
                           }}
                         />
                       ) : (
-                        visualIndex + 1
+                        step.stepOrder
                       )}
                     </Box>
 
@@ -1544,7 +1470,7 @@ export function TenantOnboardingPanel({
                           lineHeight: 1.3,
                         }}
                       >
-                        Step {visualIndex + 1}
+                        Step {step.stepOrder}
                         {" — "}
                         {visualName}
                       </Typography>
@@ -1614,7 +1540,7 @@ export function TenantOnboardingPanel({
                     letterSpacing: "0.07em",
                   }}
                 >
-                  Step {activeIndex + 1}
+                  Step {activeStep.stepOrder}
                 </Typography>
 
                 <Typography

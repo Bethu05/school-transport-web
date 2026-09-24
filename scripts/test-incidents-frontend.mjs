@@ -27,28 +27,28 @@ console.log("Incidents frontend checkpoint");
 console.log("-----------------------------");
 
 assert(
-  api.includes("'Idempotency-Key'"),
+  api.includes("Idempotency-Key"),
   "incident creation uses Idempotency-Key",
 );
 
-assert(api.includes("method:\n        'POST'"), "incident create API wired");
+assert(api.includes('method: "POST"'), "incident create API wired");
 
-assert(api.includes("method:\n        'PATCH'"), "incident update API wired");
+assert(api.includes('method: "PATCH"'), "incident update API wired");
 
 assert(api.includes("nextCursor"), "incident cursor pagination supported");
 
 assert(
-  permissions.includes("'incidents.read'"),
+  permissions.includes('"incidents.read"'),
   "incidents.read permission present",
 );
 
 assert(
-  permissions.includes("'incidents.create'"),
+  permissions.includes('"incidents.create"'),
   "incidents.create permission present",
 );
 
 assert(
-  permissions.includes("'incidents.update'"),
+  permissions.includes('"incidents.update"'),
   "incidents.update permission present",
 );
 

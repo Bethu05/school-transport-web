@@ -117,11 +117,13 @@ function formatDateTime(value: string): string {
 }
 
 export function IncidentsPage() {
-  const { permissions, tenant } = useAuth();
+  const { permissions, tenant, activeSchool } = useAuth();
 
   const queryClient = useQueryClient();
 
   const tenantId = tenant?.tenantId;
+
+  const schoolId = activeSchool?.id;
 
   const canRead = hasFrontendPermission(
     permissions,
@@ -168,20 +170,23 @@ export function IncidentsPage() {
     queryKey: [
       "incidents",
       tenantId,
+      schoolId,
       statusFilter,
       severityFilter,
       limit,
       cursor,
     ],
 
-    enabled: Boolean(tenantId && canRead),
+    enabled: Boolean(tenantId && schoolId && canRead),
 
     queryFn: async () => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       return listIncidents(tenantId, {
+        schoolId,
+
         status: statusFilter === "all" ? undefined : statusFilter,
 
         severity: severityFilter === "all" ? undefined : severityFilter,
@@ -201,11 +206,22 @@ export function IncidentsPage() {
 
   const createMutation = useMutation({
     mutationFn: async (input: CreateIncidentInput) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
-      return createIncident(tenantId, input, crypto.randomUUID());
+      /**
+       * Incidents reported from a school-scoped screen always
+       * belong to the verified current school.
+       */
+      return createIncident(
+        tenantId,
+        {
+          ...input,
+          schoolId,
+        },
+        crypto.randomUUID(),
+      );
     },
 
     onSuccess: async () => {
@@ -234,8 +250,8 @@ export function IncidentsPage() {
 
       input: UpdateIncidentInput;
     }) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       return updateIncident(tenantId, incidentId, input);
@@ -266,6 +282,14 @@ export function IncidentsPage() {
     (incident) =>
       incident.severity === "critical" && incident.status === "open",
   ).length;
+
+  if (!activeSchool) {
+    return (
+      <Alert severity="info">
+        Select a school to view or report Incidents.
+      </Alert>
+    );
+  }
 
   return (
     <Box>
@@ -315,7 +339,8 @@ export function IncidentsPage() {
               fontSize: 13.5,
             }}
           >
-            Report, investigate and manage safety and operational incidents.
+            Report, investigate and manage safety and operational incidents for{" "}
+            {activeSchool.name}.
           </Typography>
         </Box>
 
@@ -368,8 +393,8 @@ export function IncidentsPage() {
               fontSize: 13,
             }}
           >
-            You can report incidents, but your current permissions do not allow
-            access to the tenant-wide incident register.
+            You can report incidents for {activeSchool.name}, but your current
+            permissions do not allow access to this school's incident register.
           </Typography>
         </Paper>
       ) : (

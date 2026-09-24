@@ -39,6 +39,12 @@ interface StudentFormDialogProps {
 
   schools: School[];
 
+  /**
+   * When supplied by a school-scoped page, Student creation is
+   * locked to this backend-authorised school context.
+   */
+  fixedSchoolId?: string;
+
   saving: boolean;
 
   error: string | null;
@@ -128,6 +134,7 @@ export function StudentFormDialog({
   tenantId,
   student,
   schools,
+  fixedSchoolId,
   saving,
   error,
   onClose,
@@ -141,7 +148,9 @@ export function StudentFormDialog({
 
   const editing = student !== null;
 
-  const selectedSchoolId = editing ? student.schoolId : form.schoolId;
+  const selectedSchoolId = editing
+    ? student.schoolId
+    : (fixedSchoolId ?? form.schoolId);
 
   const customFieldsQuery = useQuery({
     queryKey: [
@@ -260,7 +269,7 @@ export function StudentFormDialog({
       return;
     }
 
-    if (!editing && !form.schoolId) {
+    if (!editing && !selectedSchoolId) {
       setValidationError("School is required.");
 
       return;
@@ -288,7 +297,7 @@ export function StudentFormDialog({
 
     if (!editing) {
       const input: CreateStudentInput = {
-        schoolId: form.schoolId,
+        schoolId: selectedSchoolId,
 
         externalRef: optionalValue(form.externalRef),
 
@@ -469,8 +478,8 @@ export function StudentFormDialog({
               select
               label="School"
               required={!editing}
-              disabled={editing}
-              value={form.schoolId}
+              disabled={editing || Boolean(fixedSchoolId)}
+              value={selectedSchoolId}
               onChange={(event) => updateSchool(event.target.value)}
               sx={{
                 gridColumn: {

@@ -3,22 +3,25 @@ import { useState } from "react";
 import { keyframes } from "@emotion/react";
 
 import {
-  AdminPanelSettingsRounded,
   BusinessRounded,
   DashboardRounded,
   FactCheckRounded,
-  LogoutRounded,
+  ManageAccountsRounded,
   PaymentsRounded,
   SettingsRounded,
 } from "@mui/icons-material";
 
-import { Box, Button, Divider, Paper, Stack, Typography } from "@mui/material";
+import { Box, Divider, Paper, Stack, Typography } from "@mui/material";
 
 import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
 
 import { OnboardingWorkspace } from "./OnboardingWorkspace";
+
+import { PlatformAccessPanel } from "./PlatformAccessPanel";
+
+import { ScreenTransition } from "./ScreenTransition";
 
 import { SuperAdminThemeProvider } from "./SuperAdminThemeProvider";
 
@@ -28,14 +31,13 @@ import { SchoolsWorkspace } from "./SchoolsWorkspace";
 
 import { SuperAdminOverview } from "./SuperAdminOverview";
 
+import { PlatformLimitedRolePage } from "./PlatformLimitedRolePage";
+
+import { PlatformSidebar, type PlatformSidebarItem } from "./PlatformSidebar";
+
 import { TenantManagementPage } from "./TenantManagementPage";
 
 import type { PlatformTenantListItem } from "./platform.api";
-
-interface NavigationItem {
-  label: string;
-  icon: React.ReactNode;
-}
 
 const adminFloatA = keyframes`
   0% {
@@ -79,7 +81,7 @@ const adminFloatC = keyframes`
   }
 `;
 
-const navigationItems: NavigationItem[] = [
+const navigationItems: PlatformSidebarItem[] = [
   {
     label: "Overview",
     icon: <DashboardRounded fontSize="small" />,
@@ -97,13 +99,17 @@ const navigationItems: NavigationItem[] = [
     icon: <PaymentsRounded fontSize="small" />,
   },
   {
+    label: "Platform Access",
+    icon: <ManageAccountsRounded fontSize="small" />,
+  },
+  {
     label: "Settings",
     icon: <SettingsRounded fontSize="small" />,
   },
 ];
 
 export function SuperAdminPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, isSuperAdmin } = useAuth();
 
   const navigate = useNavigate();
 
@@ -114,6 +120,10 @@ export function SuperAdminPage() {
 
   const [managingTenant, setManagingTenant] =
     useState<PlatformTenantListItem | null>(null);
+
+  if (!isSuperAdmin) {
+    return <PlatformLimitedRolePage />;
+  }
 
   function handleLogout(): void {
     logout();
@@ -243,193 +253,21 @@ export function SuperAdminPage() {
           }}
         />
 
-        {/* ======================================================
-          LEFT SIDEBAR
-          ====================================================== */}
+        <PlatformSidebar
+          items={navigationItems}
+          activeLabel={activeSection}
+          userEmail={user?.email}
+          onSelect={(item) => {
+            if (item.path) {
+              navigate(item.path);
+              return;
+            }
 
-        <Box
-          component="aside"
-          sx={{
-            display: {
-              xs: "none",
-              lg: "flex",
-            },
-
-            flexDirection: "column",
-
-            height: "100dvh",
-            minHeight: 0,
-
-            overflowY: "auto",
-            overflowX: "hidden",
-
-            position: "relative",
-            zIndex: 1,
-
-            borderRight: "1px solid",
-            borderColor: "rgba(148, 163, 184, 0.14)",
-
-            bgcolor: "rgba(5, 9, 20, 0.70)",
-
-            backdropFilter: "blur(24px) saturate(130%)",
-            WebkitBackdropFilter: "blur(24px) saturate(130%)",
-
-            color: "common.white",
-
-            p: 2,
+            setActiveSection(item.label);
+            setManagingTenant(null);
           }}
-        >
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1.25,
-
-              px: 1,
-              py: 1.5,
-            }}
-          >
-            <Box
-              sx={{
-                width: 32,
-                height: 32,
-
-                display: "grid",
-                placeItems: "center",
-
-                borderRadius: 2,
-
-                bgcolor: "primary.main",
-              }}
-            >
-              <AdminPanelSettingsRounded />
-            </Box>
-
-            <Box>
-              <Typography
-                sx={{
-                  fontSize: 12.5,
-                  fontWeight: 850,
-                }}
-              >
-                Platform
-              </Typography>
-
-              <Typography
-                sx={{
-                  color: "#98A2B3",
-                  fontSize: 9,
-                }}
-              >
-                Administration
-              </Typography>
-            </Box>
-          </Box>
-
-          <Divider
-            sx={{
-              my: 2,
-              borderColor: "rgba(255,255,255,0.08)",
-            }}
-          />
-
-          <Stack spacing={0.35}>
-            {navigationItems.map((item) => (
-              <Button
-                key={item.label}
-                startIcon={item.icon}
-                onClick={() => {
-                  setActiveSection(item.label);
-
-                  setManagingTenant(null);
-                }}
-                fullWidth
-                sx={{
-                  justifyContent: "flex-start",
-
-                  minHeight: 34,
-
-                  px: 1.25,
-                  py: 0.35,
-
-                  borderRadius: 1.5,
-
-                  fontSize: 10.75,
-                  fontWeight: 700,
-
-                  "& .MuiButton-startIcon": {
-                    mr: 1,
-                  },
-
-                  "& .MuiSvgIcon-root": {
-                    fontSize: 17,
-                  },
-
-                  color:
-                    activeSection === item.label ? "common.white" : "#98A2B3",
-
-                  bgcolor:
-                    activeSection === item.label
-                      ? "rgba(255,255,255,0.08)"
-                      : "transparent",
-
-                  "&:hover": {
-                    bgcolor: "rgba(255,255,255,0.08)",
-                    color: "common.white",
-                  },
-                }}
-              >
-                {item.label}
-              </Button>
-            ))}
-          </Stack>
-
-          <Box
-            sx={{
-              mt: "auto",
-              pt: 3,
-            }}
-          >
-            <Divider
-              sx={{
-                mb: 2,
-                borderColor: "rgba(255,255,255,0.08)",
-              }}
-            />
-
-            <Typography
-              sx={{
-                px: 1,
-
-                color: "#98A2B3",
-
-                fontSize: 10,
-                wordBreak: "break-word",
-              }}
-            >
-              {user?.email}
-            </Typography>
-
-            <Button
-              onClick={handleLogout}
-              startIcon={<LogoutRounded />}
-              fullWidth
-              sx={{
-                mt: 1,
-
-                justifyContent: "flex-start",
-
-                color: "#D0D5DD",
-
-                "&:hover": {
-                  bgcolor: "rgba(255,255,255,0.08)",
-                },
-              }}
-            >
-              Sign out
-            </Button>
-          </Box>
-        </Box>
+          onLogout={handleLogout}
+        />
 
         {/* ======================================================
           MAIN WORKSPACE
@@ -461,71 +299,82 @@ export function SuperAdminPage() {
             },
           }}
         >
-          <Typography
+          <Box
             sx={{
-              color: "primary.main",
-
-              fontSize: 9.5,
-              fontWeight: 850,
-
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
+              display: activeSection === "Platform Access" ? "none" : "block",
             }}
           >
-            Platform Administration
-          </Typography>
+            <Typography
+              sx={{
+                color: "primary.main",
 
-          <Typography
-            component="h1"
-            sx={{
-              mt: 1,
+                fontSize: 9.5,
+                fontWeight: 850,
 
-              fontSize: {
-                xs: 23,
-                md: 29,
-              },
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+              }}
+            >
+              Platform Administration
+            </Typography>
 
-              lineHeight: 1.15,
+            <Typography
+              component="h1"
+              sx={{
+                mt: 1,
 
-              fontWeight: 900,
-              letterSpacing: "-0.04em",
-            }}
-          >
-            {activeSection === "Schools" && managingTenant
-              ? `Manage ${managingTenant.name}`
-              : activeSection}
-          </Typography>
+                fontSize: {
+                  xs: 23,
+                  md: 29,
+                },
 
-          <Typography
-            sx={{
-              mt: 1,
+                lineHeight: 1.15,
 
-              maxWidth: 650,
+                fontWeight: 900,
+                letterSpacing: "-0.04em",
+              }}
+            >
+              {activeSection === "Schools" && managingTenant
+                ? `Manage ${managingTenant.name}`
+                : activeSection}
+            </Typography>
 
-              color: "text.secondary",
+            <Typography
+              sx={{
+                mt: 1,
 
-              fontSize: 11,
-              lineHeight: 1.55,
-            }}
-          >
-            {activeSection === "Schools" && managingTenant
-              ? "Manage this school's subscription, operating capacity, feature access, administrator account and onboarding history."
-              : activeSection === "Overview"
-                ? "Monitor school applications, onboarding readiness, live customers, trials and inactive accounts."
-                : activeSection === "Onboarding"
-                  ? "Review applications and move verified schools through the controlled 15-step launch workflow."
-                  : activeSection === "Schools"
-                    ? "Manage live schools, trials, paused subscriptions and deactivated accounts."
-                    : "Manage plans and platform administration."}
-          </Typography>
+                maxWidth: 650,
+
+                color: "text.secondary",
+
+                fontSize: 11,
+                lineHeight: 1.55,
+              }}
+            >
+              {activeSection === "Schools" && managingTenant
+                ? "Manage this school's subscription, operating capacity, feature access, administrator account and onboarding history."
+                : activeSection === "Overview"
+                  ? "Monitor school applications, onboarding readiness, live customers, trials and inactive accounts."
+                  : activeSection === "Onboarding"
+                    ? "Review applications and move verified schools through the controlled 15-step launch workflow."
+                    : activeSection === "Schools"
+                      ? "Manage live schools, trials, paused subscriptions and deactivated accounts."
+                      : activeSection === "Platform Access"
+                        ? "Review platform users, inherited role permissions and additional user-level access."
+                        : "Manage plans and platform administration."}
+            </Typography>
+          </Box>
 
           <Paper
             elevation={0}
             sx={{
-              mt: 2.25,
+              mt: activeSection === "Platform Access" ? 0 : 2.25,
 
               flex: 1,
               minHeight: 0,
+
+              display: "flex",
+              flexDirection: "column",
 
               overflowY: "auto",
               overflowX: "hidden",
@@ -557,73 +406,85 @@ export function SuperAdminPage() {
 
               boxShadow: "0 24px 70px rgba(0, 0, 0, 0.18)",
 
-              p: {
-                xs: 1.5,
-                md: 2,
-              },
+              p:
+                activeSection === "Platform Access"
+                  ? {
+                      xs: 1,
+                      md: 1.25,
+                    }
+                  : {
+                      xs: 1.5,
+                      md: 2,
+                    },
             }}
           >
-            {activeSection === "Overview" ? (
-              <SuperAdminOverview
-                onOpenOnboarding={() => {
-                  setActiveSection("Onboarding");
+            <ScreenTransition
+              transitionKey={`${activeSection}:${managingTenant?.id ?? "root"}`}
+            >
+              {activeSection === "Overview" ? (
+                <SuperAdminOverview
+                  onOpenOnboarding={() => {
+                    setActiveSection("Onboarding");
 
-                  setManagingTenant(null);
-                }}
-                onOpenSchools={() => {
-                  setActiveSection("Schools");
+                    setManagingTenant(null);
+                  }}
+                  onOpenSchools={() => {
+                    setActiveSection("Schools");
 
-                  setManagingTenant(null);
-                }}
-              />
-            ) : activeSection === "Onboarding" ? (
-              <OnboardingWorkspace />
-            ) : activeSection === "Schools" ? (
-              managingTenant ? (
-                <TenantManagementPage
-                  tenant={managingTenant}
-                  onBack={() => setManagingTenant(null)}
-                  onTenantUpdated={(tenant) => {
-                    setManagingTenant(tenant);
-
-                    setSelectedTenant(tenant);
+                    setManagingTenant(null);
                   }}
                 />
+              ) : activeSection === "Onboarding" ? (
+                <OnboardingWorkspace />
+              ) : activeSection === "Schools" ? (
+                managingTenant ? (
+                  <TenantManagementPage
+                    tenant={managingTenant}
+                    onBack={() => setManagingTenant(null)}
+                    onTenantUpdated={(tenant) => {
+                      setManagingTenant(tenant);
+
+                      setSelectedTenant(tenant);
+                    }}
+                  />
+                ) : (
+                  <SchoolsWorkspace
+                    selectedTenantId={selectedTenant?.id ?? null}
+                    onSelectTenant={setSelectedTenant}
+                    onManageTenant={setManagingTenant}
+                  />
+                )
+              ) : activeSection === "Plans" ? (
+                <PlanEditor />
+              ) : activeSection === "Platform Access" ? (
+                <PlatformAccessPanel />
               ) : (
-                <SchoolsWorkspace
-                  selectedTenantId={selectedTenant?.id ?? null}
-                  onSelectTenant={setSelectedTenant}
-                  onManageTenant={setManagingTenant}
-                />
-              )
-            ) : activeSection === "Plans" ? (
-              <PlanEditor />
-            ) : (
-              <>
-                <Typography
-                  sx={{
-                    fontSize: 16,
+                <>
+                  <Typography
+                    sx={{
+                      fontSize: 16,
 
-                    fontWeight: 800,
-                  }}
-                >
-                  Platform settings
-                </Typography>
+                      fontWeight: 800,
+                    }}
+                  >
+                    Platform settings
+                  </Typography>
 
-                <Typography
-                  sx={{
-                    mt: 1,
+                  <Typography
+                    sx={{
+                      mt: 1,
 
-                    color: "text.secondary",
+                      color: "text.secondary",
 
-                    fontSize: 13,
-                  }}
-                >
-                  Global platform configuration will be managed here as those
-                  controls are introduced.
-                </Typography>
-              </>
-            )}
+                      fontSize: 13,
+                    }}
+                  >
+                    Global platform configuration will be managed here as those
+                    controls are introduced.
+                  </Typography>
+                </>
+              )}
+            </ScreenTransition>
           </Paper>
         </Box>
 

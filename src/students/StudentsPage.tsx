@@ -49,8 +49,6 @@ import {
 
 import { PaginationControls } from "../components/PaginationControls";
 
-import { listSchools, type School } from "../schools/schools.api";
-
 import {
   createStudent,
   deactivateStudent,
@@ -91,7 +89,7 @@ function errorMessage(error: unknown): string {
 }
 
 export function StudentsPage() {
-  const { permissions, tenant, features } = useAuth();
+  const { permissions, tenant, features, activeSchool } = useAuth();
 
   const queryClient = useQueryClient();
 
@@ -117,6 +115,9 @@ export function StudentsPage() {
   );
 
   const tenantId = tenant?.tenantId;
+
+  const schoolId = activeSchool?.id;
+
   const canReadStudents = hasFrontendPermission(
     permissions,
     FRONTEND_PERMISSIONS.STUDENTS_READ,
@@ -148,14 +149,10 @@ export function StudentsPage() {
   );
 
   const studentCustomFieldsEnabled = features.some(
-    (feature) =>
-      feature.key === "students.custom_fields" &&
-      feature.enabled,
+    (feature) => feature.key === "students.custom_fields" && feature.enabled,
   );
 
   const [search, setSearch] = useState("");
-
-  const [schoolId, setSchoolId] = useState("all");
 
   const [status, setStatus] = useState<StatusFilter>("active");
 
@@ -175,35 +172,20 @@ export function StudentsPage() {
 
   const [customFieldsOpen, setCustomFieldsOpen] = useState(false);
 
-  const [customFieldsUpgradeOpen, setCustomFieldsUpgradeOpen] =
-    useState(false);
+  const [customFieldsUpgradeOpen, setCustomFieldsUpgradeOpen] = useState(false);
 
   const [mutationError, setMutationError] = useState<string | null>(null);
 
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const schoolsQuery = useQuery({
-    queryKey: ["schools", tenantId],
-
-    enabled: Boolean(tenantId && canReadStudents),
-
-    queryFn: async () => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
-      }
-
-      return listSchools(tenantId);
-    },
-  });
-
   const studentsQuery = useQuery({
-    queryKey: ["students", tenantId, search, schoolId, status, page, limit],
+    queryKey: ["students", tenantId, schoolId, search, status, page, limit],
 
-    enabled: Boolean(tenantId && canReadStudents),
+    enabled: Boolean(tenantId && schoolId && canReadStudents),
 
     queryFn: async () => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       return listStudentsPage(tenantId, {
@@ -213,7 +195,7 @@ export function StudentsPage() {
 
         search: search.trim() || undefined,
 
-        schoolId: schoolId === "all" ? undefined : schoolId,
+        schoolId,
 
         status: status === "all" ? undefined : status,
       });
@@ -225,30 +207,33 @@ export function StudentsPage() {
    * page size (10). We only need the `total` metadata.
    */
   const studentSummaryQuery = useQuery({
-    queryKey: ["students-summary", tenantId],
+    queryKey: ["students-summary", tenantId, schoolId],
 
-    enabled: Boolean(tenantId && canReadStudents),
+    enabled: Boolean(tenantId && schoolId && canReadStudents),
 
     queryFn: async () => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       const [all, active, inactive] = await Promise.all([
         listStudentsPage(tenantId, {
           page: 1,
           limit: 10,
+          schoolId,
         }),
 
         listStudentsPage(tenantId, {
           page: 1,
           limit: 10,
+          schoolId,
           status: "active",
         }),
 
         listStudentsPage(tenantId, {
           page: 1,
           limit: 10,
+          schoolId,
           status: "inactive",
         }),
       ]);
@@ -277,11 +262,18 @@ export function StudentsPage() {
 
   const createMutation = useMutation({
     mutationFn: async (input: CreateStudentInput) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
-      return createStudent(tenantId, input);
+      /**
+       * The current school comes from authenticated application
+       * context, not from a freely selectable Student form value.
+       */
+      return createStudent(tenantId, {
+        ...input,
+        schoolId,
+      });
     },
 
     onSuccess: async () => {
@@ -356,11 +348,13 @@ export function StudentsPage() {
 
   const students = studentsQuery.data?.items ?? [];
 
-  const schools = schoolsQuery.data ?? [];
+  /**
+   * School-scoped Students exposes only the verified current
+   * school to child dialogs.
+   */
+  const schools = activeSchool ? [activeSchool] : [];
 
-  const schoolById = new Map<string, School>(
-    schools.map((school) => [school.id, school]),
-  );
+  const schoolById = new Map(schools.map((school) => [school.id, school]));
 
   const summary = studentSummaryQuery.data ?? {
     total: 0,
@@ -420,6 +414,10 @@ export function StudentsPage() {
         You do not have permission to view Students for this tenant.
       </Alert>
     );
+  }
+
+  if (!activeSchool) {
+    return <Alert severity="info">Select a school to view Students.</Alert>;
   }
 
   return (
@@ -495,8 +493,8 @@ export function StudentsPage() {
               fontSize: 13,
             }}
           >
-            Manage student profiles, school assignments and transport
-            eligibility.
+            Manage student profiles, identifiers and transport eligibility for{" "}
+            {activeSchool.name}.
           </Typography>
         </Box>
 
@@ -534,17 +532,10 @@ export function StudentsPage() {
               color={studentCustomFieldsEnabled ? "primary" : "warning"}
 
               startIcon={
-                studentCustomFieldsEnabled ? (
-                  <TuneRounded />
-                ) : (
-                  <LockRounded />
-                )
+                studentCustomFieldsEnabled ? <TuneRounded /> : <LockRounded />
               }
 
-              disabled={
-                studentCustomFieldsEnabled &&
-                schools.length === 0
-              }
+              disabled={studentCustomFieldsEnabled && schools.length === 0}
 
               onClick={() => {
                 if (!studentCustomFieldsEnabled) {
@@ -726,7 +717,7 @@ export function StudentsPage() {
             gridTemplateColumns: {
               xs: "1fr",
 
-              md: "minmax(0, 1fr) 240px 180px",
+              md: "minmax(0, 1fr) 180px",
             },
 
             gap: 1.5,
@@ -761,36 +752,6 @@ export function StudentsPage() {
               },
             }}
           />
-
-          <FormControl>
-            <InputLabel id="student-school-label">School</InputLabel>
-
-            <Select
-              labelId="student-school-label"
-
-              label="School"
-
-              value={schoolId}
-
-              onChange={(event) => {
-                setSchoolId(event.target.value);
-
-                setPage(1);
-              }}
-            >
-              <MenuItem value="all">All schools</MenuItem>
-
-              {schools.map((school) => (
-                <MenuItem
-                  key={school.id}
-
-                  value={school.id}
-                >
-                  {school.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
 
           <FormControl>
             <InputLabel id="student-status-label">Status</InputLabel>
@@ -1242,6 +1203,8 @@ export function StudentsPage() {
         student={editingStudent}
 
         schools={schools}
+
+        fixedSchoolId={activeSchool.id}
 
         saving={createMutation.isPending || updateMutation.isPending}
 

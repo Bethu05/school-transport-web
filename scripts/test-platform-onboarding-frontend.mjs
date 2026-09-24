@@ -68,7 +68,7 @@ check(
 );
 
 check(
-  panel.includes("15-step onboarding control centre") &&
+  panel.includes("onboarding control centre") &&
     panel.includes("workflow.steps") &&
     panel.includes("step.stepOrder") &&
     panel.includes("step.stepName"),
@@ -105,9 +105,8 @@ check(
 );
 
 check(
-  panel.includes("step.stepOrder >= 14") &&
-    panel.includes("Docker Demo tooling"),
-  "Steps 14-15 remain visibly isolated as Docker Demo tooling",
+  panel.includes("step.stepOrder <= 13"),
+  "active onboarding UI excludes retired reserved stages",
 );
 
 check(

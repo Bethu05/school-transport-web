@@ -30,6 +30,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useState } from "react";
 
+import { SchoolSetupReviewPanel } from "./SchoolSetupReviewPanel";
+
 import { TenantOnboardingPanel } from "./TenantOnboardingPanel";
 
 import {
@@ -38,6 +40,8 @@ import {
   type PlatformOnboardingQueueItem,
   type PlatformTenantListItem,
 } from "./platform.api";
+
+type OnboardingView = "applications" | "workflow";
 
 type QueueFilter =
   "all" | "pending_review" | "in_onboarding" | "ready_to_launch" | "rejected";
@@ -92,6 +96,8 @@ function matchesFilter(
 }
 
 export function OnboardingWorkspace() {
+  const [view, setView] = useState<OnboardingView>("applications");
+
   const [filter, setFilter] = useState<QueueFilter>("all");
 
   const [selectedTenant, setSelectedTenant] =
@@ -212,11 +218,32 @@ export function OnboardingWorkspace() {
         <FactCheckRounded color="primary" />
       </Box>
 
+      <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
+        <Button
+          variant={view === "applications" ? "contained" : "outlined"}
+          onClick={() => setView("applications")}
+          sx={{ textTransform: "none", fontWeight: 800 }}
+        >
+          School applications
+        </Button>
+
+        <Button
+          variant={view === "workflow" ? "contained" : "outlined"}
+          onClick={() => setView("workflow")}
+          sx={{ textTransform: "none", fontWeight: 800 }}
+        >
+          15-step onboarding
+        </Button>
+      </Stack>
+
+      {view === "applications" ? <SchoolSetupReviewPanel /> : null}
+
       <Stack
         direction="row"
         spacing={1}
         useFlexGap
         sx={{
+          display: view === "workflow" ? "flex" : "none",
           flexWrap: "wrap",
         }}
       >
@@ -251,179 +278,181 @@ export function OnboardingWorkspace() {
         })}
       </Stack>
 
-      {filtered.length === 0 ? (
-        <Paper
-          variant="outlined"
-          sx={{
-            p: 4,
-
-            textAlign: "center",
-
-            borderRadius: 2,
-          }}
-        >
-          <Typography
+      {view === "workflow" ? (
+        filtered.length === 0 ? (
+          <Paper
+            variant="outlined"
             sx={{
-              fontSize: 13,
+              p: 4,
 
-              fontWeight: 800,
+              textAlign: "center",
+
+              borderRadius: 2,
             }}
           >
-            No schools in this queue
-          </Typography>
+            <Typography
+              sx={{
+                fontSize: 13,
 
-          <Typography
+                fontWeight: 800,
+              }}
+            >
+              No schools in this queue
+            </Typography>
+
+            <Typography
+              sx={{
+                mt: 0.5,
+
+                color: "text.secondary",
+
+                fontSize: 11,
+              }}
+            >
+              There are currently no onboarding records matching this filter.
+            </Typography>
+          </Paper>
+        ) : (
+          <TableContainer
+            component={Paper}
+            variant="outlined"
             sx={{
-              mt: 0.5,
-
-              color: "text.secondary",
-
-              fontSize: 11,
+              borderRadius: 2,
             }}
           >
-            There are currently no onboarding records matching this filter.
-          </Typography>
-        </Paper>
-      ) : (
-        <TableContainer
-          component={Paper}
-          variant="outlined"
-          sx={{
-            borderRadius: 2,
-          }}
-        >
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>School</TableCell>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>School</TableCell>
 
-                <TableCell>Approval</TableCell>
+                  <TableCell>Approval</TableCell>
 
-                <TableCell>Stage</TableCell>
+                  <TableCell>Stage</TableCell>
 
-                <TableCell>Required progress</TableCell>
+                  <TableCell>Required progress</TableCell>
 
-                <TableCell align="right">Workflow</TableCell>
-              </TableRow>
-            </TableHead>
+                  <TableCell align="right">Workflow</TableCell>
+                </TableRow>
+              </TableHead>
 
-            <TableBody>
-              {filtered.map((item) => {
-                const percent =
-                  item.requiredSteps > 0
-                    ? Math.round(
-                        (item.completedRequiredSteps / item.requiredSteps) *
-                          100,
-                      )
-                    : 0;
+              <TableBody>
+                {filtered.map((item) => {
+                  const percent =
+                    item.requiredSteps > 0
+                      ? Math.round(
+                          (item.completedRequiredSteps / item.requiredSteps) *
+                            100,
+                        )
+                      : 0;
 
-                return (
-                  <TableRow key={item.tenantId} hover>
-                    <TableCell>
-                      <Typography
-                        sx={{
-                          fontSize: 12,
-
-                          fontWeight: 800,
-                        }}
-                      >
-                        {item.tenantName}
-                      </Typography>
-
-                      <Typography
-                        sx={{
-                          mt: 0.2,
-
-                          color: "text.secondary",
-
-                          fontSize: 9.5,
-                        }}
-                      >
-                        {item.tenantSlug}
-                      </Typography>
-                    </TableCell>
-
-                    <TableCell>
-                      <Chip
-                        size="small"
-                        label={item.approvalStatus.replaceAll("_", " ")}
-                        color={
-                          item.approvalStatus === "approved"
-                            ? "success"
-                            : item.approvalStatus === "rejected"
-                              ? "error"
-                              : "warning"
-                        }
-                        variant="outlined"
-                      />
-                    </TableCell>
-
-                    <TableCell>
-                      <Chip
-                        size="small"
-                        label={item.currentStage.replaceAll("_", " ")}
-                        variant="outlined"
-                      />
-                    </TableCell>
-
-                    <TableCell>
-                      <Box
-                        sx={{
-                          minWidth: 160,
-                        }}
-                      >
+                  return (
+                    <TableRow key={item.tenantId} hover>
+                      <TableCell>
                         <Typography
                           sx={{
-                            mb: 0.5,
+                            fontSize: 12,
+
+                            fontWeight: 800,
+                          }}
+                        >
+                          {item.tenantName}
+                        </Typography>
+
+                        <Typography
+                          sx={{
+                            mt: 0.2,
 
                             color: "text.secondary",
 
-                            fontSize: 9,
+                            fontSize: 9.5,
                           }}
                         >
-                          {item.completedRequiredSteps}
-                          {" / "}
-                          {item.requiredSteps}
+                          {item.tenantSlug}
                         </Typography>
+                      </TableCell>
 
-                        <LinearProgress
-                          variant="determinate"
-                          value={percent}
-                          sx={{
-                            height: 6,
-
-                            borderRadius: 999,
-                          }}
+                      <TableCell>
+                        <Chip
+                          size="small"
+                          label={item.approvalStatus.replaceAll("_", " ")}
+                          color={
+                            item.approvalStatus === "approved"
+                              ? "success"
+                              : item.approvalStatus === "rejected"
+                                ? "error"
+                                : "warning"
+                          }
+                          variant="outlined"
                         />
-                      </Box>
-                    </TableCell>
+                      </TableCell>
 
-                    <TableCell align="right">
-                      <Button
-                        variant="contained"
-                        onClick={() => openTenant(item)}
-                        sx={{
-                          minHeight: 40,
+                      <TableCell>
+                        <Chip
+                          size="small"
+                          label={item.currentStage.replaceAll("_", " ")}
+                          variant="outlined"
+                        />
+                      </TableCell>
 
-                          px: 2,
+                      <TableCell>
+                        <Box
+                          sx={{
+                            minWidth: 160,
+                          }}
+                        >
+                          <Typography
+                            sx={{
+                              mb: 0.5,
 
-                          borderRadius: 1.75,
+                              color: "text.secondary",
 
-                          textTransform: "none",
+                              fontSize: 9,
+                            }}
+                          >
+                            {item.completedRequiredSteps}
+                            {" / "}
+                            {item.requiredSteps}
+                          </Typography>
 
-                          fontWeight: 800,
-                        }}
-                      >
-                        Open onboarding
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+                          <LinearProgress
+                            variant="determinate"
+                            value={percent}
+                            sx={{
+                              height: 6,
+
+                              borderRadius: 999,
+                            }}
+                          />
+                        </Box>
+                      </TableCell>
+
+                      <TableCell align="right">
+                        <Button
+                          variant="contained"
+                          onClick={() => openTenant(item)}
+                          sx={{
+                            minHeight: 40,
+
+                            px: 2,
+
+                            borderRadius: 1.75,
+
+                            textTransform: "none",
+
+                            fontWeight: 800,
+                          }}
+                        >
+                          Open onboarding
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )
+      ) : null}
 
       <Dialog
         open={selectedTenant !== null}

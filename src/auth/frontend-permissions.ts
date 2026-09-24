@@ -20,6 +20,8 @@ export const FRONTEND_PERMISSIONS = {
 
   SCHOOLS_CREATE: "schools.create",
 
+  SCHOOLS_UPDATE: "schools.update",
+
   DRIVERS_READ: "drivers.read",
   VEHICLES_READ: "vehicles.read",
   ROUTES_READ: "routes.read",

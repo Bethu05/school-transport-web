@@ -22,6 +22,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import {
   listPlatformOnboardingQueue,
+  listPlatformSchoolSetupRequestsForReview,
   listPlatformTenants,
   type PlatformTenantListItem,
 } from "./platform.api";
@@ -217,7 +218,17 @@ export function SuperAdminOverview({
     queryFn: listPlatformOnboardingQueue,
   });
 
-  if (tenantsQuery.isLoading || onboardingQuery.isLoading) {
+  const schoolSetupQuery = useQuery({
+    queryKey: ["platform", "school-setup", "review"],
+
+    queryFn: listPlatformSchoolSetupRequestsForReview,
+  });
+
+  if (
+    tenantsQuery.isLoading ||
+    onboardingQuery.isLoading ||
+    schoolSetupQuery.isLoading
+  ) {
     return (
       <Box
         sx={{
@@ -233,8 +244,13 @@ export function SuperAdminOverview({
     );
   }
 
-  if (tenantsQuery.isError || onboardingQuery.isError) {
-    const error = tenantsQuery.error ?? onboardingQuery.error;
+  if (
+    tenantsQuery.isError ||
+    onboardingQuery.isError ||
+    schoolSetupQuery.isError
+  ) {
+    const error =
+      tenantsQuery.error ?? onboardingQuery.error ?? schoolSetupQuery.error;
 
     return (
       <Alert severity="error">
@@ -249,8 +265,8 @@ export function SuperAdminOverview({
 
   const onboarding = onboardingQuery.data?.items ?? [];
 
-  const pendingReview = onboarding.filter(
-    (item) => item.approvalStatus === "pending_review",
+  const pendingReview = (schoolSetupQuery.data ?? []).filter(
+    (request) => request.status === "submitted",
   );
 
   const readyToLaunch = onboarding.filter(

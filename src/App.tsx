@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 
 import { AppShell } from "./app/AppShell";
 
@@ -12,9 +12,9 @@ import { useAuth } from "./auth/AuthProvider";
 
 import { PasswordChangeBoundary } from "./auth/PasswordChangeBoundary";
 
-import { ProtectedRoute } from "./auth/ProtectedRoute";
+import { PlatformRoute } from "./auth/PlatformRoute";
 
-import { SuperAdminRoute } from "./auth/SuperAdminRoute";
+import { ProtectedRoute } from "./auth/ProtectedRoute";
 
 import { DashboardPage } from "./dashboard/DashboardPage";
 
@@ -44,6 +44,10 @@ import { TrackingPage } from "./tracking/TrackingPage";
 
 import { SchoolsPage } from "./schools/SchoolsPage";
 
+import { buildSchoolPath } from "./schools/school-routing";
+
+import { buildTenantPath } from "./tenancy/tenant-routing";
+
 import { SettingsPage } from "./settings/SettingsPage";
 
 import { ChangePasswordPage } from "./security/ChangePasswordPage";
@@ -58,13 +62,474 @@ function ProtectedPage({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Canonical Students route.
+ *
+ * URL slugs are never treated as authorization.
+ *
+ * The requested school must already exist inside the
+ * backend-authorised /auth/schools result before it may become
+ * active frontend context.
+ */
+function SchoolScopedStudentsPage() {
+  const { tenantSlug, schoolSlug } = useParams();
+
+  const { tenantMembership, schools, activeSchool, selectSchool } = useAuth();
+
+  const routeSchool =
+    tenantMembership?.slug === tenantSlug
+      ? (schools.find((school) => school.slug === schoolSlug) ?? null)
+      : null;
+
+  useEffect(() => {
+    if (routeSchool && activeSchool?.id !== routeSchool.id) {
+      selectSchool(routeSchool.id);
+    }
+  }, [activeSchool?.id, routeSchool, selectSchool]);
+
+  if (!tenantMembership || !tenantSlug || !schoolSlug) {
+    return null;
+  }
+
+  /**
+   * Unknown tenant/school URL.
+   *
+   * Return to the compatibility entry point rather than allowing
+   * an arbitrary slug to become application state.
+   */
+  if (!routeSchool) {
+    return <Navigate to="/students" replace />;
+  }
+
+  /**
+   * Wait for AuthProvider to synchronise its verified school
+   * context before mounting StudentsPage.
+   */
+  if (activeSchool?.id !== routeSchool.id) {
+    return null;
+  }
+
+  return <StudentsPage key={routeSchool.id} />;
+}
+
+/**
+ * Temporary backward-compatible /students entry point.
+ *
+ * One/current school:
+ *   immediately redirects to the canonical URL.
+ *
+ * Multiple schools without a stored selection:
+ *   StudentsPage shows the school-context prompt and AppShell
+ *   exposes the authorised school selector.
+ */
+function StudentsEntryPage() {
+  const { tenantMembership, activeSchool, schools } = useAuth();
+
+  const school = activeSchool ?? (schools.length === 1 ? schools[0] : null);
+
+  if (tenantMembership && school) {
+    return (
+      <Navigate
+        to={buildSchoolPath(tenantMembership.slug, school.slug, "students")}
+        replace
+      />
+    );
+  }
+
+  return <StudentsPage />;
+}
+
+/**
+ * Canonical school-scoped Trips route.
+ *
+ * As with Students, URL slugs only identify requested navigation
+ * context. The school must already exist in /auth/schools.
+ */
+function SchoolScopedTripsPage() {
+  const { tenantSlug, schoolSlug } = useParams();
+
+  const { tenantMembership, schools, activeSchool, selectSchool } = useAuth();
+
+  const routeSchool =
+    tenantMembership?.slug === tenantSlug
+      ? (schools.find((school) => school.slug === schoolSlug) ?? null)
+      : null;
+
+  useEffect(() => {
+    if (routeSchool && activeSchool?.id !== routeSchool.id) {
+      selectSchool(routeSchool.id);
+    }
+  }, [activeSchool?.id, routeSchool, selectSchool]);
+
+  if (!tenantMembership || !tenantSlug || !schoolSlug) {
+    return null;
+  }
+
+  if (!routeSchool) {
+    return <Navigate to="/trips" replace />;
+  }
+
+  if (activeSchool?.id !== routeSchool.id) {
+    return null;
+  }
+
+  /**
+   * key forces a clean operational screen when switching schools,
+   * preventing stale dialogs/resources from the previous school.
+   */
+  return <TripsPage key={routeSchool.id} />;
+}
+
+/**
+ * Temporary compatibility entry.
+ *
+ * Existing bookmarks to /trips continue to work.
+ */
+function TripsEntryPage() {
+  const { tenantMembership, activeSchool, schools } = useAuth();
+
+  const school = activeSchool ?? (schools.length === 1 ? schools[0] : null);
+
+  if (tenantMembership && school) {
+    return (
+      <Navigate
+        to={buildSchoolPath(tenantMembership.slug, school.slug, "trips")}
+        replace
+      />
+    );
+  }
+
+  return <TripsPage />;
+}
+
+/**
+ * Canonical school-scoped Routes route.
+ *
+ * URL slugs are navigation context only. The requested school
+ * must already exist in backend-authorised /auth/schools.
+ */
+function SchoolScopedRoutesPage() {
+  const { tenantSlug, schoolSlug } = useParams();
+
+  const { tenantMembership, schools, activeSchool, selectSchool } = useAuth();
+
+  const routeSchool =
+    tenantMembership?.slug === tenantSlug
+      ? (schools.find((school) => school.slug === schoolSlug) ?? null)
+      : null;
+
+  useEffect(() => {
+    if (routeSchool && activeSchool?.id !== routeSchool.id) {
+      selectSchool(routeSchool.id);
+    }
+  }, [activeSchool?.id, routeSchool, selectSchool]);
+
+  if (!tenantMembership || !tenantSlug || !schoolSlug) {
+    return null;
+  }
+
+  if (!routeSchool) {
+    return <Navigate to="/routes" replace />;
+  }
+
+  if (activeSchool?.id !== routeSchool.id) {
+    return null;
+  }
+
+  return <RoutesPage key={routeSchool.id} />;
+}
+
+function RoutesEntryPage() {
+  const { tenantMembership, activeSchool, schools } = useAuth();
+
+  const school = activeSchool ?? (schools.length === 1 ? schools[0] : null);
+
+  if (tenantMembership && school) {
+    return (
+      <Navigate
+        to={buildSchoolPath(tenantMembership.slug, school.slug, "routes")}
+        replace
+      />
+    );
+  }
+
+  return <RoutesPage />;
+}
+
+/**
+ * Canonical school-scoped Stops route.
+ *
+ * The URL identifies navigation context only.
+ * The requested school must already exist in /auth/schools.
+ */
+function SchoolScopedStopsPage() {
+  const { tenantSlug, schoolSlug } = useParams();
+
+  const { tenantMembership, schools, activeSchool, selectSchool } = useAuth();
+
+  const routeSchool =
+    tenantMembership?.slug === tenantSlug
+      ? (schools.find((school) => school.slug === schoolSlug) ?? null)
+      : null;
+
+  useEffect(() => {
+    if (routeSchool && activeSchool?.id !== routeSchool.id) {
+      selectSchool(routeSchool.id);
+    }
+  }, [activeSchool?.id, routeSchool, selectSchool]);
+
+  if (!tenantMembership || !tenantSlug || !schoolSlug) {
+    return null;
+  }
+
+  if (!routeSchool) {
+    return <Navigate to="/stops" replace />;
+  }
+
+  if (activeSchool?.id !== routeSchool.id) {
+    return null;
+  }
+
+  return <StopsPage key={routeSchool.id} />;
+}
+
+/**
+ * Temporary compatibility entry for existing /stops links.
+ */
+function StopsEntryPage() {
+  const { tenantMembership, activeSchool, schools } = useAuth();
+
+  const school = activeSchool ?? (schools.length === 1 ? schools[0] : null);
+
+  if (tenantMembership && school) {
+    return (
+      <Navigate
+        to={buildSchoolPath(tenantMembership.slug, school.slug, "stops")}
+        replace
+      />
+    );
+  }
+
+  return <StopsPage />;
+}
+
+/**
+ * Canonical school-scoped Vehicles route.
+ *
+ * URL slugs provide navigation context only. The requested school
+ * must already exist in backend-authorised /auth/schools.
+ */
+function SchoolScopedVehiclesPage() {
+  const { tenantSlug, schoolSlug } = useParams();
+
+  const { tenantMembership, schools, activeSchool, selectSchool } = useAuth();
+
+  const routeSchool =
+    tenantMembership?.slug === tenantSlug
+      ? (schools.find((school) => school.slug === schoolSlug) ?? null)
+      : null;
+
+  useEffect(() => {
+    if (routeSchool && activeSchool?.id !== routeSchool.id) {
+      selectSchool(routeSchool.id);
+    }
+  }, [activeSchool?.id, routeSchool, selectSchool]);
+
+  if (!tenantMembership || !tenantSlug || !schoolSlug) {
+    return null;
+  }
+
+  if (!routeSchool) {
+    return <Navigate to="/vehicles" replace />;
+  }
+
+  if (activeSchool?.id !== routeSchool.id) {
+    return null;
+  }
+
+  return <VehiclesPage key={routeSchool.id} />;
+}
+
+function VehiclesEntryPage() {
+  const { tenantMembership, activeSchool, schools } = useAuth();
+
+  const school = activeSchool ?? (schools.length === 1 ? schools[0] : null);
+
+  if (tenantMembership && school) {
+    return (
+      <Navigate
+        to={buildSchoolPath(tenantMembership.slug, school.slug, "vehicles")}
+        replace
+      />
+    );
+  }
+
+  return <VehiclesPage />;
+}
+
+/**
+ * Canonical school-scoped Drivers route.
+ *
+ * URL slugs provide navigation context only. The requested school
+ * must already exist in backend-authorised /auth/schools.
+ */
+function SchoolScopedDriversPage() {
+  const { tenantSlug, schoolSlug } = useParams();
+
+  const { tenantMembership, schools, activeSchool, selectSchool } = useAuth();
+
+  const routeSchool =
+    tenantMembership?.slug === tenantSlug
+      ? (schools.find((school) => school.slug === schoolSlug) ?? null)
+      : null;
+
+  useEffect(() => {
+    if (routeSchool && activeSchool?.id !== routeSchool.id) {
+      selectSchool(routeSchool.id);
+    }
+  }, [activeSchool?.id, routeSchool, selectSchool]);
+
+  if (!tenantMembership || !tenantSlug || !schoolSlug) {
+    return null;
+  }
+
+  if (!routeSchool) {
+    return <Navigate to="/drivers" replace />;
+  }
+
+  if (activeSchool?.id !== routeSchool.id) {
+    return null;
+  }
+
+  return <DriversPage key={routeSchool.id} />;
+}
+
+function DriversEntryPage() {
+  const { tenantMembership, activeSchool, schools } = useAuth();
+
+  const school = activeSchool ?? (schools.length === 1 ? schools[0] : null);
+
+  if (tenantMembership && school) {
+    return (
+      <Navigate
+        to={buildSchoolPath(tenantMembership.slug, school.slug, "drivers")}
+        replace
+      />
+    );
+  }
+
+  return <DriversPage />;
+}
+
+/**
+ * Canonical school-scoped Incidents route.
+ *
+ * URL slugs identify navigation context only.
+ * The school must already exist in backend-authorised
+ * /auth/schools before it may become active context.
+ */
+function SchoolScopedIncidentsPage() {
+  const { tenantSlug, schoolSlug } = useParams();
+
+  const { tenantMembership, schools, activeSchool, selectSchool } = useAuth();
+
+  const routeSchool =
+    tenantMembership?.slug === tenantSlug
+      ? (schools.find((school) => school.slug === schoolSlug) ?? null)
+      : null;
+
+  useEffect(() => {
+    if (routeSchool && activeSchool?.id !== routeSchool.id) {
+      selectSchool(routeSchool.id);
+    }
+  }, [activeSchool?.id, routeSchool, selectSchool]);
+
+  if (!tenantMembership || !tenantSlug || !schoolSlug) {
+    return null;
+  }
+
+  if (!routeSchool) {
+    return <Navigate to="/incidents" replace />;
+  }
+
+  if (activeSchool?.id !== routeSchool.id) {
+    return null;
+  }
+
+  return <IncidentsPage key={routeSchool.id} />;
+}
+
+/**
+ * Temporary compatibility entry for existing /incidents links.
+ */
+function IncidentsEntryPage() {
+  const { tenantMembership, activeSchool, schools } = useAuth();
+
+  const school = activeSchool ?? (schools.length === 1 ? schools[0] : null);
+
+  if (tenantMembership && school) {
+    return (
+      <Navigate
+        to={buildSchoolPath(tenantMembership.slug, school.slug, "incidents")}
+        replace
+      />
+    );
+  }
+
+  return <IncidentsPage />;
+}
+
+/**
+ * Tenant-wide route boundary.
+ *
+ * tenantSlug is navigation context only. It can never switch the
+ * authenticated tenant or manufacture tenant authority.
+ */
+function TenantScopedPage({ children }: { children: ReactNode }) {
+  const { tenantSlug } = useParams();
+
+  const { tenantMembership } = useAuth();
+
+  if (!tenantMembership || !tenantSlug) {
+    return null;
+  }
+
+  if (tenantMembership.slug !== tenantSlug) {
+    return <Navigate to={buildTenantPath(tenantMembership.slug)} replace />;
+  }
+
+  return children;
+}
+
+/**
+ * Backward-compatible entry for old flat tenant routes.
+ */
+function TenantEntryPage({
+  section,
+  children,
+}: {
+  section?: string;
+  children: ReactNode;
+}) {
+  const { tenantMembership } = useAuth();
+
+  if (tenantMembership) {
+    return (
+      <Navigate to={buildTenantPath(tenantMembership.slug, section)} replace />
+    );
+  }
+
+  return children;
+}
+
 function UnknownRouteRedirect() {
   const {
     authenticated,
-    isSuperAdmin,
+    isPlatformUser,
     loading,
     access,
     passwordChangeRequired,
+    tenantMembership,
   } = useAuth();
 
   if (loading) {
@@ -75,7 +540,7 @@ function UnknownRouteRedirect() {
     return <Navigate to="/change-password" replace />;
   }
 
-  if (isSuperAdmin) {
+  if (isPlatformUser) {
     return <Navigate to="/platform" replace />;
   }
 
@@ -84,7 +549,16 @@ function UnknownRouteRedirect() {
   }
 
   if (authenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return (
+      <Navigate
+        to={
+          tenantMembership
+            ? buildTenantPath(tenantMembership.slug)
+            : "/dashboard"
+        }
+        replace
+      />
+    );
   }
 
   return <Navigate to="/" replace />;
@@ -113,9 +587,9 @@ function App() {
         path="/platform"
         element={
           <PasswordChangeBoundary>
-            <SuperAdminRoute>
+            <PlatformRoute>
               <SuperAdminPage />
-            </SuperAdminRoute>
+            </PlatformRoute>
           </PasswordChangeBoundary>
         }
       />
@@ -125,10 +599,23 @@ function App() {
           ====================================================== */}
 
       <Route
+        path="/tenant/:tenantSlug"
+        element={
+          <ProtectedPage>
+            <TenantScopedPage>
+              <DashboardPage />
+            </TenantScopedPage>
+          </ProtectedPage>
+        }
+      />
+
+      <Route
         path="/dashboard"
         element={
           <ProtectedPage>
-            <DashboardPage />
+            <TenantEntryPage>
+              <DashboardPage />
+            </TenantEntryPage>
           </ProtectedPage>
         }
       />
@@ -138,10 +625,23 @@ function App() {
           ====================================================== */}
 
       <Route
+        path="/tenant/:tenantSlug/tracking"
+        element={
+          <ProtectedPage>
+            <TenantScopedPage>
+              <TrackingPage />
+            </TenantScopedPage>
+          </ProtectedPage>
+        }
+      />
+
+      <Route
         path="/tracking"
         element={
           <ProtectedPage>
-            <TrackingPage />
+            <TenantEntryPage section="tracking">
+              <TrackingPage />
+            </TenantEntryPage>
           </ProtectedPage>
         }
       />
@@ -151,10 +651,19 @@ function App() {
           ====================================================== */}
 
       <Route
+        path="/school/:tenantSlug/:schoolSlug/trips"
+        element={
+          <ProtectedPage>
+            <SchoolScopedTripsPage />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
         path="/trips"
         element={
           <ProtectedPage>
-            <TripsPage />
+            <TripsEntryPage />
           </ProtectedPage>
         }
       />
@@ -164,10 +673,19 @@ function App() {
           ====================================================== */}
 
       <Route
+        path="/school/:tenantSlug/:schoolSlug/routes"
+        element={
+          <ProtectedPage>
+            <SchoolScopedRoutesPage />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
         path="/routes"
         element={
           <ProtectedPage>
-            <RoutesPage />
+            <RoutesEntryPage />
           </ProtectedPage>
         }
       />
@@ -177,10 +695,19 @@ function App() {
           ====================================================== */}
 
       <Route
+        path="/school/:tenantSlug/:schoolSlug/stops"
+        element={
+          <ProtectedPage>
+            <SchoolScopedStopsPage />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
         path="/stops"
         element={
           <ProtectedPage>
-            <StopsPage />
+            <StopsEntryPage />
           </ProtectedPage>
         }
       />
@@ -190,10 +717,19 @@ function App() {
           ====================================================== */}
 
       <Route
+        path="/school/:tenantSlug/:schoolSlug/vehicles"
+        element={
+          <ProtectedPage>
+            <SchoolScopedVehiclesPage />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
         path="/vehicles"
         element={
           <ProtectedPage>
-            <VehiclesPage />
+            <VehiclesEntryPage />
           </ProtectedPage>
         }
       />
@@ -203,10 +739,19 @@ function App() {
           ====================================================== */}
 
       <Route
+        path="/school/:tenantSlug/:schoolSlug/drivers"
+        element={
+          <ProtectedPage>
+            <SchoolScopedDriversPage />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
         path="/drivers"
         element={
           <ProtectedPage>
-            <DriversPage />
+            <DriversEntryPage />
           </ProtectedPage>
         }
       />
@@ -216,10 +761,30 @@ function App() {
           ====================================================== */}
 
       <Route
+        path="/school/:tenantSlug/:schoolSlug/students"
+        element={
+          <ProtectedPage>
+            <SchoolScopedStudentsPage />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
         path="/students"
         element={
           <ProtectedPage>
-            <StudentsPage />
+            <StudentsEntryPage />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/tenant/:tenantSlug/guardians"
+        element={
+          <ProtectedPage>
+            <TenantScopedPage>
+              <GuardiansPage />
+            </TenantScopedPage>
           </ProtectedPage>
         }
       />
@@ -228,7 +793,18 @@ function App() {
         path="/guardians"
         element={
           <ProtectedPage>
-            <GuardiansPage />
+            <TenantEntryPage section="guardians">
+              <GuardiansPage />
+            </TenantEntryPage>
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/school/:tenantSlug/:schoolSlug/incidents"
+        element={
+          <ProtectedPage>
+            <SchoolScopedIncidentsPage />
           </ProtectedPage>
         }
       />
@@ -237,7 +813,18 @@ function App() {
         path="/incidents"
         element={
           <ProtectedPage>
-            <IncidentsPage />
+            <IncidentsEntryPage />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/tenant/:tenantSlug/notifications"
+        element={
+          <ProtectedPage>
+            <TenantScopedPage>
+              <NotificationsPage />
+            </TenantScopedPage>
           </ProtectedPage>
         }
       />
@@ -246,7 +833,20 @@ function App() {
         path="/notifications"
         element={
           <ProtectedPage>
-            <NotificationsPage />
+            <TenantEntryPage section="notifications">
+              <NotificationsPage />
+            </TenantEntryPage>
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/tenant/:tenantSlug/schools"
+        element={
+          <ProtectedPage>
+            <TenantScopedPage>
+              <SchoolsPage />
+            </TenantScopedPage>
           </ProtectedPage>
         }
       />
@@ -255,7 +855,20 @@ function App() {
         path="/schools"
         element={
           <ProtectedPage>
-            <SchoolsPage />
+            <TenantEntryPage section="schools">
+              <SchoolsPage />
+            </TenantEntryPage>
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/tenant/:tenantSlug/settings"
+        element={
+          <ProtectedPage>
+            <TenantScopedPage>
+              <SettingsPage />
+            </TenantScopedPage>
           </ProtectedPage>
         }
       />
@@ -264,7 +877,9 @@ function App() {
         path="/settings"
         element={
           <ProtectedPage>
-            <SettingsPage />
+            <TenantEntryPage section="settings">
+              <SettingsPage />
+            </TenantEntryPage>
           </ProtectedPage>
         }
       />
@@ -277,12 +892,31 @@ function App() {
        * authoritative at the backend.
        */}
       <Route
+        path="/tenant/:tenantSlug/users-access"
+        element={
+          <PasswordChangeBoundary>
+            <ProtectedRoute enforceCommercialAccess={false}>
+              <AppShell>
+                <TenantScopedPage>
+                  <UsersAccessPage />
+                </TenantScopedPage>
+              </AppShell>
+            </ProtectedRoute>
+          </PasswordChangeBoundary>
+        }
+      />
+
+      <Route
         path="/users-access"
         element={
           <PasswordChangeBoundary>
-            <AppShell>
-              <UsersAccessPage />
-            </AppShell>
+            <ProtectedRoute enforceCommercialAccess={false}>
+              <AppShell>
+                <TenantEntryPage section="users-access">
+                  <UsersAccessPage />
+                </TenantEntryPage>
+              </AppShell>
+            </ProtectedRoute>
           </PasswordChangeBoundary>
         }
       />

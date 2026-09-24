@@ -24,6 +24,10 @@ interface VehicleFormDialogProps {
 
   vehicle: Vehicle | null;
 
+  activeSchoolId: string;
+
+  activeSchoolName: string;
+
   saving: boolean;
 
   error: string | null;
@@ -33,7 +37,10 @@ interface VehicleFormDialogProps {
   onSubmit: (input: CreateVehicleInput | UpdateVehicleInput) => Promise<void>;
 }
 
+type VehicleAssignment = "school" | "shared";
+
 interface VehicleFormState {
+  assignment: VehicleAssignment;
   registrationNumber: string;
   fleetNumber: string;
   make: string;
@@ -45,6 +52,7 @@ interface VehicleFormState {
 }
 
 const EMPTY_FORM: VehicleFormState = {
+  assignment: "school",
   registrationNumber: "",
   fleetNumber: "",
   make: "",
@@ -63,6 +71,8 @@ function createVehicleFormState(vehicle: Vehicle | null): VehicleFormState {
   }
 
   return {
+    assignment: vehicle.schoolId === null ? "shared" : "school",
+
     registrationNumber: vehicle.registrationNumber,
 
     fleetNumber: vehicle.fleetNumber ?? "",
@@ -86,6 +96,8 @@ function createVehicleFormState(vehicle: Vehicle | null): VehicleFormState {
 export function VehicleFormDialog({
   open,
   vehicle,
+  activeSchoolId,
+  activeSchoolName,
   saving,
   error,
   onClose,
@@ -152,7 +164,7 @@ export function VehicleFormDialog({
       manufactureYear = parsedYear;
     }
 
-    const payload = {
+    const commonInput = {
       registrationNumber: registration,
 
       fleetNumber: form.fleetNumber.trim() || undefined,
@@ -170,7 +182,20 @@ export function VehicleFormDialog({
       status: form.status,
     };
 
-    await onSubmit(payload);
+    if (editing) {
+      const input: UpdateVehicleInput = commonInput;
+
+      await onSubmit(input);
+      return;
+    }
+
+    const input: CreateVehicleInput = {
+      ...commonInput,
+
+      schoolId: form.assignment === "school" ? activeSchoolId : undefined,
+    };
+
+    await onSubmit(input);
   }
 
   return (
@@ -218,6 +243,37 @@ export function VehicleFormDialog({
                 {validationError ?? error}
               </Alert>
             ) : null}
+
+            {editing ? (
+              <TextField
+                disabled
+                label="Assignment"
+                value={
+                  vehicle?.schoolId === null
+                    ? "Shared across tenant"
+                    : activeSchoolName
+                }
+                helperText="Vehicle assignment is preserved while editing."
+                sx={{ gridColumn: "1 / -1" }}
+              />
+            ) : (
+              <TextField
+                select
+                label="Assignment"
+                value={form.assignment}
+                onChange={(event) =>
+                  updateField(
+                    "assignment",
+                    event.target.value as VehicleAssignment,
+                  )
+                }
+                helperText="Current school is the default. Choose Shared only for fleet resources available across the tenant."
+                sx={{ gridColumn: "1 / -1" }}
+              >
+                <MenuItem value="school">{activeSchoolName}</MenuItem>
+                <MenuItem value="shared">Shared across tenant</MenuItem>
+              </TextField>
+            )}
 
             <TextField
               required

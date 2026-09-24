@@ -27,6 +27,10 @@ interface DriverFormDialogProps {
 
   driver: Driver | null;
 
+  activeSchoolId: string;
+
+  activeSchoolName: string;
+
   saving: boolean;
 
   error: string | null;
@@ -36,7 +40,11 @@ interface DriverFormDialogProps {
   onSubmit: (input: CreateDriverInput | UpdateDriverInput) => Promise<void>;
 }
 
+type DriverAssignment = "school" | "shared";
+
 interface DriverFormState {
+  assignment: DriverAssignment;
+
   firstName: string;
 
   lastName: string;
@@ -55,6 +63,8 @@ interface DriverFormState {
 }
 
 const EMPTY_FORM: DriverFormState = {
+  assignment: "school",
+
   firstName: "",
 
   lastName: "",
@@ -80,6 +90,8 @@ function createDriverFormState(driver: Driver | null): DriverFormState {
   }
 
   return {
+    assignment: driver.schoolId === null ? "shared" : "school",
+
     firstName: driver.firstName,
 
     lastName: driver.lastName,
@@ -152,6 +164,8 @@ function optionalValue(value: string): string | undefined {
 export function DriverFormDialog({
   open,
   driver,
+  activeSchoolId,
+  activeSchoolName,
   saving,
   error,
   onClose,
@@ -247,6 +261,8 @@ export function DriverFormDialog({
     }
 
     const input: CreateDriverInput = {
+      schoolId: form.assignment === "school" ? activeSchoolId : undefined,
+
       firstName,
 
       lastName,
@@ -346,6 +362,37 @@ export function DriverFormDialog({
               gap: 2,
             }}
           >
+            {editing ? (
+              <TextField
+                disabled
+                label="Assignment"
+                value={
+                  driver?.schoolId === null
+                    ? "Shared across tenant"
+                    : activeSchoolName
+                }
+                helperText="Driver assignment is preserved while editing."
+                sx={{ gridColumn: "1 / -1" }}
+              />
+            ) : (
+              <TextField
+                select
+                label="Assignment"
+                value={form.assignment}
+                onChange={(event) =>
+                  updateField(
+                    "assignment",
+                    event.target.value as DriverAssignment,
+                  )
+                }
+                helperText="Current school is the default. Choose Shared only for drivers available across the tenant."
+                sx={{ gridColumn: "1 / -1" }}
+              >
+                <MenuItem value="school">{activeSchoolName}</MenuItem>
+                <MenuItem value="shared">Shared across tenant</MenuItem>
+              </TextField>
+            )}
+
             <TextField
               label="First name"
 

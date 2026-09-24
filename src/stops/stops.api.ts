@@ -49,6 +49,8 @@ export interface ListStopsQuery {
 
   schoolId?: string;
 
+  includeShared?: boolean;
+
   status?: StopStatus;
 }
 
@@ -109,6 +111,10 @@ function buildQueryString(query: ListStopsQuery): string {
     parameters.set("schoolId", query.schoolId);
   }
 
+  if (query.includeShared !== undefined) {
+    parameters.set("includeShared", String(query.includeShared));
+  }
+
   if (query.status) {
     parameters.set("status", query.status);
   }
@@ -131,7 +137,10 @@ export function listStopsPage(
  * Compatibility helper for RouteStopsDialog and any existing
  * consumer that still expects Stop[].
  */
-export async function listStops(tenantId: string): Promise<Stop[]> {
+export async function listStops(
+  tenantId: string,
+  query: Omit<ListStopsQuery, "page" | "limit"> = {},
+): Promise<Stop[]> {
   const stops: Stop[] = [];
 
   let page = 1;
@@ -140,6 +149,7 @@ export async function listStops(tenantId: string): Promise<Stop[]> {
 
   while (true) {
     const response = await listStopsPage(tenantId, {
+      ...query,
       page,
       limit,
     });

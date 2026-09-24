@@ -14,6 +14,8 @@ import {
 import {
   AddRounded,
   ApartmentRounded,
+  BadgeRounded,
+  EditRounded,
   LanguageRounded,
   LocationOnRounded,
   SchoolRounded,
@@ -31,10 +33,15 @@ import { useAuth } from "../auth/AuthProvider";
 import {
   createSchool,
   listSchools,
+  updateSchool,
   type CreateSchoolInput,
+  type School,
+  type UpdateSchoolInput,
 } from "./schools.api";
 
-import { SchoolFormDialog } from "./SchoolFormDialog";
+import { SchoolFormDialog, type SchoolFormValues } from "./SchoolFormDialog";
+
+import { SchoolProfileDialog } from "./SchoolProfileDialog";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error
@@ -61,7 +68,17 @@ export function SchoolsPage() {
     FRONTEND_PERMISSIONS.SCHOOLS_CREATE,
   );
 
+  const canUpdate = hasFrontendPermission(
+    permissions,
+
+    FRONTEND_PERMISSIONS.SCHOOLS_UPDATE,
+  );
+
   const [formOpen, setFormOpen] = useState(false);
+
+  const [editTarget, setEditTarget] = useState<School | null>(null);
+
+  const [profileTarget, setProfileTarget] = useState<School | null>(null);
 
   const [mutationError, setMutationError] = useState<string | null>(null);
 
@@ -113,10 +130,61 @@ export function SchoolsPage() {
     },
   });
 
-  async function submitSchool(input: CreateSchoolInput): Promise<void> {
+  const updateMutation = useMutation({
+    mutationFn: async (input: UpdateSchoolInput) => {
+      if (!tenantId || !editTarget) {
+        throw new Error("School context is unavailable");
+      }
+
+      return updateSchool(tenantId, editTarget.id, input);
+    },
+
+    onSuccess: async (school) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["schools"],
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ["auth-schools"],
+        }),
+      ]);
+
+      setMutationError(null);
+
+      setFormOpen(false);
+
+      setEditTarget(null);
+
+      setSuccessMessage(`${school.name} updated successfully.`);
+    },
+
+    onError: (error) => {
+      setMutationError(errorMessage(error));
+    },
+  });
+
+  async function submitSchool(input: SchoolFormValues): Promise<void> {
     setMutationError(null);
 
-    await createMutation.mutateAsync(input);
+    if (editTarget) {
+      await updateMutation.mutateAsync(input);
+      return;
+    }
+
+    const createInput: CreateSchoolInput = {
+      name: input.name,
+
+      shortName: input.shortName ?? undefined,
+
+      code: input.code,
+
+      timezone: input.timezone,
+
+      address: input.address ?? undefined,
+    };
+
+    await createMutation.mutateAsync(createInput);
   }
 
   if (!canRead) {
@@ -245,6 +313,8 @@ export function SchoolsPage() {
 
               onClick={() => {
                 setMutationError(null);
+
+                setEditTarget(null);
 
                 setFormOpen(true);
               }}
@@ -639,6 +709,94 @@ export function SchoolsPage() {
                       </Typography>
                     </Box>
                   </Box>
+
+                  <Box
+                    sx={{
+                      mt: 2.5,
+
+                      pt: 2,
+
+                      borderTop: "1px solid",
+
+                      borderColor: "divider",
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        color: "text.secondary",
+
+                        fontSize: 9.5,
+
+                        fontWeight: 850,
+
+                        textTransform: "uppercase",
+
+                        letterSpacing: "0.08em",
+                      }}
+                    >
+                      School profile & onboarding
+                    </Typography>
+
+                    <Typography
+                      sx={{
+                        mt: 0.6,
+
+                        color: "text.secondary",
+
+                        fontSize: 10.5,
+
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      Location • address • GPS coordinates • contacts •
+                      transport contact • emergency contact • motto • vision •
+                      about
+                    </Typography>
+
+                    <Box
+                      sx={{
+                        mt: 1.5,
+
+                        display: "flex",
+
+                        gap: 1,
+
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <Button
+                        size="small"
+
+                        variant="outlined"
+
+                        startIcon={<BadgeRounded />}
+
+                        onClick={() => setProfileTarget(school)}
+                      >
+                        Profile & contacts
+                      </Button>
+
+                      {canUpdate ? (
+                        <Button
+                          size="small"
+
+                          variant="text"
+
+                          startIcon={<EditRounded />}
+
+                          onClick={() => {
+                            setMutationError(null);
+
+                            setEditTarget(school);
+
+                            setFormOpen(true);
+                          }}
+                        >
+                          Edit school details
+                        </Button>
+                      ) : null}
+                    </Box>
+                  </Box>
                 </Paper>
               ))}
             </Box>
@@ -652,23 +810,44 @@ export function SchoolsPage() {
 
       {formOpen ? (
         <SchoolFormDialog
+          key={editTarget?.id ?? "create-school"}
+
           open
 
-          saving={createMutation.isPending}
+          school={editTarget}
+
+          saving={createMutation.isPending || updateMutation.isPending}
 
           error={mutationError}
 
           onClose={() => {
-            if (createMutation.isPending) {
+            if (createMutation.isPending || updateMutation.isPending) {
               return;
             }
 
             setMutationError(null);
 
+            setEditTarget(null);
+
             setFormOpen(false);
           }}
 
           onSubmit={submitSchool}
+        />
+      ) : null}
+
+      {tenantId && profileTarget ? (
+        <SchoolProfileDialog
+          open
+          tenantId={tenantId}
+          school={profileTarget}
+          canUpdate={canUpdate}
+          onClose={() => setProfileTarget(null)}
+          onSaved={() =>
+            setSuccessMessage(
+              `${profileTarget.name} profile updated successfully.`,
+            )
+          }
         />
       ) : null}
 

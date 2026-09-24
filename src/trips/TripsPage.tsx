@@ -274,7 +274,7 @@ function tripMatchesView(trip: Trip, view: TripViewFilter): boolean {
 }
 
 export function TripsPage() {
-  const { permissions, tenant } = useAuth();
+  const { permissions, tenant, activeSchool } = useAuth();
 
   const queryClient = useQueryClient();
 
@@ -299,6 +299,8 @@ export function TripsPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const tenantId = tenant?.tenantId;
+
+  const schoolId = activeSchool?.id;
 
   const canCreateTrips = hasFrontendPermission(
     permissions,
@@ -346,61 +348,72 @@ export function TripsPage() {
   // ============================================================
 
   const tripsQuery = useQuery({
-    queryKey: ["trips", tenantId],
+    queryKey: ["trips", tenantId, schoolId],
 
-    enabled: Boolean(tenantId),
+    enabled: Boolean(tenantId && schoolId),
 
     queryFn: async () => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
-      return listTrips(tenantId);
+      return listTrips(tenantId, {
+        schoolId,
+      });
     },
   });
 
   const routesQuery = useQuery({
-    queryKey: ["routes", tenantId],
+    queryKey: ["routes", tenantId, schoolId, "trip-scheduling"],
 
-    enabled: Boolean(tenantId),
+    enabled: Boolean(tenantId && schoolId),
 
     queryFn: async () => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
-      return listRoutes(tenantId);
+      return listRoutes(tenantId, {
+        schoolId,
+      });
     },
   });
 
   const driversQuery = useQuery({
-    queryKey: ["drivers", tenantId],
+    queryKey: ["drivers", tenantId, schoolId, "trip-scheduling"],
 
-    enabled: Boolean(tenantId),
+    enabled: Boolean(tenantId && schoolId),
 
     queryFn: async () => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
-      return listDrivers(tenantId);
+      return listDrivers(tenantId, {
+        schoolId,
+        includeShared: true,
+      });
     },
   });
 
   const vehiclesQuery = useQuery({
-    queryKey: ["vehicles", tenantId, "trip-scheduling"],
+    queryKey: ["vehicles", tenantId, schoolId, "trip-scheduling"],
 
-    enabled: Boolean(tenantId),
+    enabled: Boolean(tenantId && schoolId),
 
     queryFn: async () => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       return listVehicles(tenantId, {
         page: 1,
 
         limit: 100,
+
+        schoolId,
+
+        includeShared: true,
       });
     },
   });
@@ -417,8 +430,8 @@ export function TripsPage() {
 
   const scheduleMutation = useMutation({
     mutationFn: async (input: CreateTripInput) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       const draft = await createTrip(tenantId, input);
@@ -480,8 +493,8 @@ export function TripsPage() {
 
       input: UpdateTripInput;
     }) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       return updateTrip(tenantId, tripId, input);
@@ -521,8 +534,8 @@ export function TripsPage() {
 
       action: "schedule" | "board" | "start" | "complete";
     }) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       switch (action) {
@@ -575,8 +588,8 @@ export function TripsPage() {
 
   const cancelMutation = useMutation({
     mutationFn: async (tripId: string) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       return cancelTrip(tenantId, tripId);
@@ -720,6 +733,10 @@ export function TripsPage() {
     }
   }
 
+  if (!activeSchool) {
+    return <Alert severity="info">Select a school to view Trips.</Alert>;
+  }
+
   return (
     <Box>
       {/* ======================================================
@@ -772,7 +789,8 @@ export function TripsPage() {
               fontSize: 13.5,
             }}
           >
-            Schedule and manage dated transport operations.
+            Schedule and manage dated transport operations for{" "}
+            {activeSchool.name}.
           </Typography>
         </Box>
 

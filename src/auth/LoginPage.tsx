@@ -25,7 +25,7 @@ import { useAuth } from "./AuthProvider";
 import { devLoginPresets, type DevLoginPreset } from "./dev-login-presets";
 
 export function LoginPage() {
-  const { login, authenticated, isSuperAdmin, passwordChangeRequired } =
+  const { login, authenticated, isPlatformUser, passwordChangeRequired } =
     useAuth();
 
   const navigate = useNavigate();
@@ -47,7 +47,9 @@ export function LoginPage() {
       return <Navigate to="/change-password" replace />;
     }
 
-    return <Navigate to={isSuperAdmin ? "/platform" : "/dashboard"} replace />;
+    return (
+      <Navigate to={isPlatformUser ? "/platform" : "/dashboard"} replace />
+    );
   }
 
   async function handleDevLogin(preset: DevLoginPreset): Promise<void> {
@@ -72,7 +74,7 @@ export function LoginPage() {
       navigate(
         outcome.passwordChangeRequired
           ? "/change-password"
-          : outcome.isSuperAdmin
+          : outcome.isPlatformUser
             ? "/platform"
             : "/dashboard",
         {
@@ -105,7 +107,7 @@ export function LoginPage() {
       navigate(
         outcome.passwordChangeRequired
           ? "/change-password"
-          : outcome.isSuperAdmin
+          : outcome.isPlatformUser
             ? "/platform"
             : "/dashboard",
         {

@@ -12,10 +12,24 @@ import {
   Typography,
 } from "@mui/material";
 
-import type { CreateSchoolInput } from "./schools.api";
+import type { School } from "./schools.api";
+
+export interface SchoolFormValues {
+  name: string;
+
+  shortName: string | null;
+
+  code: string;
+
+  timezone: string;
+
+  address: string | null;
+}
 
 interface SchoolFormDialogProps {
   open: boolean;
+
+  school: School | null;
 
   saving: boolean;
 
@@ -23,11 +37,13 @@ interface SchoolFormDialogProps {
 
   onClose: () => void;
 
-  onSubmit: (input: CreateSchoolInput) => Promise<void>;
+  onSubmit: (input: SchoolFormValues) => Promise<void>;
 }
 
 interface SchoolFormState {
   name: string;
+
+  shortName: string;
 
   code: string;
 
@@ -40,9 +56,25 @@ function browserTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 }
 
-function initialForm(): SchoolFormState {
+function initialForm(school: School | null): SchoolFormState {
+  if (school) {
+    return {
+      name: school.name,
+
+      shortName: school.shortName ?? "",
+
+      code: school.code,
+
+      timezone: school.timezone,
+
+      address: school.address ?? "",
+    };
+  }
+
   return {
     name: "",
+
+    shortName: "",
 
     code: "",
 
@@ -54,12 +86,15 @@ function initialForm(): SchoolFormState {
 
 export function SchoolFormDialog({
   open,
+  school,
   saving,
   error,
   onClose,
   onSubmit,
 }: SchoolFormDialogProps) {
-  const [form, setForm] = useState<SchoolFormState>(initialForm);
+  const [form, setForm] = useState<SchoolFormState>(() => initialForm(school));
+
+  const editing = Boolean(school);
 
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -108,11 +143,13 @@ export function SchoolFormDialog({
     await onSubmit({
       name,
 
+      shortName: form.shortName.trim() || null,
+
       code,
 
       timezone,
 
-      address: form.address.trim() || undefined,
+      address: form.address.trim() || null,
     });
   }
 
@@ -136,7 +173,7 @@ export function SchoolFormDialog({
             fontWeight: 900,
           }}
         >
-          Add school
+          {editing ? "Edit school" : "Add school"}
         </DialogTitle>
 
         <DialogContent>
@@ -198,6 +235,22 @@ export function SchoolFormDialog({
               slotProps={{
                 htmlInput: {
                   maxLength: 200,
+                },
+              }}
+            />
+
+            <TextField
+              label="Short name"
+
+              value={form.shortName}
+
+              onChange={(event) => updateField("shortName", event.target.value)}
+
+              helperText="Optional shorter display name"
+
+              slotProps={{
+                htmlInput: {
+                  maxLength: 120,
                 },
               }}
             />
@@ -288,7 +341,7 @@ export function SchoolFormDialog({
 
             disabled={saving}
           >
-            {saving ? "Adding..." : "Add school"}
+            {saving ? "Saving..." : editing ? "Save changes" : "Add school"}
           </Button>
         </DialogActions>
       </Box>

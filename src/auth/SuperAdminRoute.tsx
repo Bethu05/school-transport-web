@@ -8,6 +8,13 @@ interface SuperAdminRouteProps {
   children: ReactNode;
 }
 
+/**
+ * Historical filename retained to avoid route churn.
+ *
+ * The /platform boundary now admits any authenticated platform
+ * identity. Individual platform views and backend endpoints remain
+ * permission-gated.
+ */
 export function SuperAdminRoute({ children }: SuperAdminRouteProps) {
   const { authenticated, isSuperAdmin, loading } = useAuth();
 

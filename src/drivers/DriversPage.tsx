@@ -143,7 +143,7 @@ function errorMessage(error: unknown): string {
 }
 
 export function DriversPage() {
-  const { tenant } = useAuth();
+  const { tenant, activeSchool } = useAuth();
 
   const queryClient = useQueryClient();
 
@@ -167,20 +167,26 @@ export function DriversPage() {
 
   const tenantId = tenant?.tenantId;
 
-  const driversQuery = useQuery({
-    queryKey: ["drivers", tenantId, search, status, page, limit],
+  const schoolId = activeSchool?.id;
 
-    enabled: Boolean(tenantId),
+  const driversQuery = useQuery({
+    queryKey: ["drivers", tenantId, schoolId, search, status, page, limit],
+
+    enabled: Boolean(tenantId && schoolId),
 
     queryFn: async () => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       return listDriversPage(tenantId, {
         page,
 
         limit,
+
+        schoolId,
+
+        includeShared: true,
 
         search: search.trim() || undefined,
 
@@ -190,36 +196,44 @@ export function DriversPage() {
   });
 
   const driverSummaryQuery = useQuery({
-    queryKey: ["drivers-summary", tenantId],
+    queryKey: ["drivers-summary", tenantId, schoolId],
 
-    enabled: Boolean(tenantId),
+    enabled: Boolean(tenantId && schoolId),
 
     queryFn: async () => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       const [all, active, inactive, suspended] = await Promise.all([
         listDriversPage(tenantId, {
           page: 1,
           limit: 1,
+          schoolId,
+          includeShared: true,
         }),
 
         listDriversPage(tenantId, {
           page: 1,
           limit: 1,
+          schoolId,
+          includeShared: true,
           status: "active",
         }),
 
         listDriversPage(tenantId, {
           page: 1,
           limit: 1,
+          schoolId,
+          includeShared: true,
           status: "inactive",
         }),
 
         listDriversPage(tenantId, {
           page: 1,
           limit: 1,
+          schoolId,
+          includeShared: true,
           status: "suspended",
         }),
       ]);
@@ -250,11 +264,14 @@ export function DriversPage() {
 
   const createMutation = useMutation({
     mutationFn: async (input: CreateDriverInput) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
-      return createDriver(tenantId, input);
+      return createDriver(tenantId, {
+        ...input,
+        schoolId: input.schoolId ? schoolId : undefined,
+      });
     },
 
     onSuccess: async () => {
@@ -283,8 +300,8 @@ export function DriversPage() {
 
       input: UpdateDriverInput;
     }) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       return updateDriver(tenantId, driverId, input);
@@ -309,8 +326,8 @@ export function DriversPage() {
 
   const deactivateMutation = useMutation({
     mutationFn: async (driverId: string) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       return deactivateDriver(tenantId, driverId);
@@ -378,6 +395,10 @@ export function DriversPage() {
     }
 
     await createMutation.mutateAsync(input as CreateDriverInput);
+  }
+
+  if (!activeSchool) {
+    return <Alert severity="info">Select a school to view Drivers.</Alert>;
   }
 
   return (
@@ -453,7 +474,8 @@ export function DriversPage() {
               fontSize: 13,
             }}
           >
-            Manage drivers, licence validity and operational status.
+            Manage {activeSchool.name} drivers, shared driver resources, licence
+            validity and operational status.
           </Typography>
         </Box>
 
@@ -1173,6 +1195,10 @@ export function DriversPage() {
         open={formOpen}
 
         driver={editingDriver}
+
+        activeSchoolId={activeSchool.id}
+
+        activeSchoolName={activeSchool.name}
 
         saving={createMutation.isPending || updateMutation.isPending}
 

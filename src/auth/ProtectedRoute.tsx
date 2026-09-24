@@ -6,12 +6,17 @@ import { useAuth } from "./AuthProvider";
 
 interface ProtectedRouteProps {
   children: ReactNode;
+
+  enforceCommercialAccess?: boolean;
 }
 
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
+export function ProtectedRoute({
+  children,
+  enforceCommercialAccess = true,
+}: ProtectedRouteProps) {
   const {
     authenticated,
-    isSuperAdmin,
+    isPlatformUser,
     loading,
     access,
     passwordChangeRequired,
@@ -25,18 +30,22 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/login" replace />;
   }
 
-  /**
-   * Credential recovery outranks every tenant/platform destination.
-   */
   if (passwordChangeRequired) {
     return <Navigate to="/change-password" replace />;
   }
 
-  if (isSuperAdmin) {
+  /**
+   * Hard trust-boundary rule:
+   *
+   * platform identities do not enter tenant application screens.
+   *
+   * This also protects direct/manual URL navigation.
+   */
+  if (isPlatformUser) {
     return <Navigate to="/platform" replace />;
   }
 
-  if (access && !access.operational) {
+  if (enforceCommercialAccess && access && !access.operational) {
     return <Navigate to="/account-status" replace />;
   }
 

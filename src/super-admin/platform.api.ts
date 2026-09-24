@@ -24,6 +24,92 @@ export interface PlatformTenantListItem {
   subscriptionEffective: boolean;
 }
 
+export interface PlatformTenantProfile {
+  tenantId: string;
+
+  name: string;
+
+  slug: string;
+
+  status: string;
+
+  timezone: string;
+
+  displayName: string | null;
+
+  countryCode: string | null;
+
+  region: string | null;
+
+  city: string | null;
+
+  addressLine1: string | null;
+
+  addressLine2: string | null;
+
+  postalCode: string | null;
+
+  phone: string | null;
+
+  email: string | null;
+
+  website: string | null;
+
+  operationalContactName: string | null;
+
+  operationalContactEmail: string | null;
+
+  operationalContactPhone: string | null;
+
+  motto: string | null;
+
+  vision: string | null;
+
+  about: string | null;
+
+  logoAssetKey: string | null;
+
+  updatedAt: string;
+}
+
+export interface UpdatePlatformTenantProfileInput {
+  name: string;
+
+  timezone: string;
+
+  displayName?: string | null;
+
+  countryCode?: string | null;
+
+  region?: string | null;
+
+  city?: string | null;
+
+  addressLine1?: string | null;
+
+  addressLine2?: string | null;
+
+  postalCode?: string | null;
+
+  phone?: string | null;
+
+  email?: string | null;
+
+  website?: string | null;
+
+  operationalContactName?: string | null;
+
+  operationalContactEmail?: string | null;
+
+  operationalContactPhone?: string | null;
+
+  motto?: string | null;
+
+  vision?: string | null;
+
+  about?: string | null;
+}
+
 interface PlatformTenantListResponse {
   items: PlatformTenantListItem[];
 }
@@ -40,6 +126,28 @@ export async function listPlatformTenants(): Promise<PlatformTenantListItem[]> {
     await apiRequest<PlatformTenantListResponse>("/platform/tenants");
 
   return response.items;
+}
+
+export function getPlatformTenantProfile(
+  tenantId: string,
+): Promise<PlatformTenantProfile> {
+  return apiRequest<PlatformTenantProfile>(
+    `/platform/tenants/${tenantId}/profile`,
+  );
+}
+
+export function updatePlatformTenantProfile(
+  tenantId: string,
+  input: UpdatePlatformTenantProfileInput,
+): Promise<PlatformTenantProfile> {
+  return apiRequest<PlatformTenantProfile>(
+    `/platform/tenants/${tenantId}/profile`,
+    {
+      method: "PATCH",
+
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export interface PlatformPlanSummary {
@@ -664,6 +772,196 @@ export function setPlatformPlanFeature(
 }
 
 // ============================================================
+// PRE-TENANT SCHOOL SETUP REQUESTS
+//
+// School applications exist before a tenant exists.
+// Approval provisions the tenant + first school and hands the
+// school into the canonical 15-step onboarding workflow.
+// ============================================================
+
+export type PlatformSchoolSetupRequestStatus =
+  "draft" | "submitted" | "approved" | "rejected";
+
+export interface PlatformSchoolSetupRequestEvent {
+  id: number;
+
+  eventType: string;
+
+  actorUserId: string;
+
+  details: Record<string, unknown>;
+
+  createdAt: string;
+}
+
+export interface PlatformSchoolSetupRequest {
+  id: string;
+
+  status: PlatformSchoolSetupRequestStatus;
+
+  tenantName: string;
+
+  tenantSlug: string;
+
+  timezone: string;
+
+  schoolName: string;
+
+  schoolCode: string;
+
+  schoolAddress: string | null;
+
+  createdBy: string;
+
+  submittedAt: string | null;
+
+  reviewedBy: string | null;
+
+  reviewedAt: string | null;
+
+  decisionNotes: string | null;
+
+  tenantId: string | null;
+
+  createdAt: string;
+
+  updatedAt: string;
+
+  events: PlatformSchoolSetupRequestEvent[];
+}
+
+interface PlatformSchoolSetupRequestListResponse {
+  items: PlatformSchoolSetupRequest[];
+}
+
+export interface CreatePlatformSchoolSetupRequestInput {
+  tenantName: string;
+
+  tenantSlug: string;
+
+  timezone: string;
+
+  schoolName: string;
+
+  schoolCode: string;
+
+  schoolAddress?: string;
+}
+
+export type UpdatePlatformSchoolSetupRequestInput =
+  CreatePlatformSchoolSetupRequestInput;
+
+export function createPlatformSchoolSetupRequest(
+  input: CreatePlatformSchoolSetupRequestInput,
+): Promise<PlatformSchoolSetupRequest> {
+  return apiRequest<PlatformSchoolSetupRequest>(
+    "/platform/school-setup-requests",
+    {
+      method: "POST",
+
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export async function listOwnPlatformSchoolSetupRequests(): Promise<
+  PlatformSchoolSetupRequest[]
+> {
+  const response = await apiRequest<PlatformSchoolSetupRequestListResponse>(
+    "/platform/school-setup-requests/mine",
+  );
+
+  return response.items;
+}
+
+export function updateOwnPlatformSchoolSetupRequest(
+  requestId: string,
+  input: UpdatePlatformSchoolSetupRequestInput,
+): Promise<PlatformSchoolSetupRequest> {
+  return apiRequest<PlatformSchoolSetupRequest>(
+    `/platform/school-setup-requests/${requestId}`,
+    {
+      method: "PUT",
+
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function submitOwnPlatformSchoolSetupRequest(
+  requestId: string,
+): Promise<PlatformSchoolSetupRequest> {
+  return apiRequest<PlatformSchoolSetupRequest>(
+    `/platform/school-setup-requests/${requestId}/submit`,
+    {
+      method: "POST",
+    },
+  );
+}
+
+export interface ApprovePlatformSchoolSetupRequestInput {
+  notes?: string;
+}
+
+export interface RejectPlatformSchoolSetupRequestInput {
+  reason: string;
+}
+
+/**
+ * Platform review queue for submitted school applications.
+ *
+ * These records are deliberately pre-tenant. A tenantId appears
+ * only after an authorized approval provisions the school.
+ */
+export async function listPlatformSchoolSetupRequestsForReview(): Promise<
+  PlatformSchoolSetupRequest[]
+> {
+  const response = await apiRequest<PlatformSchoolSetupRequestListResponse>(
+    "/platform/school-setup-requests/review",
+  );
+
+  return response.items;
+}
+
+/**
+ * Approve a submitted application.
+ *
+ * Approval provisions the tenant + first school and transfers the
+ * school into the canonical onboarding workflow. It does not make
+ * the school live.
+ */
+export function approvePlatformSchoolSetupRequest(
+  requestId: string,
+  input: ApprovePlatformSchoolSetupRequestInput,
+): Promise<PlatformSchoolSetupRequest> {
+  return apiRequest<PlatformSchoolSetupRequest>(
+    `/platform/school-setup-requests/${requestId}/approve`,
+    {
+      method: "POST",
+
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+/**
+ * Reject a submitted application without provisioning a tenant.
+ */
+export function rejectPlatformSchoolSetupRequest(
+  requestId: string,
+  input: RejectPlatformSchoolSetupRequestInput,
+): Promise<PlatformSchoolSetupRequest> {
+  return apiRequest<PlatformSchoolSetupRequest>(
+    `/platform/school-setup-requests/${requestId}/reject`,
+    {
+      method: "POST",
+
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+// ============================================================
 // PLATFORM TENANT ONBOARDING WORKFLOW
 //
 // These are Platform Super Admin calls.
@@ -980,7 +1278,6 @@ export function activatePlatformOnboarding(
   );
 }
 
-
 // ============================================================
 // REVIEWED TENANT SALES CONFIGURATION
 //
@@ -991,18 +1288,10 @@ export function activatePlatformOnboarding(
 // ============================================================
 
 export type PlatformSalesCapacitySource =
-  | "billing"
-  | "contract"
-  | "promotion"
-  | "manual";
+  "billing" | "contract" | "promotion" | "manual";
 
 export type PlatformSalesFeatureExceptionSource =
-  | "addon"
-  | "trial"
-  | "manual"
-  | "contract"
-  | "promotion"
-  | "billing";
+  "addon" | "trial" | "manual" | "contract" | "promotion" | "billing";
 
 export interface PlatformSalesCapacityInput {
   schools: number;
@@ -1084,6 +1373,226 @@ export function applyPlatformTenantSalesConfiguration(
       method: "PUT",
 
       body: JSON.stringify(input),
+    },
+  );
+}
+
+// ============================================================
+// PLATFORM ACCESS MANAGEMENT
+//
+// Super Admin-only platform identity + access control.
+// ============================================================
+
+export type PlatformAccessStatus = "active" | "suspended" | "revoked";
+
+export interface PlatformAccessUser {
+  id: string;
+
+  email: string;
+
+  firstName: string;
+
+  lastName: string;
+
+  status: string;
+
+  platformAccessStatus: PlatformAccessStatus;
+
+  roles: string[];
+
+  createdAt: string;
+
+  platformAddedAt: string;
+}
+
+export interface PlatformAccessRoleCatalogueItem {
+  key: string;
+
+  name: string;
+
+  description: string | null;
+}
+
+export interface PlatformPermissionCatalogueItem {
+  key: string;
+
+  module: string;
+
+  action: string;
+
+  description: string | null;
+}
+
+export interface PlatformAccessRoleAssignment {
+  role: string;
+
+  status: "active" | "suspended" | "revoked";
+
+  createdAt: string;
+
+  updatedAt: string;
+}
+
+export interface PlatformUserAccessIdentity {
+  id: string;
+
+  email: string;
+
+  firstName: string;
+
+  lastName: string;
+
+  status: string;
+
+  createdAt: string;
+
+  updatedAt: string;
+
+  mustChangePassword: boolean;
+
+  passwordChangedAt: string | null;
+}
+
+export interface PlatformUserAccess {
+  user: PlatformUserAccessIdentity;
+
+  roles: string[];
+
+  roleAssignments: PlatformAccessRoleAssignment[];
+
+  platformAccessStatus: PlatformAccessStatus;
+
+  platformAddedAt: string;
+
+  platformUpdatedAt: string;
+
+  inheritedPermissions: string[];
+
+  additionalPermissions: string[];
+
+  effectivePermissions: string[];
+}
+
+interface PlatformAccessUserSearchResponse {
+  items: PlatformAccessUser[];
+}
+
+interface PlatformAccessRoleListResponse {
+  items: PlatformAccessRoleCatalogueItem[];
+}
+
+interface PlatformPermissionCatalogueResponse {
+  items: PlatformPermissionCatalogueItem[];
+}
+
+export async function searchPlatformAccessUsers(
+  search: string,
+): Promise<PlatformAccessUser[]> {
+  const normalized = search.trim();
+
+  if (normalized.length < 2) {
+    return [];
+  }
+
+  const response = await apiRequest<PlatformAccessUserSearchResponse>(
+    `/platform/access/users/search?q=${encodeURIComponent(normalized)}`,
+  );
+
+  return response.items;
+}
+
+export async function listPlatformAccessRoles(): Promise<
+  PlatformAccessRoleCatalogueItem[]
+> {
+  const response = await apiRequest<PlatformAccessRoleListResponse>(
+    "/platform/access/roles",
+  );
+
+  return response.items;
+}
+
+export async function listPlatformPermissionCatalogue(): Promise<
+  PlatformPermissionCatalogueItem[]
+> {
+  const response = await apiRequest<PlatformPermissionCatalogueResponse>(
+    "/platform/access/permissions",
+  );
+
+  return response.items;
+}
+
+export function getPlatformUserAccess(
+  userId: string,
+): Promise<PlatformUserAccess> {
+  return apiRequest<PlatformUserAccess>(`/platform/access/users/${userId}`);
+}
+
+export interface CreatePlatformAccessUserInput {
+  email: string;
+
+  firstName: string;
+
+  lastName: string;
+
+  role: string;
+
+  temporaryPassword: string;
+}
+
+export function createPlatformAccessUser(
+  input: CreatePlatformAccessUserInput,
+): Promise<PlatformUserAccess> {
+  return apiRequest<PlatformUserAccess>("/platform/access/users", {
+    method: "POST",
+
+    body: JSON.stringify(input),
+  });
+}
+
+export function replacePlatformUserPermissions(
+  userId: string,
+  permissionKeys: string[],
+): Promise<PlatformUserAccess> {
+  return apiRequest<PlatformUserAccess>(
+    `/platform/access/users/${userId}/permissions`,
+    {
+      method: "PUT",
+
+      body: JSON.stringify({
+        permissionKeys,
+      }),
+    },
+  );
+}
+
+export function resetPlatformAccessUserPassword(
+  userId: string,
+  temporaryPassword: string,
+): Promise<PlatformUserAccess> {
+  return apiRequest<PlatformUserAccess>(
+    `/platform/access/users/${userId}/password/reset`,
+    {
+      method: "PUT",
+
+      body: JSON.stringify({
+        temporaryPassword,
+      }),
+    },
+  );
+}
+
+export function setPlatformAccessUserStatus(
+  userId: string,
+  status: "active" | "suspended",
+): Promise<PlatformUserAccess> {
+  return apiRequest<PlatformUserAccess>(
+    `/platform/access/users/${userId}/status`,
+    {
+      method: "PUT",
+
+      body: JSON.stringify({
+        status,
+      }),
     },
   );
 }

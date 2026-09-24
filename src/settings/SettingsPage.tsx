@@ -27,6 +27,10 @@ import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
 
+import { buildTenantPath } from "../tenancy/tenant-routing";
+
+import { OrganisationProfilePanel } from "./OrganisationProfilePanel";
+
 import {
   FRONTEND_PERMISSIONS,
   hasFrontendPermission,
@@ -166,7 +170,7 @@ function updatedAtLabel(value: string): string {
 // ============================================================
 
 export function SettingsPage() {
-  const { tenant, permissions } = useAuth();
+  const { tenant, tenantMembership, permissions } = useAuth();
 
   const navigate = useNavigate();
 
@@ -222,6 +226,8 @@ export function SettingsPage() {
   });
 
   const general = settingsQuery.data?.general;
+
+  const profile = settingsQuery.data?.profile;
 
   /**
    * No effect is needed.
@@ -906,6 +912,15 @@ export function SettingsPage() {
         </Box>
       ) : null}
 
+      {tenantId && profile ? (
+        <OrganisationProfilePanel
+          key={profile.updatedAt}
+          tenantId={tenantId}
+          profile={profile}
+          canUpdate={canUpdate}
+        />
+      ) : null}
+
       {/* ====================================================
           ACCOUNT SECURITY
           ==================================================== */}
@@ -992,7 +1007,13 @@ export function SettingsPage() {
               <Button
                 variant="outlined"
                 startIcon={<ManageAccountsRounded />}
-                onClick={() => navigate("/users-access")}
+                onClick={() =>
+                  navigate(
+                    tenantMembership
+                      ? buildTenantPath(tenantMembership.slug, "users-access")
+                      : "/users-access",
+                  )
+                }
               >
                 Users &amp; access
               </Button>

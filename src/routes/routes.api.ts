@@ -29,6 +29,7 @@ export interface ListRoutesQuery {
   page?: number;
   limit?: number;
   search?: string;
+  schoolId?: string;
   status?: RouteStatus;
   routeType?: RouteType;
 }
@@ -103,6 +104,10 @@ function buildRoutesQueryString(query: ListRoutesQuery): string {
     parameters.set("search", query.search.trim());
   }
 
+  if (query.schoolId) {
+    parameters.set("schoolId", query.schoolId);
+  }
+
   if (query.status) {
     parameters.set("status", query.status);
   }
@@ -135,7 +140,10 @@ export function listRoutesPage(
  * Compatibility helper for Trips and other existing
  * consumers that still expect a plain Route[].
  */
-export async function listRoutes(tenantId: string): Promise<Route[]> {
+export async function listRoutes(
+  tenantId: string,
+  query: Omit<ListRoutesQuery, "page" | "limit"> = {},
+): Promise<Route[]> {
   const routes: Route[] = [];
 
   let page = 1;
@@ -144,6 +152,7 @@ export async function listRoutes(tenantId: string): Promise<Route[]> {
 
   while (true) {
     const response = await listRoutesPage(tenantId, {
+      ...query,
       page,
       limit,
     });

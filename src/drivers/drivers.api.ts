@@ -49,6 +49,10 @@ export interface ListDriversQuery {
 
   search?: string;
 
+  schoolId?: string;
+
+  includeShared?: boolean;
+
   status?: DriverStatus;
 }
 
@@ -113,6 +117,14 @@ function buildQueryString(query: ListDriversQuery): string {
     parameters.set("search", query.search.trim());
   }
 
+  if (query.schoolId) {
+    parameters.set("schoolId", query.schoolId);
+  }
+
+  if (query.includeShared !== undefined) {
+    parameters.set("includeShared", String(query.includeShared));
+  }
+
   if (query.status) {
     parameters.set("status", query.status);
   }
@@ -138,7 +150,10 @@ export function listDriversPage(
  * Compatibility helper for Trips and existing consumers
  * that still expect a plain Driver[].
  */
-export async function listDrivers(tenantId: string): Promise<Driver[]> {
+export async function listDrivers(
+  tenantId: string,
+  query: Omit<ListDriversQuery, "page" | "limit"> = {},
+): Promise<Driver[]> {
   const drivers: Driver[] = [];
 
   let page = 1;
@@ -147,6 +162,7 @@ export async function listDrivers(tenantId: string): Promise<Driver[]> {
 
   while (true) {
     const response = await listDriversPage(tenantId, {
+      ...query,
       page,
       limit,
     });

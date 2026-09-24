@@ -31,6 +31,7 @@ export interface ListVehiclesQuery {
   limit?: number;
   search?: string;
   schoolId?: string;
+  includeShared?: boolean;
   status?: VehicleStatus;
 }
 
@@ -75,6 +76,10 @@ function buildQueryString(query: ListVehiclesQuery): string {
 
   if (query.schoolId) {
     parameters.set("schoolId", query.schoolId);
+  }
+
+  if (query.includeShared !== undefined) {
+    parameters.set("includeShared", String(query.includeShared));
   }
 
   if (query.status) {

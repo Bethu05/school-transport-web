@@ -102,7 +102,7 @@ function errorMessage(error: unknown): string {
 }
 
 export function VehiclesPage() {
-  const { tenant } = useAuth();
+  const { tenant, activeSchool } = useAuth();
 
   const queryClient = useQueryClient();
 
@@ -127,14 +127,16 @@ export function VehiclesPage() {
 
   const tenantId = tenant?.tenantId;
 
-  const vehiclesQuery = useQuery({
-    queryKey: ["vehicles", tenantId, search, status, page, limit],
+  const schoolId = activeSchool?.id;
 
-    enabled: Boolean(tenantId),
+  const vehiclesQuery = useQuery({
+    queryKey: ["vehicles", tenantId, schoolId, search, status, page, limit],
+
+    enabled: Boolean(tenantId && schoolId),
 
     queryFn: async () => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       return listVehicles(tenantId, {
@@ -142,7 +144,11 @@ export function VehiclesPage() {
 
         limit,
 
-        search: search || undefined,
+        schoolId,
+
+        includeShared: true,
+
+        search: search.trim() || undefined,
 
         status: status === "all" ? undefined : status,
       });
@@ -163,11 +169,14 @@ export function VehiclesPage() {
 
   const createMutation = useMutation({
     mutationFn: async (input: CreateVehicleInput) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
-      return createVehicle(tenantId, input);
+      return createVehicle(tenantId, {
+        ...input,
+        schoolId: input.schoolId ? schoolId : undefined,
+      });
     },
 
     onSuccess: async () => {
@@ -196,8 +205,8 @@ export function VehiclesPage() {
 
       input: UpdateVehicleInput;
     }) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       return updateVehicle(tenantId, vehicleId, input);
@@ -222,8 +231,8 @@ export function VehiclesPage() {
 
   const retireMutation = useMutation({
     mutationFn: async (vehicleId: string) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       return retireVehicle(tenantId, vehicleId);
@@ -302,6 +311,10 @@ export function VehiclesPage() {
     await createMutation.mutateAsync(input as CreateVehicleInput);
   }
 
+  if (!activeSchool) {
+    return <Alert severity="info">Select a school to view Vehicles.</Alert>;
+  }
+
   return (
     <Box>
       {/* ================================================
@@ -374,7 +387,8 @@ export function VehiclesPage() {
               fontSize: 13,
             }}
           >
-            Manage the tenant fleet and GPS assignments.
+            Manage {activeSchool.name} vehicles, shared fleet resources and GPS
+            assignments.
           </Typography>
         </Box>
 
@@ -1006,6 +1020,10 @@ export function VehiclesPage() {
         open={formOpen}
 
         vehicle={editingVehicle}
+
+        activeSchoolId={activeSchool.id}
+
+        activeSchoolName={activeSchool.name}
 
         saving={createMutation.isPending || updateMutation.isPending}
 

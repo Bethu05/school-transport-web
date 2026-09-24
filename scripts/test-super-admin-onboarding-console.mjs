@@ -26,7 +26,7 @@ const commercial = read("src/super-admin/OnboardingCommercialReview.tsx");
 
 const management = read("src/super-admin/TenantManagementPage.tsx");
 
-console.log("Super Admin grouped onboarding console checkpoint");
+console.log("Super Admin 15-step onboarding console checkpoint");
 
 console.log("----------------------------------------------");
 
@@ -54,9 +54,10 @@ check(
 
 check(
   panel.includes("commercialBackendStepKeys") &&
-    panel.includes("hiddenCommercialRailStepKeys") &&
-    panel.includes("visibleSteps"),
-  "backend Steps 5-8 are grouped into one visible Commercial Setup stage",
+    panel.includes("const visibleSteps = steps;") &&
+    panel.includes("Step ${activeStep.stepOrder} of ${steps.length}") &&
+    !panel.includes("hiddenCommercialRailStepKeys"),
+  "all 15 persisted onboarding steps are visible in canonical order",
 );
 
 check(
@@ -68,10 +69,12 @@ check(
 );
 
 check(
-  panel.includes('"Commercial Setup"') &&
-    panel.includes("commercialGroupStatus") &&
-    panel.includes("commercialGroupComplete"),
-  "Commercial Setup derives status from all backend substeps",
+  panel.includes('case "package_selection":') &&
+    panel.includes('case "package_limits":') &&
+    panel.includes('case "feature_exceptions":') &&
+    panel.includes('case "trial_configuration":') &&
+    panel.includes("<OnboardingCommercialReview"),
+  "Steps 5-8 remain backed by the same transactional Commercial Setup editor",
 );
 
 check(
@@ -137,9 +140,8 @@ check(
 );
 
 check(
-  panel.includes("step.stepOrder >= 14") &&
-    panel.includes("Docker Demo tooling"),
-  "demo tooling remains isolated",
+  panel.includes("step.stepOrder <= 13"),
+  "active onboarding UI excludes retired reserved stages",
 );
 
 check(
@@ -158,9 +160,9 @@ check(
 if (process.exitCode) {
   console.error();
 
-  console.error("Super Admin grouped onboarding console checkpoint FAILED");
+  console.error("Super Admin 15-step onboarding console checkpoint FAILED");
 } else {
   console.log();
 
-  console.log("Super Admin grouped onboarding console checkpoint PASSED");
+  console.log("Super Admin 15-step onboarding console checkpoint PASSED");
 }

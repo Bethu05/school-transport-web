@@ -302,8 +302,13 @@ export function listTripsPage(
  * This wrapper should be removed once TripsPage has been
  * migrated to listTripsPage().
  */
-export async function listTrips(tenantId: string): Promise<Trip[]> {
+export async function listTrips(
+  tenantId: string,
+  query: Omit<ListTripsQuery, "page" | "limit" | "view"> = {},
+): Promise<Trip[]> {
   const response = await listTripsPage(tenantId, {
+    ...query,
+
     page: 1,
 
     limit: 100,

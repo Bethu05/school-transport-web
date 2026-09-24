@@ -1,6 +1,7 @@
 import {
   ArrowBackRounded,
   BusinessRounded,
+  DomainRounded,
   FactCheckRounded,
   GroupsRounded,
   LockRounded,
@@ -38,6 +39,8 @@ import { TenantInitialAdminActions } from "./TenantInitialAdminActions";
 
 import { TenantOnboardingPanel } from "./TenantOnboardingPanel";
 
+import { TenantProfileActions } from "./TenantProfileActions";
+
 import {
   getPlatformTenantCapacity,
   getPlatformTenantOnboardingStatus,
@@ -45,6 +48,7 @@ import {
 } from "./platform.api";
 
 type ManagementPanel =
+  | "details"
   | "onboarding"
   | "subscription"
   | "capacity"
@@ -247,6 +251,9 @@ export function TenantManagementPage({
 
   function dialogTitle(): string {
     switch (activePanel) {
+      case "details":
+        return "Tenant details";
+
       case "onboarding":
         return "Onboarding control centre";
 
@@ -407,6 +414,47 @@ export function TenantManagementPage({
         }}
       >
         {/* ----------------------------------------------------
+            TENANT DETAILS
+            ---------------------------------------------------- */}
+
+        <ControlCard
+          title="Tenant details"
+          description="Organisation identity, location, contacts and profile."
+          icon={<DomainRounded fontSize="small" />}
+          onClick={() => setActivePanel("details")}
+        >
+          <Typography
+            sx={{
+              fontSize: 13,
+              fontWeight: 800,
+            }}
+          >
+            {tenant.name}
+          </Typography>
+
+          <Typography
+            sx={{
+              mt: 0.5,
+              color: "text.secondary",
+              fontSize: 10,
+            }}
+          >
+            {tenant.timezone}
+          </Typography>
+
+          <Typography
+            sx={{
+              mt: 1.25,
+              color: "text.secondary",
+              fontSize: 10,
+              lineHeight: 1.5,
+            }}
+          >
+            Edit non-financial organisation and onboarding details.
+          </Typography>
+        </ControlCard>
+
+        {/* ----------------------------------------------------
             ONBOARDING
             ---------------------------------------------------- */}
 
@@ -446,7 +494,8 @@ export function TenantManagementPage({
             }}
           >
             Review approval, evidence, migration and launch readiness. Demo
-            reset and journey simulation remain isolated as Steps 14–15.
+            legacy reserved workflow records are excluded from the active
+            onboarding experience.
           </Typography>
         </ControlCard>
 
@@ -758,6 +807,13 @@ export function TenantManagementPage({
                 }
           }
         >
+          {activePanel === "details" ? (
+            <TenantProfileActions
+              tenant={tenant}
+              onTenantUpdated={onTenantUpdated}
+            />
+          ) : null}
+
           {activePanel === "onboarding" ? (
             <Box
               sx={{

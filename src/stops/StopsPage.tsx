@@ -43,7 +43,7 @@ import { useAuth } from "../auth/AuthProvider";
 
 import { PaginationControls } from "../components/PaginationControls";
 
-import { listSchools, type School } from "../schools/schools.api";
+import type { School } from "../schools/schools.api";
 
 import {
   createStop,
@@ -59,8 +59,6 @@ import {
 import { StopFormDialog } from "./StopFormDialog";
 
 const EMPTY_STOPS: Stop[] = [];
-
-const EMPTY_SCHOOLS: School[] = [];
 
 type StatusFilter = "all" | StopStatus;
 
@@ -91,15 +89,13 @@ function errorMessage(error: unknown): string {
 }
 
 export function StopsPage() {
-  const { permissions, tenant } = useAuth();
+  const { permissions, tenant, activeSchool } = useAuth();
 
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
 
   const [status, setStatus] = useState<StatusFilter>("active");
-
-  const [schoolId, setSchoolId] = useState("all");
 
   const [page, setPage] = useState(1);
 
@@ -117,6 +113,8 @@ export function StopsPage() {
 
   const tenantId = tenant?.tenantId;
 
+  const schoolId = activeSchool?.id;
+
   const canCreate = hasFrontendPermission(
     permissions,
     FRONTEND_PERMISSIONS.STOPS_CREATE,
@@ -132,28 +130,14 @@ export function StopsPage() {
     FRONTEND_PERMISSIONS.STOPS_DEACTIVATE,
   );
 
-  const schoolsQuery = useQuery({
-    queryKey: ["schools", tenantId],
-
-    enabled: Boolean(tenantId),
-
-    queryFn: async () => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
-      }
-
-      return listSchools(tenantId);
-    },
-  });
-
   const stopsQuery = useQuery({
-    queryKey: ["stops-page", tenantId, search, status, schoolId, page, limit],
+    queryKey: ["stops-page", tenantId, schoolId, search, status, page, limit],
 
-    enabled: Boolean(tenantId),
+    enabled: Boolean(tenantId && schoolId),
 
     queryFn: async () => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       return listStopsPage(tenantId, {
@@ -165,37 +149,47 @@ export function StopsPage() {
 
         status: status === "all" ? undefined : status,
 
-        schoolId: schoolId === "all" ? undefined : schoolId,
+        schoolId,
+
+        includeShared: true,
       });
     },
   });
 
   const summaryQuery = useQuery({
-    queryKey: ["stops-summary", tenantId],
+    queryKey: ["stops-summary", tenantId, schoolId],
 
-    enabled: Boolean(tenantId),
+    enabled: Boolean(tenantId && schoolId),
 
     queryFn: async () => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
+
+      const sharedSchoolScope = {
+        schoolId,
+        includeShared: true,
+      };
 
       const [all, active, inactive] = await Promise.all([
         listStopsPage(tenantId, {
           page: 1,
           limit: 1,
+          ...sharedSchoolScope,
         }),
 
         listStopsPage(tenantId, {
           page: 1,
           limit: 1,
           status: "active",
+          ...sharedSchoolScope,
         }),
 
         listStopsPage(tenantId, {
           page: 1,
           limit: 1,
           status: "inactive",
+          ...sharedSchoolScope,
         }),
       ]);
 
@@ -230,11 +224,22 @@ export function StopsPage() {
 
   const createMutation = useMutation({
     mutationFn: async (input: CreateStopInput) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
-      return createStop(tenantId, input);
+      /**
+       * A school-scoped Stops screen may create:
+       *
+       * - a Stop for the current school; or
+       * - a tenant-wide Shared stop.
+       *
+       * It cannot create a Stop owned by another school.
+       */
+      return createStop(tenantId, {
+        ...input,
+        schoolId: input.schoolId ? schoolId : undefined,
+      });
     },
 
     onSuccess: async () => {
@@ -265,8 +270,8 @@ export function StopsPage() {
 
       input: UpdateStopInput;
     }) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       return updateStop(tenantId, mutationStopId, input);
@@ -291,8 +296,8 @@ export function StopsPage() {
 
   const deactivateMutation = useMutation({
     mutationFn: async (stopIdToDeactivate: string) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       return deactivateStop(tenantId, stopIdToDeactivate);
@@ -309,7 +314,12 @@ export function StopsPage() {
     },
   });
 
-  const schools = schoolsQuery.data ?? EMPTY_SCHOOLS;
+  /**
+   * Expose only the verified current school to the create form.
+   *
+   * The form still retains its explicit Shared stop option.
+   */
+  const schools: School[] = activeSchool ? [activeSchool] : [];
 
   const stops = stopsQuery.data?.items ?? EMPTY_STOPS;
 
@@ -380,6 +390,10 @@ export function StopsPage() {
 
   const formSaving = createMutation.isPending || updateMutation.isPending;
 
+  if (!activeSchool) {
+    return <Alert severity="info">Select a school to view Stops.</Alert>;
+  }
+
   return (
     <Box>
       <Box
@@ -425,8 +439,8 @@ export function StopsPage() {
               fontSize: 13,
             }}
           >
-            Manage shared and school-specific transport stops. Active stops are
-            shown by default.
+            Manage {activeSchool.name} transport stops and tenant-wide Shared
+            stops. Active stops are shown by default.
           </Typography>
         </Box>
 
@@ -437,8 +451,6 @@ export function StopsPage() {
             startIcon={<AddRounded />}
 
             onClick={openCreate}
-
-            disabled={schoolsQuery.isLoading}
           >
             Add stop
           </Button>
@@ -585,7 +597,7 @@ export function StopsPage() {
             gridTemplateColumns: {
               xs: "1fr",
 
-              lg: "minmax(0, 1fr) 220px 190px",
+              lg: "minmax(0, 1fr) 190px",
             },
 
             gap: 1.5,
@@ -622,37 +634,6 @@ export function StopsPage() {
           />
 
           <FormControl>
-            <InputLabel id="stop-school-label">School</InputLabel>
-
-            <Select
-              labelId="stop-school-label"
-
-              label="School"
-
-              value={schoolId}
-
-              onChange={(event) => {
-                setSchoolId(event.target.value);
-
-                setPage(1);
-              }}
-            >
-              <MenuItem value="all">All schools</MenuItem>
-
-              {schools.map((school) => (
-                <MenuItem
-                  key={school.id}
-
-                  value={school.id}
-                >
-                  {school.name}
-                  {school.code ? ` (${school.code})` : ""}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <FormControl>
             <InputLabel id="stop-status-label">Status</InputLabel>
 
             <Select
@@ -677,20 +658,6 @@ export function StopsPage() {
           </FormControl>
         </Box>
       </Paper>
-
-      {schoolsQuery.isError ? (
-        <Alert
-          severity="warning"
-
-          sx={{
-            mb: 2,
-          }}
-        >
-          School names could not be loaded. Existing stops can still be viewed,
-          but a school-specific stop cannot be created until the school list is
-          available.
-        </Alert>
-      ) : null}
 
       {stopsQuery.isLoading ? (
         <Paper

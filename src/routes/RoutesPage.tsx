@@ -40,7 +40,7 @@ import { useAuth } from "../auth/AuthProvider";
 
 import { PaginationControls } from "../components/PaginationControls";
 
-import { listSchools, type School } from "../schools/schools.api";
+import type { School } from "../schools/schools.api";
 
 import {
   activateRoute,
@@ -60,8 +60,6 @@ import { RouteFormDialog } from "./RouteFormDialog";
 import { RouteStopsDialog } from "./RouteStopsDialog";
 
 const EMPTY_ROUTES: Route[] = [];
-
-const EMPTY_SCHOOLS: School[] = [];
 
 type StatusFilter = "all" | RouteStatus;
 
@@ -120,7 +118,7 @@ function errorMessage(error: unknown): string {
 }
 
 export function RoutesPage() {
-  const { tenant } = useAuth();
+  const { tenant, activeSchool } = useAuth();
 
   const queryClient = useQueryClient();
 
@@ -148,20 +146,33 @@ export function RoutesPage() {
 
   const tenantId = tenant?.tenantId;
 
-  const routesQuery = useQuery({
-    queryKey: ["routes", tenantId, search, status, routeType, page, limit],
+  const schoolId = activeSchool?.id;
 
-    enabled: Boolean(tenantId),
+  const routesQuery = useQuery({
+    queryKey: [
+      "routes",
+      tenantId,
+      schoolId,
+      search,
+      status,
+      routeType,
+      page,
+      limit,
+    ],
+
+    enabled: Boolean(tenantId && schoolId),
 
     queryFn: async () => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       return listRoutesPage(tenantId, {
         page,
 
         limit,
+
+        schoolId,
 
         search: search.trim() || undefined,
 
@@ -173,36 +184,40 @@ export function RoutesPage() {
   });
 
   const routeSummaryQuery = useQuery({
-    queryKey: ["routes-summary", tenantId],
+    queryKey: ["routes-summary", tenantId, schoolId],
 
-    enabled: Boolean(tenantId),
+    enabled: Boolean(tenantId && schoolId),
 
     queryFn: async () => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       const [all, active, inactive, pickup] = await Promise.all([
         listRoutesPage(tenantId, {
           page: 1,
           limit: 1,
+          schoolId,
         }),
 
         listRoutesPage(tenantId, {
           page: 1,
           limit: 1,
+          schoolId,
           status: "active",
         }),
 
         listRoutesPage(tenantId, {
           page: 1,
           limit: 1,
+          schoolId,
           status: "inactive",
         }),
 
         listRoutesPage(tenantId, {
           page: 1,
           limit: 1,
+          schoolId,
           routeType: "pickup",
         }),
       ]);
@@ -216,20 +231,6 @@ export function RoutesPage() {
 
         pickup: pickup.total,
       };
-    },
-  });
-
-  const schoolsQuery = useQuery({
-    queryKey: ["schools", tenantId],
-
-    enabled: Boolean(tenantId),
-
-    queryFn: async () => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
-      }
-
-      return listSchools(tenantId);
     },
   });
 
@@ -247,11 +248,14 @@ export function RoutesPage() {
 
   const createMutation = useMutation({
     mutationFn: async (input: CreateRouteInput) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
-      return createRoute(tenantId, input);
+      return createRoute(tenantId, {
+        ...input,
+        schoolId,
+      });
     },
 
     onSuccess: async () => {
@@ -280,8 +284,8 @@ export function RoutesPage() {
 
       input: UpdateRouteInput;
     }) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       return updateRoute(tenantId, routeId, input);
@@ -306,8 +310,8 @@ export function RoutesPage() {
 
   const deactivateMutation = useMutation({
     mutationFn: async (routeId: string) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       return deactivateRoute(tenantId, routeId);
@@ -324,8 +328,8 @@ export function RoutesPage() {
 
   const activateMutation = useMutation({
     mutationFn: async (routeId: string) => {
-      if (!tenantId) {
-        throw new Error("No active tenant");
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
       }
 
       return activateRoute(tenantId, routeId);
@@ -340,7 +344,7 @@ export function RoutesPage() {
 
   const routes = routesQuery.data?.items ?? EMPTY_ROUTES;
 
-  const schools = schoolsQuery.data ?? EMPTY_SCHOOLS;
+  const schools: School[] = activeSchool ? [activeSchool] : [];
 
   const schoolById = useMemo(
     () => new Map(schools.map((school) => [school.id, school])),
@@ -406,6 +410,10 @@ export function RoutesPage() {
     }
 
     await createMutation.mutateAsync(input as CreateRouteInput);
+  }
+
+  if (!activeSchool) {
+    return <Alert severity="info">Select a school to view Routes.</Alert>;
   }
 
   return (
@@ -483,7 +491,8 @@ export function RoutesPage() {
               fontSize: 13,
             }}
           >
-            Manage reusable route templates before they become dated trips.
+            Manage reusable route templates for {activeSchool.name} before they
+            become dated trips.
           </Typography>
         </Box>
 
@@ -517,11 +526,7 @@ export function RoutesPage() {
           <Button
             variant="contained"
 
-            disabled={
-              schoolsQuery.isLoading ||
-              schoolsQuery.isError ||
-              schools.length === 0
-            }
+            disabled={schools.length === 0}
 
             startIcon={<AddRounded />}
 
@@ -807,34 +812,6 @@ export function RoutesPage() {
           </FormControl>
         </Box>
       </Paper>
-
-      {schoolsQuery.isError ? (
-        <Alert
-          severity="warning"
-
-          sx={{
-            mb: 2,
-          }}
-        >
-          Schools could not be loaded. Existing routes can still be viewed, but
-          a new route cannot be created until the school list is available.
-        </Alert>
-      ) : null}
-
-      {!schoolsQuery.isLoading &&
-      !schoolsQuery.isError &&
-      schools.length === 0 ? (
-        <Alert
-          severity="info"
-
-          sx={{
-            mb: 2,
-          }}
-        >
-          No active schools are available. Add or activate a school before
-          creating a route.
-        </Alert>
-      ) : null}
 
       {/* ================================================
           QUERY STATES
@@ -1204,11 +1181,9 @@ export function RoutesPage() {
 
         schools={schools}
 
-        schoolsLoading={schoolsQuery.isLoading}
+        schoolsLoading={false}
 
-        schoolsError={
-          schoolsQuery.isError ? errorMessage(schoolsQuery.error) : null
-        }
+        schoolsError={null}
 
         saving={createMutation.isPending || updateMutation.isPending}
 

@@ -112,6 +112,26 @@ assert(
 );
 
 assert(
+  changePasswordPage.includes("Generate strong password"),
+  "change-password screen can generate a strong password",
+);
+
+assert(
+  changePasswordPage.includes("crypto.getRandomValues"),
+  "password generator uses cryptographic browser randomness",
+);
+
+assert(
+  changePasswordPage.includes("navigator.clipboard.writeText"),
+  "generated password can be copied",
+);
+
+assert(
+  changePasswordPage.includes("showNewPassword"),
+  "generated password can be shown or hidden",
+);
+
+assert(
   shell.includes('navigate("/change-password")'),
   "user avatar opens password security",
 );

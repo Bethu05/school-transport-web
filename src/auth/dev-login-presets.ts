@@ -28,13 +28,27 @@ function createPreset(
 export const devLoginPresets: DevLoginPreset[] = [
   createPreset(
     "Platform Admin",
-    "Platform Administration",
+    "Full Platform Administration",
     import.meta.env.VITE_DEV_SUPER_ADMIN_EMAIL,
   ),
 
   createPreset(
+    "Assistant Platform Admin",
+    "School Application Review",
+    import.meta.env.VITE_DEV_ASSISTANT_PLATFORM_ADMIN_EMAIL ??
+      "assistant.platform.admin@example.test",
+  ),
+
+  createPreset(
+    "Executive Sales",
+    "School Application Sales",
+    import.meta.env.VITE_DEV_EXECUTIVE_SALES_EMAIL ??
+      "executive.sales@example.test",
+  ),
+
+  createPreset(
     "Administrator",
-    "Administrator",
+    "School Administrator",
     import.meta.env.VITE_DEV_ADMIN_EMAIL,
   ),
 
