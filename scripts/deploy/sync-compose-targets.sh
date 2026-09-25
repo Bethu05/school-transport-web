@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
-for TARGET in demo production
+for TARGET in demo trial production
 do
   {
     echo "# GENERATED FROM compose.yaml."

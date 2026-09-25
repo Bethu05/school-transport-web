@@ -1,0 +1,46 @@
+# GENERATED FROM compose.yaml.
+# Deployment target: trial
+# Edit compose.yaml, then rerun npm run deploy:sync-compose.
+
+x-deployment-target: trial
+
+# ==============================================================
+# SCHOOL TRANSPORT WEB - DEPLOYMENT
+#
+# Vite variables are build-time values.
+# Coolify must rebuild when either URL changes.
+#
+# No host ports are published.
+# Coolify/Traefik reaches Nginx through internal port 8080.
+# ==============================================================
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.deploy
+
+      args:
+        VITE_API_URL: ${VITE_API_URL:?Set the public API HTTPS URL}
+        VITE_REALTIME_URL: ${VITE_REALTIME_URL:?Set the public realtime HTTPS URL}
+        ALLOW_LOCAL_URLS: "false"
+
+    restart: unless-stopped
+
+    expose:
+      - "8080"
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-q",
+          "-O",
+          "/dev/null",
+          "http://127.0.0.1:8080/"
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

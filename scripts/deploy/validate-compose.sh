@@ -9,6 +9,7 @@ export VITE_REALTIME_URL="https://realtime.example.test"
 for FILE in \
   compose.yaml \
   compose.demo.yaml \
+  compose.trial.yaml \
   compose.production.yaml
 do
   echo
@@ -26,6 +27,7 @@ echo "Checking for forbidden host-port publication..."
 
 if grep -nE '^[[:space:]]+ports:' \
   compose.demo.yaml \
+  compose.trial.yaml \
   compose.production.yaml
 then
   echo "ERROR: host ports must not be published in Coolify"
