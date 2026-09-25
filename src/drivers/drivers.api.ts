@@ -79,6 +79,23 @@ export interface CreateDriverInput {
   status?: DriverStatus;
 }
 
+export interface CreateDriverWithAppAccessInput
+  extends Omit<CreateDriverInput, "email" | "status"> {
+  email: string;
+  temporaryPassword: string;
+}
+
+export interface DriverWithAppAccessResult {
+  driver: Driver & { userId: string };
+  appAccess: {
+    enabled: boolean;
+    userId: string;
+    accountEmail: string;
+    membershipRole: string;
+    temporaryPasswordApplied: boolean;
+  };
+}
+
 /**
  * Driver fields supported by the backend PATCH contract.
  */
@@ -188,6 +205,20 @@ export function createDriver(
 
     body: JSON.stringify(input),
   });
+}
+
+export function createDriverWithAppAccess(
+  tenantId: string,
+  input: CreateDriverWithAppAccessInput,
+): Promise<DriverWithAppAccessResult> {
+  return apiRequest<DriverWithAppAccessResult>(
+    "/drivers/with-app-access",
+    {
+      method: "POST",
+      tenantId,
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export function updateDriver(

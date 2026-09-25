@@ -1,0 +1,15 @@
+name: school-transport-web
+
+services:
+  web:
+    image: school-transport-web:demo
+    build:
+      context: .
+      dockerfile: Dockerfile.demo
+      args:
+        VITE_API_URL: ${WEB_LOCAL_API_URL:-http://localhost:3000}
+        VITE_REALTIME_URL: ${WEB_LOCAL_REALTIME_URL:-http://localhost:3002}
+        ALLOW_LOCAL_URLS: "true"
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"

@@ -8,7 +8,9 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   MenuItem,
+  Switch,
   TextField,
   Typography,
 } from "@mui/material";
@@ -22,6 +24,12 @@ import type {
 
 const BUSINESS_TIME_ZONE = "Africa/Nairobi";
 
+export interface DriverFormSubmission {
+  profile: CreateDriverInput | UpdateDriverInput;
+  giveDriverAppAccess: boolean;
+  temporaryPassword?: string;
+}
+
 interface DriverFormDialogProps {
   open: boolean;
 
@@ -33,11 +41,13 @@ interface DriverFormDialogProps {
 
   saving: boolean;
 
+  canManageAppAccess: boolean;
+
   error: string | null;
 
   onClose: () => void;
 
-  onSubmit: (input: CreateDriverInput | UpdateDriverInput) => Promise<void>;
+  onSubmit: (submission: DriverFormSubmission) => Promise<void>;
 }
 
 type DriverAssignment = "school" | "shared";
@@ -60,6 +70,10 @@ interface DriverFormState {
   licenseExpiryDate: string;
 
   status: DriverStatus;
+
+  giveDriverAppAccess: boolean;
+  temporaryPassword: string;
+  confirmTemporaryPassword: string;
 }
 
 const EMPTY_FORM: DriverFormState = {
@@ -80,6 +94,10 @@ const EMPTY_FORM: DriverFormState = {
   licenseExpiryDate: "",
 
   status: "active",
+
+  giveDriverAppAccess: false,
+  temporaryPassword: "",
+  confirmTemporaryPassword: "",
 };
 
 function createDriverFormState(driver: Driver | null): DriverFormState {
@@ -107,6 +125,10 @@ function createDriverFormState(driver: Driver | null): DriverFormState {
     licenseExpiryDate: dateInputValue(driver.licenseExpiryDate),
 
     status: driver.status,
+
+    giveDriverAppAccess: false,
+    temporaryPassword: "",
+    confirmTemporaryPassword: "",
   };
 }
 
@@ -167,6 +189,7 @@ export function DriverFormDialog({
   activeSchoolId,
   activeSchoolName,
   saving,
+  canManageAppAccess,
   error,
   onClose,
   onSubmit,
@@ -236,6 +259,26 @@ export function DriverFormDialog({
       return;
     }
 
+    if (!editing && form.giveDriverAppAccess) {
+      if (!canManageAppAccess) {
+        setValidationError("You cannot grant driver app access.");
+        return;
+      }
+      if (!form.email.trim()) {
+        setValidationError("An email is required for driver app access.");
+        return;
+      }
+      if (form.temporaryPassword.length < 12 ||
+          form.temporaryPassword.length > 128) {
+        setValidationError("Temporary password must be 12–128 characters.");
+        return;
+      }
+      if (form.temporaryPassword !== form.confirmTemporaryPassword) {
+        setValidationError("Passwords do not match.");
+        return;
+      }
+    }
+
     if (editing) {
       const input: UpdateDriverInput = {
         firstName,
@@ -255,7 +298,10 @@ export function DriverFormDialog({
         status: form.status,
       };
 
-      await onSubmit(input);
+      await onSubmit({
+        profile: input,
+        giveDriverAppAccess: false,
+      });
 
       return;
     }
@@ -280,7 +326,13 @@ export function DriverFormDialog({
       status: form.status,
     };
 
-    await onSubmit(input);
+    await onSubmit({
+      profile: input,
+      giveDriverAppAccess: form.giveDriverAppAccess,
+      ...(form.giveDriverAppAccess
+        ? { temporaryPassword: form.temporaryPassword }
+        : {}),
+    });
   }
 
   return (
@@ -484,6 +536,8 @@ export function DriverFormDialog({
 
               label="Status"
 
+              disabled={!editing && form.giveDriverAppAccess}
+
               value={form.status}
 
               onChange={(event) =>
@@ -497,6 +551,64 @@ export function DriverFormDialog({
               <MenuItem value="suspended">Suspended</MenuItem>
             </TextField>
           </Box>
+
+          {!editing && canManageAppAccess ? (
+            <Box sx={{ mt: 3, p: 2, border: "1px solid",
+              borderColor: form.giveDriverAppAccess ? "primary.main" : "divider",
+              borderRadius: 2.5 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={form.giveDriverAppAccess}
+                    onChange={(event) => {
+                      setForm((current) => ({
+                        ...current,
+                        giveDriverAppAccess: event.target.checked,
+                        status: event.target.checked ? "active" : current.status,
+                      }));
+                      setValidationError(null);
+                    }}
+                  />
+                }
+                label="Give driver app access"
+              />
+              <Typography sx={{ color: "text.secondary", fontSize: 12 }}>
+                Creates a driver login. An existing account needs an active
+                driver membership in this organisation; its password is preserved.
+              </Typography>
+
+              {form.giveDriverAppAccess ? (
+                <>
+                  <TextField
+                    label="Temporary password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={form.temporaryPassword}
+                    onChange={(event) =>
+                      updateField("temporaryPassword", event.target.value)
+                    }
+                    required
+                    fullWidth
+                    sx={{ mt: 2 }}
+                    helperText="12–128 characters"
+                    slotProps={{ htmlInput: { minLength: 12, maxLength: 128 } }}
+                  />
+                  <TextField
+                    label="Confirm temporary password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={form.confirmTemporaryPassword}
+                    onChange={(event) =>
+                      updateField("confirmTemporaryPassword", event.target.value)
+                    }
+                    required
+                    fullWidth
+                    sx={{ mt: 2 }}
+                  />
+                </>
+              ) : null}
+            </Box>
+          ) : null}
         </DialogContent>
 
         <DialogActions

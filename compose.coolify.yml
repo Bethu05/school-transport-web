@@ -1,0 +1,12 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.demo
+      args:
+        VITE_API_URL: ${VITE_API_URL:?Set the public API URL}
+        VITE_REALTIME_URL: ${VITE_REALTIME_URL:?Set the public realtime URL}
+        ALLOW_LOCAL_URLS: "false"
+    restart: unless-stopped
+    expose:
+      - "8080"

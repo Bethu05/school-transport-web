@@ -23,6 +23,8 @@ export const FRONTEND_PERMISSIONS = {
   SCHOOLS_UPDATE: "schools.update",
 
   DRIVERS_READ: "drivers.read",
+  DRIVERS_CREATE: "drivers.create",
+  DRIVERS_MANAGE_APP_ACCESS: "drivers.manage_app_access",
   VEHICLES_READ: "vehicles.read",
   ROUTES_READ: "routes.read",
   TRIPS_READ: "trips.read",

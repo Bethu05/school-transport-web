@@ -39,10 +39,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../auth/AuthProvider";
 
+import {
+  FRONTEND_PERMISSIONS,
+  hasFrontendPermission,
+} from "../auth/frontend-permissions";
+
 import { PaginationControls } from "../components/PaginationControls";
 
 import {
   createDriver,
+  createDriverWithAppAccess,
   deactivateDriver,
   listDriversPage,
   updateDriver,
@@ -52,7 +58,10 @@ import {
   type UpdateDriverInput,
 } from "./drivers.api";
 
-import { DriverFormDialog } from "./DriverFormDialog";
+import {
+  DriverFormDialog,
+  type DriverFormSubmission,
+} from "./DriverFormDialog";
 
 const BUSINESS_TIME_ZONE = "Africa/Nairobi";
 
@@ -143,7 +152,16 @@ function errorMessage(error: unknown): string {
 }
 
 export function DriversPage() {
-  const { tenant, activeSchool } = useAuth();
+  const { tenant, activeSchool, permissions } = useAuth();
+
+  const canCreate = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.DRIVERS_CREATE,
+  );
+  const canManageAppAccess = canCreate && hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.DRIVERS_MANAGE_APP_ACCESS,
+  );
 
   const queryClient = useQueryClient();
 
@@ -263,18 +281,40 @@ export function DriversPage() {
   }
 
   const createMutation = useMutation({
-    mutationFn: async (input: CreateDriverInput) => {
+    mutationFn: async (submission: DriverFormSubmission) => {
       if (!tenantId || !schoolId) {
         throw new Error("School context is unavailable");
       }
 
+      const profile = submission.profile as CreateDriverInput;
+      const assignedSchoolId = profile.schoolId ? schoolId : undefined;
+
+      if (submission.giveDriverAppAccess) {
+        if (!canManageAppAccess || !profile.email ||
+            !submission.temporaryPassword) {
+          throw new Error("Driver app access details are unavailable.");
+        }
+
+        return createDriverWithAppAccess(tenantId, {
+          schoolId: assignedSchoolId,
+          firstName: profile.firstName,
+          lastName: profile.lastName,
+          phone: profile.phone,
+          email: profile.email,
+          licenseNumber: profile.licenseNumber,
+          licenseClass: profile.licenseClass,
+          licenseExpiryDate: profile.licenseExpiryDate,
+          temporaryPassword: submission.temporaryPassword,
+        });
+      }
+
       return createDriver(tenantId, {
-        ...input,
-        schoolId: input.schoolId ? schoolId : undefined,
+        ...profile,
+        schoolId: assignedSchoolId,
       });
     },
 
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await refreshDrivers();
 
       setFormOpen(false);
@@ -283,7 +323,13 @@ export function DriversPage() {
 
       setMutationError(null);
 
-      setSuccessMessage("Driver added successfully.");
+      setSuccessMessage(
+        "appAccess" in result
+          ? result.appAccess.temporaryPasswordApplied
+            ? "Driver added with login access."
+            : "Driver linked to an existing login."
+          : "Driver added successfully.",
+      );
     },
 
     onError: (error) => {
@@ -380,7 +426,7 @@ export function DriversPage() {
   }
 
   async function submitDriver(
-    input: CreateDriverInput | UpdateDriverInput,
+    submission: DriverFormSubmission,
   ): Promise<void> {
     setMutationError(null);
 
@@ -388,13 +434,13 @@ export function DriversPage() {
       await updateMutation.mutateAsync({
         driverId: editingDriver.id,
 
-        input: input as UpdateDriverInput,
+        input: submission.profile as UpdateDriverInput,
       });
 
       return;
     }
 
-    await createMutation.mutateAsync(input as CreateDriverInput);
+    await createMutation.mutateAsync(submission);
   }
 
   if (!activeSchool) {
@@ -506,15 +552,15 @@ export function DriversPage() {
             }}
           />
 
-          <Button
-            variant="contained"
-
-            startIcon={<AddRounded />}
-
-            onClick={openCreate}
-          >
-            Add driver
-          </Button>
+          {canCreate ? (
+            <Button
+              variant="contained"
+              startIcon={<AddRounded />}
+              onClick={openCreate}
+            >
+              Add driver
+            </Button>
+          ) : null}
         </Box>
       </Box>
 
@@ -1201,6 +1247,8 @@ export function DriversPage() {
         activeSchoolName={activeSchool.name}
 
         saving={createMutation.isPending || updateMutation.isPending}
+
+        canManageAppAccess={canManageAppAccess}
 
         error={mutationError}
 
