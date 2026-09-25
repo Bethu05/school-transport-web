@@ -1,3 +1,9 @@
+# GENERATED FROM compose.yaml.
+# Deployment target: production
+# Edit compose.yaml, then rerun npm run deploy:sync-compose.
+
+x-deployment-target: production
+
 # ==============================================================
 # SCHOOL TRANSPORT WEB - DEPLOYMENT
 #

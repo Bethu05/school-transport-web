@@ -83,7 +83,10 @@
     "test:profile-v1-frontend": "node scripts/test-profile-v1-frontend.mjs",
     "test:schools-edit-frontend": "node scripts/test-schools-edit-frontend.mjs",
     "test:tenant-schools-profile-ui": "node scripts/test-tenant-schools-profile-ui.mjs",
-    "test:platform-access-management-frontend": "node scripts/test-platform-access-management-frontend.mjs"
+    "test:platform-access-management-frontend": "node scripts/test-platform-access-management-frontend.mjs",
+    "deploy:sync-compose": "bash scripts/deploy/sync-compose-targets.sh",
+    "deploy:validate": "bash scripts/deploy/validate-compose.sh",
+    "deploy:status": "bash scripts/deploy/compose-status.sh"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

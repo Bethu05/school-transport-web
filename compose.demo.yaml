@@ -1,3 +1,9 @@
+# GENERATED FROM compose.yaml.
+# Deployment target: demo
+# Edit compose.yaml, then rerun npm run deploy:sync-compose.
+
+x-deployment-target: demo
+
 # ==============================================================
 # SCHOOL TRANSPORT WEB - DEPLOYMENT
 #
