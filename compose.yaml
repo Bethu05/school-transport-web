@@ -1,0 +1,25 @@
+# Web stack: configure public API and realtime URLs as build variables.
+# Static files are in the image; no persistent web volume is needed.
+
+# Local web stack. Browser API URLs are baked in during the image build.
+# Static files live in the image; this service needs no persistent volume.
+# Port 8080 is bound to this machine only.
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.demo
+      args:
+        VITE_API_URL: ${VITE_API_URL:?Set the public API URL}
+        VITE_REALTIME_URL: ${VITE_REALTIME_URL:?Set the public realtime URL}
+        ALLOW_LOCAL_URLS: "false"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    expose:
+      - "8080"
