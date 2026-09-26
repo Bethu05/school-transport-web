@@ -23,6 +23,8 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:?Set the public API HTTPS URL}
         VITE_REALTIME_URL: ${VITE_REALTIME_URL:?Set the public realtime HTTPS URL}
+        VITE_MAPBOX_ACCESS_TOKEN: ${VITE_MAPBOX_ACCESS_TOKEN:?Set the Mapbox public access token}
+        VITE_MAPBOX_STYLE: ${VITE_MAPBOX_STYLE:-mapbox://styles/mapbox/streets-v12}
         ALLOW_LOCAL_URLS: "false"
 
     restart: unless-stopped

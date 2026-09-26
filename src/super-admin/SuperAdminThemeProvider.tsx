@@ -32,7 +32,8 @@ export function SuperAdminThemeProvider({
           },
 
           background: {
-            default: "#070B14",
+            // Deep navy-indigo, not pure black
+            default: "#0B1220",
 
             /*
              * Keep this translucent.
@@ -40,15 +41,15 @@ export function SuperAdminThemeProvider({
              * Components using bgcolor="background.paper" will therefore
              * remain glass surfaces instead of becoming opaque cards.
              */
-            paper: "rgba(15, 23, 42, 0.62)",
+            paper: "rgba(17, 28, 52, 0.68)",
           },
 
           text: {
-            primary: "#F8FAFC",
-            secondary: "rgba(203, 213, 225, 0.76)",
+            primary: "#F1F5F9",
+            secondary: "rgba(186, 199, 216, 0.78)",
           },
 
-          divider: "rgba(148, 163, 184, 0.16)",
+          divider: "rgba(148, 163, 184, 0.14)",
         },
 
         typography: {
@@ -65,15 +66,16 @@ export function SuperAdminThemeProvider({
               root: {
                 backgroundImage: "none",
 
-                backgroundColor: "rgba(15, 23, 42, 0.58)",
+                backgroundColor: "rgba(17, 28, 52, 0.62)",
 
-                borderColor: "rgba(148, 163, 184, 0.17)",
+                borderColor: "rgba(148, 163, 184, 0.15)",
 
-                backdropFilter: "blur(18px) saturate(135%)",
+                backdropFilter: "blur(20px) saturate(140%)",
 
-                WebkitBackdropFilter: "blur(18px) saturate(135%)",
+                WebkitBackdropFilter: "blur(20px) saturate(140%)",
 
-                boxShadow: "0 18px 55px rgba(0, 0, 0, 0.22)",
+                boxShadow:
+                  "0 20px 60px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(148, 163, 184, 0.06)",
               },
             },
           },
@@ -83,15 +85,16 @@ export function SuperAdminThemeProvider({
               paper: {
                 backgroundImage: "none",
 
-                backgroundColor: "rgba(8, 13, 26, 0.88)",
+                backgroundColor: "rgba(11, 18, 36, 0.92)",
 
-                border: "1px solid rgba(148, 163, 184, 0.18)",
+                border: "1px solid rgba(148, 163, 184, 0.16)",
 
-                backdropFilter: "blur(24px) saturate(140%)",
+                backdropFilter: "blur(28px) saturate(145%)",
 
-                WebkitBackdropFilter: "blur(24px) saturate(140%)",
+                WebkitBackdropFilter: "blur(28px) saturate(145%)",
 
-                boxShadow: "0 32px 100px rgba(0, 0, 0, 0.48)",
+                boxShadow:
+                  "0 36px 110px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(148, 163, 184, 0.08)",
               },
             },
           },
@@ -99,11 +102,11 @@ export function SuperAdminThemeProvider({
           MuiTableCell: {
             styleOverrides: {
               root: {
-                borderColor: "rgba(148, 163, 184, 0.12)",
+                borderColor: "rgba(148, 163, 184, 0.11)",
               },
 
               head: {
-                color: "rgba(226, 232, 240, 0.72)",
+                color: "rgba(226, 232, 240, 0.78)",
 
                 fontWeight: 800,
               },
@@ -116,7 +119,7 @@ export function SuperAdminThemeProvider({
                 transition: "background-color 140ms ease",
 
                 "&.MuiTableRow-hover:hover": {
-                  backgroundColor: "rgba(148, 163, 184, 0.055)",
+                  backgroundColor: "rgba(148, 163, 184, 0.06)",
                 },
               },
             },
@@ -125,16 +128,16 @@ export function SuperAdminThemeProvider({
           MuiOutlinedInput: {
             styleOverrides: {
               root: {
-                backgroundColor: "rgba(2, 6, 23, 0.28)",
+                backgroundColor: "rgba(8, 14, 28, 0.42)",
 
-                backdropFilter: "blur(10px)",
+                backdropFilter: "blur(12px)",
 
                 "& .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "rgba(148, 163, 184, 0.22)",
+                  borderColor: "rgba(148, 163, 184, 0.20)",
                 },
 
                 "&:hover .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "rgba(148, 163, 184, 0.40)",
+                  borderColor: "rgba(148, 163, 184, 0.38)",
                 },
 
                 "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
@@ -147,9 +150,9 @@ export function SuperAdminThemeProvider({
           MuiChip: {
             styleOverrides: {
               root: {
-                backdropFilter: "blur(10px)",
+                backdropFilter: "blur(12px)",
 
-                WebkitBackdropFilter: "blur(10px)",
+                WebkitBackdropFilter: "blur(12px)",
               },
             },
           },

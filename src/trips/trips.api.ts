@@ -91,6 +91,41 @@ export interface Trip {
   updatedAt: string;
 }
 
+export type TripStartAuthorizationStatus =
+  "pending" | "approved" | "rejected" | "consumed";
+
+export interface TripStartAuthorization {
+  id: string;
+
+  tenantId: string;
+
+  tripId: string;
+
+  requestedByUserId: string;
+
+  requestedAt: string;
+
+  scheduledStartAtSnapshot: string;
+
+  reasonCode: string;
+
+  reasonText: string | null;
+
+  status: TripStartAuthorizationStatus;
+
+  decidedByUserId: string | null;
+
+  decidedAt: string | null;
+
+  authorityType: "transport_manager" | "onboard_chaperone" | null;
+
+  actualStartAt: string | null;
+
+  createdAt: string;
+
+  updatedAt: string;
+}
+
 /**
  * Snapshot of a route stop belonging to a dated trip.
  *
@@ -326,6 +361,46 @@ export function getTrip(tenantId: string, tripId: string): Promise<Trip> {
   return apiRequest<Trip>(`/trips/${tripId}`, {
     tenantId,
   });
+}
+
+export function getTripStartAuthorization(
+  tenantId: string,
+  tripId: string,
+): Promise<TripStartAuthorization | null> {
+  return apiRequest<TripStartAuthorization | null>(
+    `/trips/${tripId}/start-authorization`,
+    {
+      tenantId,
+    },
+  );
+}
+
+export function approveTripStartAuthorization(
+  tenantId: string,
+  tripId: string,
+): Promise<TripStartAuthorization> {
+  return apiRequest<TripStartAuthorization>(
+    `/trips/${tripId}/start-authorization/approve`,
+    {
+      method: "POST",
+
+      tenantId,
+    },
+  );
+}
+
+export function rejectTripStartAuthorization(
+  tenantId: string,
+  tripId: string,
+): Promise<TripStartAuthorization> {
+  return apiRequest<TripStartAuthorization>(
+    `/trips/${tripId}/start-authorization/reject`,
+    {
+      method: "POST",
+
+      tenantId,
+    },
+  );
 }
 
 /**

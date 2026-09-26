@@ -28,6 +28,8 @@ import {
   hasFrontendPermission,
 } from "../auth/frontend-permissions";
 
+import { listRouteStops } from "../routes/routes.api";
+
 import { listVehicles, type Vehicle } from "../vehicles/vehicles.api";
 
 import { GuardianTrackingPanel } from "./GuardianTrackingPanel";
@@ -508,6 +510,26 @@ export function TrackingPage() {
     },
   });
 
+  /**
+   * Route-stop coordinates are stable planning data, so fetch them
+   * independently from high-frequency GPS updates.
+   */
+  const routeStopsQuery = useQuery({
+    queryKey: ["route-stops", tenantId, selectedRouteId, "tracking"],
+
+    enabled: Boolean(tenantId && selectedRouteId && canReadRoutes),
+
+    staleTime: 60_000,
+
+    queryFn: async () => {
+      if (!tenantId || !selectedRouteId) {
+        throw new Error("No selected route");
+      }
+
+      return listRouteStops(tenantId, selectedRouteId);
+    },
+  });
+
   const canonicalPlannedRoute =
     routeGeometryQuery.data?.status === "ready" &&
     routeGeometryQuery.data.geometry
@@ -603,12 +625,50 @@ export function TrackingPage() {
     ];
   });
 
+  const selectedRouteStops = routeStopsQuery.data ?? [];
+
+  const selectedNextStopId =
+    selectedTrackedVehicle?.location.nextStop?.stopId ?? null;
+
+  const selectedRouteStopIds = new Set(
+    selectedRouteStops.map((routeStop) => routeStop.stopId),
+  );
+
+  const selectedRouteStopMapMarkers = selectedRouteStops.map((routeStop) => {
+    const isNextStop = routeStop.stopId === selectedNextStopId;
+
+    return {
+      key: `selected-route-stop:${routeStop.id}`,
+
+      kind: "stop" as const,
+
+      emphasis: isNextStop ? ("next-stop" as const) : undefined,
+
+      label: `${routeStop.stopOrder}. ${routeStop.stopName}`,
+
+      subtitle: isNextStop
+        ? "Next stop on selected route"
+        : `Route stop ${routeStop.stopOrder}`,
+
+      latitude: routeStop.latitude,
+
+      longitude: routeStop.longitude,
+    };
+  });
+
   const operationalStopMapMarkers = trackedVehicles.flatMap((item) => {
     const nextStop = item.location.nextStop;
 
     const vehicle = vehicleById.get(item.location.vehicleId);
 
     if (!nextStop || !vehicle) {
+      return [];
+    }
+
+    if (
+      item.location.vehicleId === effectiveSelectedVehicleId &&
+      selectedRouteStopIds.has(nextStop.stopId)
+    ) {
       return [];
     }
 
@@ -631,6 +691,7 @@ export function TrackingPage() {
 
   const allOperationalMapMarkers = [
     ...operationalMapMarkers,
+    ...selectedRouteStopMapMarkers,
     ...operationalStopMapMarkers,
   ];
 

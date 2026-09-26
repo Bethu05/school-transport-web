@@ -37,7 +37,6 @@
     "test:driver-journey-frontend": "node scripts/test-driver-journey-frontend.mjs",
     "test:driver-journey-realtime-frontend": "node scripts/test-driver-journey-realtime-frontend.mjs",
     "test:operational-live-tracking": "node scripts/test-operational-live-tracking-frontend.mjs",
-    "test:maplibre-live-tracking": "node scripts/test-maplibre-live-tracking.mjs",
     "test:tracking-control-room-map": "node scripts/test-tracking-control-room-map.mjs",
     "test:canonical-route-map": "node scripts/test-canonical-route-map.mjs",
     "test:tracking-bus-speed-marker": "node scripts/test-tracking-bus-speed-marker.mjs",
@@ -86,7 +85,11 @@
     "test:platform-access-management-frontend": "node scripts/test-platform-access-management-frontend.mjs",
     "deploy:sync-compose": "bash scripts/deploy/sync-compose-targets.sh",
     "deploy:validate": "bash scripts/deploy/validate-compose.sh",
-    "deploy:status": "bash scripts/deploy/compose-status.sh"
+    "deploy:status": "bash scripts/deploy/compose-status.sh",
+    "test:mapbox-live-tracking": "node scripts/test-mapbox-live-tracking.mjs",
+    "test:tracking-route-stops-map": "node scripts/test-tracking-route-stops-map.mjs",
+    "test:chaperone-manifest-frontend": "node scripts/test-chaperone-manifest-frontend.mjs",
+    "test:trip-series-frontend": "node scripts/test-trip-series-frontend.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -94,15 +97,14 @@
     "@mui/icons-material": "^9.4.0",
     "@mui/material": "^9.4.0",
     "@tanstack/react-query": "^5.102.8",
-    "leaflet": "^1.9.4",
-    "maplibre-gl": "^6.10.0",
+    "mapbox-gl": "^3.31.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.3",
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
-    "@types/leaflet": "^1.9.22",
+    "@types/geojson": "^7946.0.16",
     "@types/node": "^24.13.4",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",

@@ -79,8 +79,10 @@ export interface CreateDriverInput {
   status?: DriverStatus;
 }
 
-export interface CreateDriverWithAppAccessInput
-  extends Omit<CreateDriverInput, "email" | "status"> {
+export interface CreateDriverWithAppAccessInput extends Omit<
+  CreateDriverInput,
+  "email" | "status"
+> {
   email: string;
   temporaryPassword: string;
 }
@@ -211,14 +213,11 @@ export function createDriverWithAppAccess(
   tenantId: string,
   input: CreateDriverWithAppAccessInput,
 ): Promise<DriverWithAppAccessResult> {
-  return apiRequest<DriverWithAppAccessResult>(
-    "/drivers/with-app-access",
-    {
-      method: "POST",
-      tenantId,
-      body: JSON.stringify(input),
-    },
-  );
+  return apiRequest<DriverWithAppAccessResult>("/drivers/with-app-access", {
+    method: "POST",
+    tenantId,
+    body: JSON.stringify(input),
+  });
 }
 
 export function updateDriver(
@@ -243,5 +242,49 @@ export function deactivateDriver(
     method: "DELETE",
 
     tenantId,
+  });
+}
+
+export interface ImportDriverRowInput {
+  firstName: string;
+  lastName: string;
+  photoUrl?: string;
+  phone?: string;
+  email?: string;
+  licenseNumber: string;
+  licenseClass?: string;
+  licenseExpiryDate: string;
+  status?: DriverStatus;
+}
+
+export interface ImportDriversInput {
+  schoolId: string;
+  rows: ImportDriverRowInput[];
+}
+
+export interface ImportDriverRowResult {
+  rowNumber: number;
+  licenseNumber: string;
+  email?: string;
+  status: "imported" | "rejected";
+  driverId?: string;
+  message?: string;
+}
+
+export interface ImportDriversResult {
+  total: number;
+  imported: number;
+  rejected: number;
+  results: ImportDriverRowResult[];
+}
+
+export function importDrivers(
+  tenantId: string,
+  input: ImportDriversInput,
+): Promise<ImportDriversResult> {
+  return apiRequest<ImportDriversResult>("/drivers/import", {
+    method: "POST",
+    tenantId,
+    body: JSON.stringify(input),
   });
 }

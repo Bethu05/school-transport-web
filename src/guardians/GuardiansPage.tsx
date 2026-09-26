@@ -32,6 +32,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../auth/AuthProvider";
 
+import { GuardianImportDialog } from "./GuardianImportDialog";
+
 import {
   FRONTEND_PERMISSIONS,
   hasFrontendPermission,
@@ -73,6 +75,8 @@ export function GuardiansPage() {
 
   const { permissions, tenant } = useAuth();
 
+  const [importOpen, setImportOpen] = useState(false);
+
   const tenantId = tenant?.tenantId;
   const canRead = hasFrontendPermission(
     permissions,
@@ -82,6 +86,11 @@ export function GuardiansPage() {
   const canCreate = hasFrontendPermission(
     permissions,
     FRONTEND_PERMISSIONS.GUARDIANS_CREATE,
+  );
+
+  const canImport = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.GUARDIANS_IMPORT,
   );
 
   const canUpdate = hasFrontendPermission(
@@ -379,6 +388,12 @@ export function GuardiansPage() {
             gap: 1.25,
           }}
         >
+          {canImport ? (
+            <Button variant="outlined" onClick={() => setImportOpen(true)}>
+              Import CSV
+            </Button>
+          ) : null}
+
           {canCreate ? (
             <Button
               variant="contained"
@@ -910,6 +925,12 @@ export function GuardiansPage() {
           </Button>
         </Box>
       </Box>
+
+      <GuardianImportDialog
+        open={importOpen}
+        tenantId={tenantId ?? ""}
+        onClose={() => setImportOpen(false)}
+      />
 
       {formOpen ? (
         <GuardianFormDialog

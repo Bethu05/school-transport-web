@@ -63,6 +63,8 @@ import {
   type DriverFormSubmission,
 } from "./DriverFormDialog";
 
+import { DriverImportDialog } from "./DriverImportDialog";
+
 const BUSINESS_TIME_ZONE = "Africa/Nairobi";
 
 type StatusFilter = "all" | DriverStatus;
@@ -158,10 +160,17 @@ export function DriversPage() {
     permissions,
     FRONTEND_PERMISSIONS.DRIVERS_CREATE,
   );
-  const canManageAppAccess = canCreate && hasFrontendPermission(
+
+  const canImportDrivers = hasFrontendPermission(
     permissions,
-    FRONTEND_PERMISSIONS.DRIVERS_MANAGE_APP_ACCESS,
+    FRONTEND_PERMISSIONS.DRIVERS_IMPORT,
   );
+  const canManageAppAccess =
+    canCreate &&
+    hasFrontendPermission(
+      permissions,
+      FRONTEND_PERMISSIONS.DRIVERS_MANAGE_APP_ACCESS,
+    );
 
   const queryClient = useQueryClient();
 
@@ -174,6 +183,7 @@ export function DriversPage() {
   const [limit, setLimit] = useState(10);
 
   const [formOpen, setFormOpen] = useState(false);
+  const [driverImportOpen, setDriverImportOpen] = useState(false);
 
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
 
@@ -290,8 +300,11 @@ export function DriversPage() {
       const assignedSchoolId = profile.schoolId ? schoolId : undefined;
 
       if (submission.giveDriverAppAccess) {
-        if (!canManageAppAccess || !profile.email ||
-            !submission.temporaryPassword) {
+        if (
+          !canManageAppAccess ||
+          !profile.email ||
+          !submission.temporaryPassword
+        ) {
           throw new Error("Driver app access details are unavailable.");
         }
 
@@ -425,9 +438,7 @@ export function DriversPage() {
     setFormOpen(false);
   }
 
-  async function submitDriver(
-    submission: DriverFormSubmission,
-  ): Promise<void> {
+  async function submitDriver(submission: DriverFormSubmission): Promise<void> {
     setMutationError(null);
 
     if (editingDriver) {
@@ -551,6 +562,15 @@ export function DriversPage() {
               borderColor: "rgba(201,165,92,0.22)",
             }}
           />
+
+          {canImportDrivers ? (
+            <Button
+              variant="outlined"
+              onClick={() => setDriverImportOpen(true)}
+            >
+              Import CSV
+            </Button>
+          ) : null}
 
           {canCreate ? (
             <Button
@@ -1234,6 +1254,14 @@ export function DriversPage() {
       ) : null}
 
       {/* CREATE / EDIT */}
+
+      <DriverImportDialog
+        open={driverImportOpen}
+        tenantId={tenantId ?? ""}
+        schoolId={activeSchool.id}
+        schoolName={activeSchool.name}
+        onClose={() => setDriverImportOpen(false)}
+      />
 
       <DriverFormDialog
         key={`${formOpen ? "open" : "closed"}:${editingDriver?.id ?? "new"}`}

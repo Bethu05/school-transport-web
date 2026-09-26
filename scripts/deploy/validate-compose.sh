@@ -5,6 +5,8 @@ cd "$(git rev-parse --show-toplevel)"
 
 export VITE_API_URL="https://api.example.test"
 export VITE_REALTIME_URL="https://realtime.example.test"
+export VITE_MAPBOX_ACCESS_TOKEN="pk.validation-mapbox-token"
+export VITE_MAPBOX_STYLE="mapbox://styles/mapbox/streets-v12"
 
 for FILE in \
   compose.yaml \

@@ -38,6 +38,8 @@ import {
   beginMyBoarding,
   completeMyTrip,
   getMyAssignedTrip,
+  getMyStartAuthorization,
+  requestMyStartAuthorization,
   startMyTrip,
   type DriverAssignedTrip,
   type DriverTripStatus,
@@ -65,7 +67,7 @@ function actionLabel(status: DriverTripStatus): string | null {
       return "Begin boarding";
 
     case "boarding":
-      return "Start trip";
+      return null;
 
     case "in_progress":
       return "Complete trip";
@@ -158,12 +160,50 @@ export function DriverDashboard() {
 
     enabled: Boolean(tenantId),
 
+    refetchInterval: 5_000,
+
     queryFn: async () => {
       if (!tenantId) {
         throw new Error("No active tenant");
       }
 
       return getMyAssignedTrip(tenantId);
+    },
+  });
+
+  const trip = tripQuery.data;
+
+  const startAuthorizationQuery = useQuery({
+    queryKey: ["my-driver-start-authorization", tenantId, trip?.id],
+
+    enabled: Boolean(tenantId && trip?.status === "boarding"),
+
+    refetchInterval: 3_000,
+
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
+
+      return getMyStartAuthorization(tenantId);
+    },
+  });
+
+  const authorizationStatus = startAuthorizationQuery.data?.status ?? null;
+
+  const requestStartMutation = useMutation({
+    mutationFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
+
+      return requestMyStartAuthorization(tenantId);
+    },
+
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["my-driver-start-authorization", tenantId],
+      });
     },
   });
 
@@ -178,6 +218,10 @@ export function DriverDashboard() {
       }
 
       if (trip.status === "boarding") {
+        if (authorizationStatus !== "approved") {
+          throw new Error("Trip start has not been approved yet");
+        }
+
         return startMyTrip(tenantId);
       }
 
@@ -196,10 +240,12 @@ export function DriverDashboard() {
       await queryClient.invalidateQueries({
         queryKey: ["my-driver-journey-progress", tenantId],
       });
+
+      await queryClient.invalidateQueries({
+        queryKey: ["my-driver-start-authorization", tenantId],
+      });
     },
   });
-
-  const trip = tripQuery.data;
 
   return (
     <Box>
@@ -432,6 +478,102 @@ export function DriverDashboard() {
                 icon={<AccessTimeRounded />}
               />
             </Box>
+
+            {trip.status === "boarding" ? (
+              <Box
+                sx={{
+                  mt: 4,
+                }}
+              >
+                {authorizationStatus === "pending" ? (
+                  <Alert
+                    severity="info"
+                    sx={{
+                      mb: 2,
+                    }}
+                  >
+                    Start requested. Waiting for approval.
+                  </Alert>
+                ) : null}
+
+                {authorizationStatus === "approved" ? (
+                  <Alert
+                    severity="success"
+                    sx={{
+                      mb: 2,
+                    }}
+                  >
+                    Start approved. You may now start the trip.
+                  </Alert>
+                ) : null}
+
+                {authorizationStatus === "rejected" ? (
+                  <Alert
+                    severity="warning"
+                    sx={{
+                      mb: 2,
+                    }}
+                  >
+                    Start request was rejected. You may request approval again.
+                  </Alert>
+                ) : null}
+
+                {startAuthorizationQuery.isError ? (
+                  <Alert
+                    severity="error"
+                    sx={{
+                      mb: 2,
+                    }}
+                  >
+                    Could not check start approval.
+                  </Alert>
+                ) : null}
+
+                {requestStartMutation.isError ? (
+                  <Alert
+                    severity="error"
+                    sx={{
+                      mb: 2,
+                    }}
+                  >
+                    Could not request trip start approval.
+                  </Alert>
+                ) : null}
+
+                <Button
+                  variant="contained"
+                  size="large"
+                  startIcon={<PlayArrowRounded />}
+                  disabled={
+                    lifecycle.isPending ||
+                    requestStartMutation.isPending ||
+                    startAuthorizationQuery.isFetching ||
+                    authorizationStatus === "pending"
+                  }
+                  onClick={() => {
+                    if (authorizationStatus === "approved") {
+                      lifecycle.mutate(trip);
+
+                      return;
+                    }
+
+                    requestStartMutation.mutate();
+                  }}
+                >
+                  {requestStartMutation.isPending
+                    ? "Requesting..."
+                    : startAuthorizationQuery.isFetching
+                      ? "Checking approval..."
+                      : authorizationStatus === "approved"
+                        ? "Start trip"
+                        : authorizationStatus === "pending"
+                          ? "Awaiting approval"
+                          : authorizationStatus === "rejected"
+                            ? "Request start again"
+                            : "Request start"}
+                </Button>
+              </Box>
+            ) : null}
 
             {actionLabel(trip.status) ? (
               <Button

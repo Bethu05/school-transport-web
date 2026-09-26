@@ -34,6 +34,7 @@ import {
   SearchRounded,
   LockRounded,
   TuneRounded,
+  UploadFileRounded,
 } from "@mui/icons-material";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -52,15 +53,20 @@ import { PaginationControls } from "../components/PaginationControls";
 import {
   createStudent,
   deactivateStudent,
+  importStudents,
   listStudentsPage,
   updateStudent,
   type CreateStudentInput,
+  type ImportStudentRowInput,
+  type ImportStudentsResult,
   type Student,
   type StudentStatus,
   type UpdateStudentInput,
 } from "./students.api";
 
 import { StudentFormDialog } from "./StudentFormDialog";
+
+import { StudentImportDialog } from "./StudentImportDialog";
 
 import { StudentCustomFieldsDialog } from "./StudentCustomFieldsDialog";
 
@@ -128,6 +134,11 @@ export function StudentsPage() {
     FRONTEND_PERMISSIONS.STUDENTS_CREATE,
   );
 
+  const canImportStudents = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.STUDENTS_IMPORT,
+  );
+
   const canUpdateStudents = hasFrontendPermission(
     permissions,
     FRONTEND_PERMISSIONS.STUDENTS_UPDATE,
@@ -177,6 +188,14 @@ export function StudentsPage() {
   const [mutationError, setMutationError] = useState<string | null>(null);
 
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const [importOpen, setImportOpen] = useState(false);
+
+  const [importError, setImportError] = useState<string | null>(null);
+
+  const [importResult, setImportResult] = useState<ImportStudentsResult | null>(
+    null,
+  );
 
   const studentsQuery = useQuery({
     queryKey: ["students", tenantId, schoolId, search, status, page, limit],
@@ -292,6 +311,37 @@ export function StudentsPage() {
 
     onError: (error) => {
       setMutationError(errorMessage(error));
+    },
+  });
+
+  const importMutation = useMutation({
+    mutationFn: async (rows: ImportStudentRowInput[]) => {
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
+      }
+
+      return importStudents(tenantId, schoolId, rows);
+    },
+
+    onSuccess: async (result) => {
+      setImportResult(result);
+      setImportError(null);
+
+      await refreshStudents();
+
+      setPage(1);
+
+      if (result.rejected === 0) {
+        setSuccessMessage(
+          `${result.imported} student${
+            result.imported === 1 ? "" : "s"
+          } imported successfully.`,
+        );
+      }
+    },
+
+    onError: (error) => {
+      setImportError(errorMessage(error));
     },
   });
 
@@ -548,6 +598,21 @@ export function StudentsPage() {
               }}
             >
               Custom fields
+            </Button>
+          ) : null}
+
+          {canImportStudents ? (
+            <Button
+              variant="outlined"
+              startIcon={<UploadFileRounded />}
+              disabled={schools.length === 0}
+              onClick={() => {
+                setImportError(null);
+                setImportResult(null);
+                setImportOpen(true);
+              }}
+            >
+              Import CSV
             </Button>
           ) : null}
 
@@ -1192,6 +1257,29 @@ export function StudentsPage() {
           />
         </Paper>
       ) : null}
+
+      <StudentImportDialog
+        key={importOpen ? "student-import-open" : "student-import-closed"}
+        open={importOpen}
+        schoolName={activeSchool.name}
+        importing={importMutation.isPending}
+        error={importError}
+        result={importResult}
+        onClose={() => {
+          if (importMutation.isPending) {
+            return;
+          }
+
+          setImportOpen(false);
+          setImportError(null);
+          setImportResult(null);
+        }}
+        onImport={async (rows) => {
+          setImportError(null);
+
+          await importMutation.mutateAsync(rows);
+        }}
+      />
 
       <StudentFormDialog
         key={`${formOpen ? "open" : "closed"}:${editingStudent?.id ?? "new"}`}

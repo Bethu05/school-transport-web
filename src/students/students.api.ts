@@ -88,6 +88,29 @@ export interface CreateStudentInput {
   customFields?: StudentCustomFieldInput[];
 }
 
+export interface ImportStudentRowInput {
+  externalRef: string;
+  firstName: string;
+  lastName: string;
+  grade: string;
+  photoUrl?: string;
+}
+
+export interface StudentImportResultItem {
+  rowNumber: number;
+  externalRef: string;
+  status: "imported" | "rejected";
+  studentId?: string;
+  message?: string;
+}
+
+export interface ImportStudentsResult {
+  total: number;
+  imported: number;
+  rejected: number;
+  results: StudentImportResultItem[];
+}
+
 /**
  * School reassignment is deliberately not exposed through
  * the web edit form.
@@ -153,6 +176,23 @@ export function createStudent(
     tenantId,
 
     body: JSON.stringify(input),
+  });
+}
+
+export function importStudents(
+  tenantId: string,
+  schoolId: string,
+  rows: ImportStudentRowInput[],
+): Promise<ImportStudentsResult> {
+  return apiRequest<ImportStudentsResult>("/students/import", {
+    method: "POST",
+
+    tenantId,
+
+    body: JSON.stringify({
+      schoolId,
+      rows,
+    }),
   });
 }
 

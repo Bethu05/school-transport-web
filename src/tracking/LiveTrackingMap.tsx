@@ -7,34 +7,37 @@ import { MapRounded } from "@mui/icons-material";
 import {
   LngLatBounds,
   type GeoJSONSource,
-  Map as MapLibreMap,
+  Map as MapboxMap,
   Marker,
   NavigationControl,
   Popup,
-  setWorkerUrl,
-} from "maplibre-gl";
+} from "mapbox-gl";
 
 import type { FeatureCollection, LineString } from "geojson";
 
-import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-
-import "maplibre-gl/dist/maplibre-gl.css";
+import "mapbox-gl/dist/mapbox-gl.css";
 import "./live-tracking-map.css";
 
 /**
- * MapLibre v6 + Vite:
+ * Mapbox is configured entirely from Vite build-time environment
+ * variables.
  *
- * The worker must be passed through Vite's worker pipeline.
- * Using ?worker&url produces a self-contained production worker.
+ * The browser token must be a public Mapbox token. Never expose
+ * an sk.* secret token through VITE_* configuration.
  */
-setWorkerUrl(workerUrl);
+const MAPBOX_ACCESS_TOKEN =
+  import.meta.env.VITE_MAPBOX_ACCESS_TOKEN?.trim() ?? "";
 
-const OPEN_FREE_MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
+const MAPBOX_STYLE =
+  import.meta.env.VITE_MAPBOX_STYLE?.trim() ||
+  "mapbox://styles/mapbox/streets-v12";
 
 export interface LiveMapMarker {
   key: string;
 
   kind?: "vehicle" | "stop";
+
+  emphasis?: "next-stop";
 
   label: string;
 
@@ -346,6 +349,11 @@ function createStopElement(marker: LiveMapMarker): HTMLDivElement {
 
   element.className = "tracking-map-stop";
 
+  element.classList.toggle(
+    "tracking-map-stop--next",
+    marker.emphasis === "next-stop",
+  );
+
   const pin = document.createElement("div");
 
   pin.className = "tracking-map-stop__pin";
@@ -519,7 +527,7 @@ export function LiveTrackingMap({
 }: LiveTrackingMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const mapRef = useRef<MapLibreMap | null>(null);
+  const mapRef = useRef<MapboxMap | null>(null);
 
   const markerRefs = useRef<Map<string, Marker>>(new Map());
 
@@ -545,24 +553,26 @@ export function LiveTrackingMap({
   const [mapReady, setMapReady] = useState(false);
 
   // ==========================================================
-  // INITIALISE MAPLIBRE ONCE
+  // INITIALISE MAPBOX ONCE
   // ==========================================================
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) {
+    if (!containerRef.current || mapRef.current || !MAPBOX_ACCESS_TOKEN) {
       return;
     }
 
-    const map = new MapLibreMap({
+    const map = new MapboxMap({
+      accessToken: MAPBOX_ACCESS_TOKEN,
+
       container: containerRef.current,
 
-      style: OPEN_FREE_MAP_STYLE,
+      style: MAPBOX_STYLE,
 
       center: [0, 0],
 
       zoom: 2,
 
-      attributionControl: {},
+      attributionControl: true,
 
       pitchWithRotate: false,
 
@@ -973,6 +983,11 @@ export function LiveTrackingMap({
         const element = existingMarker.getElement();
 
         element.classList.toggle(
+          "tracking-map-stop--next",
+          marker.kind === "stop" && marker.emphasis === "next-stop",
+        );
+
+        element.classList.toggle(
           "tracking-map-vehicle--selected",
 
           marker.kind !== "stop" && marker.key === selectedMarkerKey,
@@ -1174,6 +1189,40 @@ export function LiveTrackingMap({
       },
     );
   }, [markers, mapReady, selectedMarkerKey, focusMarkerKey, followMarkerKey]);
+
+  if (!MAPBOX_ACCESS_TOKEN) {
+    return (
+      <Paper
+        variant="outlined"
+        sx={{
+          p: 3,
+          minHeight: height,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: 3,
+        }}
+      >
+        <Box sx={{ textAlign: "center", maxWidth: 520 }}>
+          <MapRounded
+            sx={{
+              fontSize: 42,
+              color: "text.secondary",
+              mb: 1,
+            }}
+          />
+
+          <Typography variant="h6" sx={{ fontWeight: 800 }}>
+            Mapbox is not configured
+          </Typography>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Configure VITE_MAPBOX_ACCESS_TOKEN and rebuild the web application.
+          </Typography>
+        </Box>
+      </Paper>
+    );
+  }
 
   if (markers.length === 0) {
     return (

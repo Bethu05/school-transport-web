@@ -32,6 +32,8 @@ import { RoutesPage } from "./routes/RoutesPage";
 
 import { TripsPage } from "./trips/TripsPage";
 
+import { TripSeriesPage } from "./trips/series/TripSeriesPage";
+
 import { StopsPage } from "./stops/StopsPage";
 
 import { StudentsPage } from "./students/StudentsPage";
@@ -200,6 +202,57 @@ function TripsEntryPage() {
   }
 
   return <TripsPage />;
+}
+
+/**
+ * Canonical school-scoped Recurring Trips route.
+ */
+function SchoolScopedTripSeriesPage() {
+  const { tenantSlug, schoolSlug } = useParams();
+
+  const { tenantMembership, schools, activeSchool, selectSchool } = useAuth();
+
+  const routeSchool =
+    tenantMembership?.slug === tenantSlug
+      ? (schools.find((school) => school.slug === schoolSlug) ?? null)
+      : null;
+
+  useEffect(() => {
+    if (routeSchool && activeSchool?.id !== routeSchool.id) {
+      selectSchool(routeSchool.id);
+    }
+  }, [activeSchool?.id, routeSchool, selectSchool]);
+
+  if (!tenantMembership || !tenantSlug || !schoolSlug) {
+    return null;
+  }
+
+  if (!routeSchool) {
+    return <Navigate to="/trip-series" replace />;
+  }
+
+  if (activeSchool?.id !== routeSchool.id) {
+    return null;
+  }
+
+  return <TripSeriesPage key={routeSchool.id} />;
+}
+
+function TripSeriesEntryPage() {
+  const { tenantMembership, activeSchool, schools } = useAuth();
+
+  const school = activeSchool ?? (schools.length === 1 ? schools[0] : null);
+
+  if (tenantMembership && school) {
+    return (
+      <Navigate
+        to={buildSchoolPath(tenantMembership.slug, school.slug, "trip-series")}
+        replace
+      />
+    );
+  }
+
+  return <TripSeriesPage />;
 }
 
 /**
@@ -664,6 +717,28 @@ function App() {
         element={
           <ProtectedPage>
             <TripsEntryPage />
+          </ProtectedPage>
+        }
+      />
+
+      {/* ======================================================
+          RECURRING TRIPS MODULE
+          ====================================================== */}
+
+      <Route
+        path="/school/:tenantSlug/:schoolSlug/trip-series"
+        element={
+          <ProtectedPage>
+            <SchoolScopedTripSeriesPage />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/trip-series"
+        element={
+          <ProtectedPage>
+            <TripSeriesEntryPage />
           </ProtectedPage>
         }
       />

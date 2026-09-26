@@ -58,6 +58,12 @@ export const devLoginPresets: DevLoginPreset[] = [
     import.meta.env.VITE_DEV_TRANSPORT_MANAGER_EMAIL,
   ),
 
+  createPreset(
+    "Staff / Chaperone",
+    "Onboard Student Register",
+    import.meta.env.VITE_DEV_STAFF_EMAIL,
+  ),
+
   createPreset("Driver", "Driver", import.meta.env.VITE_DEV_DRIVER_EMAIL),
 
   createPreset(

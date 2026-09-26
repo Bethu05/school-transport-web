@@ -24,15 +24,19 @@ export const FRONTEND_PERMISSIONS = {
 
   DRIVERS_READ: "drivers.read",
   DRIVERS_CREATE: "drivers.create",
+  DRIVERS_IMPORT: "drivers.import",
   DRIVERS_MANAGE_APP_ACCESS: "drivers.manage_app_access",
   VEHICLES_READ: "vehicles.read",
+  VEHICLES_IMPORT: "vehicles.import",
   ROUTES_READ: "routes.read",
   TRIPS_READ: "trips.read",
   TRIPS_CREATE: "trips.create",
   TRIPS_UPDATE: "trips.update",
+  TRIPS_MANAGE_RIDERS: "trips.manage_riders",
   TRIPS_SCHEDULE: "trips.schedule",
   TRIPS_BOARD: "trips.board",
   TRIPS_START: "trips.start",
+  TRIPS_AUTHORIZE_START: "trips.authorize_start",
   TRIPS_COMPLETE: "trips.complete",
   TRIPS_CANCEL: "trips.cancel",
   INCIDENTS_READ: "incidents.read",
@@ -54,6 +58,8 @@ export const FRONTEND_PERMISSIONS = {
 
   STUDENTS_CREATE: "students.create",
 
+  STUDENTS_IMPORT: "students.import",
+
   STUDENTS_UPDATE: "students.update",
 
   STUDENTS_DEACTIVATE: "students.deactivate",
@@ -65,6 +71,8 @@ export const FRONTEND_PERMISSIONS = {
   GUARDIANS_READ: "guardians.read",
 
   GUARDIANS_CREATE: "guardians.create",
+
+  GUARDIANS_IMPORT: "guardians.import",
 
   GUARDIANS_UPDATE: "guardians.update",
 
@@ -85,6 +93,8 @@ export const FRONTEND_PERMISSIONS = {
   USERS_READ: "users.read",
 
   USERS_CREATE: "users.create",
+
+  USERS_IMPORT_TRANSPORT_MANAGERS: "users.import_transport_managers",
 
   USERS_UPDATE_ROLE: "users.update_role",
 

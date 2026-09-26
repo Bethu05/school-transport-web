@@ -55,7 +55,7 @@ check(
 
 check(
   map.includes("TRACKING_PLANNED_ROUTE_SOURCE"),
-  "MapLibre has a dedicated canonical route source",
+  "Mapbox has a dedicated canonical route source",
 );
 
 check(
@@ -70,7 +70,7 @@ check(
 
 check(
   map.includes("plannedRoute.coordinates"),
-  "MapLibre consumes canonical geometry coordinates directly",
+  "Mapbox consumes canonical geometry coordinates directly",
 );
 
 check(

@@ -97,7 +97,15 @@ interface NavigationItem {
   roles?: readonly string[];
 }
 
-const ALL_ROLES = ["owner", "admin", "transport_manager", "driver", "guardian"];
+const ALL_ROLES = [
+  "owner",
+  "admin",
+  "transport_manager",
+  "dispatcher",
+  "staff",
+  "driver",
+  "guardian",
+];
 
 const navigation: NavigationItem[] = [
   {
@@ -115,6 +123,12 @@ const navigation: NavigationItem[] = [
     roles: ALL_ROLES,
   },
 
+  {
+    label: "Recurring Trips",
+    path: "/trip-series",
+    icon: <ScheduleRounded />,
+    permission: FRONTEND_PERMISSIONS.TRIPS_READ,
+  },
   {
     label: "Trips",
     path: "/trips",
@@ -214,6 +228,12 @@ function roleLabel(role?: string): string {
     case "transport_manager":
       return "Transport Manager";
 
+    case "dispatcher":
+      return "Dispatcher";
+
+    case "staff":
+      return "Staff / Chaperone";
+
     case "driver":
       return "Driver";
 
@@ -308,17 +328,19 @@ export function AppShell({ children }: AppShellProps) {
         ? "students"
         : item.path === "/trips"
           ? "trips"
-          : item.path === "/routes"
-            ? "routes"
-            : item.path === "/stops"
-              ? "stops"
-              : item.path === "/vehicles"
-                ? "vehicles"
-                : item.path === "/drivers"
-                  ? "drivers"
-                  : item.path === "/incidents"
-                    ? "incidents"
-                    : null;
+          : item.path === "/trip-series"
+            ? "trip-series"
+            : item.path === "/routes"
+              ? "routes"
+              : item.path === "/stops"
+                ? "stops"
+                : item.path === "/vehicles"
+                  ? "vehicles"
+                  : item.path === "/drivers"
+                    ? "drivers"
+                    : item.path === "/incidents"
+                      ? "incidents"
+                      : null;
 
     if (schoolSection && tenantMembership && activeSchool) {
       return buildSchoolPath(
@@ -397,17 +419,19 @@ export function AppShell({ children }: AppShellProps) {
         ? "students"
         : location.pathname === "/trips"
           ? "trips"
-          : location.pathname === "/routes"
-            ? "routes"
-            : location.pathname === "/stops"
-              ? "stops"
-              : location.pathname === "/vehicles"
-                ? "vehicles"
-                : location.pathname === "/drivers"
-                  ? "drivers"
-                  : location.pathname === "/incidents"
-                    ? "incidents"
-                    : null;
+          : location.pathname === "/trip-series"
+            ? "trip-series"
+            : location.pathname === "/routes"
+              ? "routes"
+              : location.pathname === "/stops"
+                ? "stops"
+                : location.pathname === "/vehicles"
+                  ? "vehicles"
+                  : location.pathname === "/drivers"
+                    ? "drivers"
+                    : location.pathname === "/incidents"
+                      ? "incidents"
+                      : null;
 
     if (compatibilitySection) {
       navigate(

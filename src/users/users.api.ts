@@ -179,3 +179,50 @@ export function resetTenantUserPassword(
     body: JSON.stringify(input),
   });
 }
+
+export interface ImportTransportManagerRowInput {
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+export interface ImportTransportManagersInput {
+  rows: ImportTransportManagerRowInput[];
+}
+
+export interface ImportTransportManagerRowResult {
+  rowNumber: number;
+  email: string;
+  status: "imported" | "rejected";
+  userId?: string;
+
+  /**
+   * Returned only for a newly imported account.
+   *
+   * This password is shown once and is not retained by the UI.
+   */
+  temporaryPassword?: string;
+
+  message?: string;
+}
+
+export interface ImportTransportManagersResult {
+  total: number;
+  imported: number;
+  rejected: number;
+  results: ImportTransportManagerRowResult[];
+}
+
+export function importTransportManagers(
+  tenantId: string,
+  input: ImportTransportManagersInput,
+): Promise<ImportTransportManagersResult> {
+  return apiRequest<ImportTransportManagersResult>(
+    "/users/import/transport-managers",
+    {
+      method: "POST",
+      tenantId,
+      body: JSON.stringify(input),
+    },
+  );
+}

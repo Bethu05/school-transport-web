@@ -53,7 +53,7 @@ check(
 
 check(
   !/connections=\{operationalConnections\}/.test(page),
-  "straight line is no longer passed to MapLibre",
+  "straight line is no longer passed to Mapbox",
 );
 
 check(
