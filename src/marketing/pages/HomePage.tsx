@@ -95,7 +95,7 @@ export function HomePage() {
           },
 
           background:
-            "linear-gradient(135deg, #FFFDF8 0%, #F8F3E9 48%, #EDE1C8 100%)",
+            "linear-gradient(135deg, #F2F7F7 0%, #EAF6F5 52%, #D6ECE9 100%)",
         }}
       >
         <Container maxWidth="xl">
@@ -118,7 +118,7 @@ export function HomePage() {
           >
             <Box>
               <Chip
-                label="Modern school transport operations"
+                label="Connected transport operations"
                 sx={{
                   mb: 3,
 
@@ -150,7 +150,7 @@ export function HomePage() {
                   color: "#17191D",
                 }}
               >
-                Safer journeys.
+                Run every journey
                 <Box
                   component="span"
                   sx={{
@@ -158,7 +158,7 @@ export function HomePage() {
                     color: "primary.main",
                   }}
                 >
-                  Smarter operations.
+                  with confidence.
                 </Box>
               </Typography>
 
@@ -178,8 +178,8 @@ export function HomePage() {
                   lineHeight: 1.7,
                 }}
               >
-                One platform for schools, transport teams, drivers and families
-                to manage safer, more visible student journeys.
+                Afika Mobility brings routes, vehicles, drivers, passengers,
+                live tracking and operational safety into one connected platform.
               </Typography>
 
               <Box
@@ -200,7 +200,7 @@ export function HomePage() {
 
                   endIcon={<ArrowForwardRounded />}
                 >
-                  Request a demo
+                  Book a demo
                 </Button>
 
                 <Button
@@ -249,7 +249,7 @@ export function HomePage() {
                   color: "common.white",
 
                   background:
-                    "linear-gradient(125deg, #101828 0%, #163B43 58%, #0F766E 100%)",
+                    "linear-gradient(125deg, #0B1F2A 0%, #123B52 58%, #087F79 100%)",
                 }}
               >
                 <Typography
@@ -265,7 +265,7 @@ export function HomePage() {
                     letterSpacing: "0.13em",
                   }}
                 >
-                  Transport Command Centre
+                  Afika Mobility Control Centre
                 </Typography>
 
                 <Typography
@@ -277,7 +277,7 @@ export function HomePage() {
                     fontWeight: 900,
                   }}
                 >
-                  Today&apos;s operations
+                  Live operations overview
                 </Typography>
 
                 <Box
@@ -539,7 +539,7 @@ export function HomePage() {
             md: 10,
           },
 
-          bgcolor: "#101828",
+          bgcolor: "#0B1F2A",
 
           color: "common.white",
         }}
@@ -594,7 +594,7 @@ export function HomePage() {
             }}
           >
             {[
-              ["01", "Set up your schools"],
+              ["01", "Set up your operation"],
 
               ["02", "Build routes & fleet"],
 
@@ -737,11 +737,11 @@ export function HomePage() {
             }}
           >
             {[
-              ["Nairobi Primary School", "NPS"],
+              ["School A", "SCH-A"],
 
-              ["Westlands Academy", "WA"],
+              ["School B", "SCH-B"],
 
-              ["Karen Campus", "KC"],
+              ["School C", "SCH-C"],
             ].map(([name, code], index) => (
               <Box
                 key={code}
@@ -826,7 +826,7 @@ export function HomePage() {
 
             color: "common.white",
 
-            background: "linear-gradient(125deg, #163B43 0%, #0F766E 100%)",
+            background: "linear-gradient(125deg, #123B52 0%, #087F79 100%)",
           }}
         >
           <Typography
@@ -846,7 +846,7 @@ export function HomePage() {
               letterSpacing: "-0.04em",
             }}
           >
-            Ready to see your school transport operation differently?
+            See Afika Mobility in action.
           </Typography>
 
           <Typography
@@ -862,12 +862,12 @@ export function HomePage() {
               lineHeight: 1.7,
             }}
           >
-            Our demo-request form will live here before public launch and feed
-            directly into the platform sales workflow.
+            Book a guided demonstration of the Afika Mobility platform and see
+            how your transport operation can work from one connected control layer.
           </Typography>
 
           <Chip
-            label="Demo request workflow coming in the launch pass"
+            label="Book a demo"
             sx={{
               mt: 3,
 
