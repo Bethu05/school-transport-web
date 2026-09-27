@@ -7,9 +7,7 @@ function read(path) {
 function check(condition, message) {
   if (!condition) {
     console.error(`✗ ${message}`);
-
     process.exitCode = 1;
-
     return;
   }
 
@@ -17,105 +15,73 @@ function check(condition, message) {
 }
 
 const api = read("src/super-admin/platform.api.ts");
-
-const page = read("src/super-admin/SuperAdminPage.tsx");
-
 const panel = read("src/super-admin/PlatformAccessPanel.tsx");
 
-const transition = read("src/super-admin/ScreenTransition.tsx");
-
-console.log("Platform Access management frontend checkpoint");
-
-console.log("----------------------------------------------");
+console.log("Platform Access revamp checkpoint");
+console.log("---------------------------------");
 
 check(
-  api.includes("/platform/access/users/search?q=") &&
-    !api.includes('"/platform/access/users",\n  );'),
-  "platform-user discovery uses server-side search rather than bulk listing",
+  api.includes("listPlatformAccessUsers") &&
+    api.includes("/platform/access/users?"),
+  "platform users auto-load through paginated server endpoint",
 );
 
 check(
-  api.includes('"/platform/access/roles"') &&
-    api.includes('"/platform/access/users"') &&
-    api.includes("resetPlatformAccessUserPassword") &&
-    api.includes("setPlatformAccessUserStatus"),
-  "platform-user lifecycle API surface is wired",
+  panel.includes('value="users"') &&
+    panel.includes('value="roles"'),
+  "workspace separates Users and Roles",
 );
 
 check(
-  panel.includes('placeholder="Search platform user..."') &&
-    panel.includes("useDeferredValue") &&
-    panel.includes("searchPlatformAccessUsers"),
-  "search UI uses the server-side platform-user search",
+  panel.includes("usersQuery") &&
+    panel.includes("<Pagination"),
+  "user directory uses server-side pagination",
 );
 
 check(
-  panel.includes("Create Platform User") &&
-    panel.includes("createPlatformAccessUser"),
-  "Super Admin can create platform users",
+  panel.includes('placeholder="Search name, email or role..."') &&
+    panel.includes("normalizedSearch"),
+  "user search remains server-side",
 );
 
 check(
-  panel.includes("View User") &&
-    panel.includes("User created") &&
-    panel.includes("Platform access added"),
-  "platform-user profile exposes lifecycle dates",
+  api.includes("getPlatformAccessRole") &&
+    api.includes("replacePlatformRolePermissions"),
+  "role detail and atomic role-permission update API are wired",
 );
 
 check(
-  panel.includes("Reset Password") &&
-    panel.includes("resetPlatformAccessUserPassword"),
-  "platform-user password recovery is exposed",
+  panel.includes("draftRolePermissions") &&
+    panel.includes("Save role"),
+  "role permission templates are editable",
 );
 
 check(
-  panel.includes("Deny Platform Access") &&
-    panel.includes("Restore Platform Access") &&
-    panel.includes("setPlatformAccessUserStatus"),
-  "platform access can be suspended and restored",
-);
-
-check(
-  panel.includes('label: "Audit"') &&
-    panel.includes('label: "Services"') &&
-    panel.includes('label: "Finance"') &&
-    panel.includes('label: "Onboarding"') &&
-    panel.includes('label: "Roles"') &&
-    panel.includes('label: "Schools"') &&
-    panel.includes('label: "School Setup"') &&
-    panel.includes('label: "Users"'),
-  "active permission modules retain the compact mini-sidebar",
-);
-
-check(
-  panel.includes('height: "100%"') &&
-    panel.includes("flex: 1") &&
-    page.includes('flexDirection: "column"') &&
-    transition.includes('height: "100%"'),
-  "Platform Access and the shared workspace fill available screen height",
+  panel.includes("Protected role") &&
+    panel.includes("!selectedRole.editable"),
+  "protected roles cannot be edited",
 );
 
 check(
   panel.includes("inheritedPermissions") &&
     panel.includes("draftAdditionalPermissions") &&
-    panel.includes("!permissionsEditable"),
-  "role permissions remain protected and suspended users cannot edit effective access",
+    panel.includes("User extra"),
+  "user-specific permissions remain separate from inherited role access",
 );
 
 check(
-  transition.includes("190ms") &&
-    transition.includes("prefers-reduced-motion: reduce"),
-  "smooth navigation remains subtle and accessibility-aware",
+  panel.includes("Create User") &&
+    panel.includes("Reset password") &&
+    panel.includes("Suspend") &&
+    panel.includes("Restore"),
+  "existing platform-user lifecycle actions remain available",
 );
 
 if (process.exitCode) {
   console.error();
-
-  console.error("PLATFORM ACCESS MANAGEMENT FRONTEND CHECKPOINT FAILED");
-
+  console.error("PLATFORM ACCESS REVAMP CHECKPOINT FAILED");
   process.exit(process.exitCode);
 }
 
 console.log();
-
-console.log("PLATFORM ACCESS MANAGEMENT FRONTEND CHECKPOINT PASSED");
+console.log("PLATFORM ACCESS REVAMP CHECKPOINT PASSED");

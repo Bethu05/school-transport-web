@@ -120,7 +120,10 @@ const navigation: NavigationItem[] = [
     path: "/tracking",
     icon: <MapRounded />,
     feature: "tracking.live",
-    roles: ALL_ROLES,
+    anyPermissions: [
+      FRONTEND_PERMISSIONS.CONTROL_ROOM_READ,
+      FRONTEND_PERMISSIONS.GUARDIANS_READ_OWN_ACTIVE_TRIP,
+    ],
   },
 
   {

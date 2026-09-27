@@ -1,6 +1,10 @@
 import { useMemo, useState } from "react";
 
-import { AssignmentRounded, FactCheckRounded } from "@mui/icons-material";
+import {
+  AssignmentRounded,
+  FactCheckRounded,
+  SchoolRounded,
+} from "@mui/icons-material";
 
 import { Alert, Box, Paper, Stack, Typography } from "@mui/material";
 
@@ -14,6 +18,8 @@ import {
 } from "../auth/platform-permissions";
 
 import { ExecutiveSalesWorkspace } from "./ExecutiveSalesWorkspace";
+
+import { PlatformOnboardingRoleWorkspace } from "./PlatformOnboardingRoleWorkspace";
 
 import { PlatformSidebar, type PlatformSidebarItem } from "./PlatformSidebar";
 
@@ -43,6 +49,23 @@ export function PlatformLimitedRolePage() {
       FRONTEND_PLATFORM_PERMISSIONS.SCHOOL_SETUP_REVIEW,
     );
 
+  const canReadAllOnboarding = hasFrontendPlatformPermission(
+    platformPermissions,
+    FRONTEND_PLATFORM_PERMISSIONS.ONBOARDING_READ_ALL,
+  );
+
+  const canReadAssignedOnboarding =
+    hasFrontendPlatformPermission(
+      platformPermissions,
+      FRONTEND_PLATFORM_PERMISSIONS.ONBOARDING_READ_ASSIGNED,
+    ) &&
+    hasFrontendPlatformPermission(
+      platformPermissions,
+      FRONTEND_PLATFORM_PERMISSIONS.SCHOOL_SETUP_READ_OWN,
+    );
+
+  const canUseOnboarding = canReadAllOnboarding || canReadAssignedOnboarding;
+
   const sidebarItems = useMemo<PlatformSidebarItem[]>(
     () => [
       ...(canUseSalesWorkspace
@@ -64,8 +87,18 @@ export function PlatformLimitedRolePage() {
             },
           ]
         : []),
+
+      ...(canUseOnboarding
+        ? [
+            {
+              label: "Onboarding",
+
+              icon: <SchoolRounded fontSize="small" />,
+            },
+          ]
+        : []),
     ],
-    [canUseSalesWorkspace, canReviewSchoolApplications],
+    [canUseSalesWorkspace, canReviewSchoolApplications, canUseOnboarding],
   );
 
   const [activeLabel, setActiveLabel] = useState(
@@ -127,6 +160,10 @@ export function PlatformLimitedRolePage() {
           <SchoolSetupReviewPanel />
         </Stack>
       );
+    }
+
+    if (validActiveLabel === "Onboarding") {
+      return <PlatformOnboardingRoleWorkspace />;
     }
 
     return (

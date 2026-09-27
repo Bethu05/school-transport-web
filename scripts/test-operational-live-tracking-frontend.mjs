@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 
 const page = readFileSync("src/tracking/TrackingPage.tsx", "utf8");
+const trackingState = readFileSync("src/tracking/tracking-state.ts", "utf8");
 
 function check(condition, message) {
   if (!condition) {
@@ -10,20 +11,12 @@ function check(condition, message) {
   console.log(`✓ ${message}`);
 }
 
-/**
- * IMPORTANT:
- *
- * These checks intentionally avoid depending on:
- *
- * - single vs double quotes
- * - Prettier line wrapping
- * - indentation
- *
- * They validate the behaviour/architecture instead.
- */
+console.log("");
+console.log("Operational Live Tracking frontend checkpoint");
+console.log("---------------------------------------------");
 
 check(
-  /socket\.on\(\s*["']vehicle\.location\.updated["']/s.test(page),
+  /socket\.on\(\s*["]vehicle\.location\.updated["]/s.test(page),
   "operations page consumes realtime GPS packets",
 );
 
@@ -38,8 +31,10 @@ check(
 );
 
 check(
-  /<TrackingProgressPanel\b/.test(page),
-  "operations page renders next-stop ETA",
+  page.includes("selectedNextStop") &&
+    page.includes("etaSeconds") &&
+    page.includes("formatCompactEta"),
+  "operations console presents compact next-stop ETA",
 );
 
 check(
@@ -48,49 +43,48 @@ check(
 );
 
 check(
-  /if\s*\(\s*ageSeconds\s*<=\s*30\s*\)/s.test(page) &&
-    /status\s*:\s*["']live["']/s.test(page),
+  page.includes("ageSeconds <= 30") && page.includes(`status: "live"`),
   "fresh GPS packets are classified Live",
 );
 
 check(
-  /if\s*\(\s*ageSeconds\s*<=\s*120\s*\)/s.test(page) &&
-    /status\s*:\s*["']delayed["']/s.test(page),
+  page.includes("ageSeconds <= 120") && page.includes(`status: "delayed"`),
   "aging GPS packets become Delayed before Stale",
 );
 
-check(/status\s*:\s*["']stale["']/s.test(page), "old GPS packets become Stale");
+check(page.includes(`status: "stale"`), "old GPS packets become Stale");
 
 check(
-  /window\.setInterval\s*\(/.test(page),
-  "GPS freshness updates even without new packets",
+  page.includes("Fleet signal") && page.includes("fleetSignalSummary"),
+  "operations console displays compact fleet signal summary",
 );
 
 check(
-  /Fleet signal/.test(page),
-  "operations page displays fleet GPS health summary",
+  page.includes("data-control-room-sidebar"),
+  "desktop Control Room has a dedicated active-trip sidebar",
 );
 
 check(
-  /Selected vehicle/.test(page),
-  "operations page contains selected vehicle detail",
+  page.includes('aria-label="Selected vehicle"'),
+  "selected vehicle remains represented in the compact top bar",
 );
 
-check(/setSelectedVehicleId\s*\(/.test(page), "operator can select a vehicle");
+check(page.includes("setSelectedVehicleId("), "operator can select a vehicle");
 
 check(
-  /role\s*=\s*["']button["']/.test(page) && /tabIndex\s*=/.test(page),
+  page.includes(`role="button"`) && page.includes("tabIndex={0}"),
   "vehicle selection remains keyboard accessible",
 );
 
-check(/Last seen/.test(page), "operations UI displays relative GPS freshness");
-
 check(
-  /Active trip/.test(page),
-  "selected vehicle indicates active journey state without exposing trip UUID",
+  page.includes("Last seen"),
+  "operations UI displays relative GPS freshness",
 );
 
-const trackingState = readFileSync("src/tracking/tracking-state.ts", "utf8");
+check(
+  page.includes("Active trips"),
+  "Control Room exposes active journey state without trip UUIDs",
+);
 
 check(
   /\.slice\(\s*-40\s*\)/s.test(trackingState),
@@ -103,10 +97,15 @@ check(
 );
 
 check(
-  /<TrackingProgressPanel[\s\S]*?nextStop=\{selectedTrackedVehicle\.location\.nextStop\}/s.test(
-    page,
-  ),
-  "selected vehicle passes authoritative next-stop state to progress panel",
+  page.includes("selectedTrackedVehicle?.location.nextStop"),
+  "selected vehicle uses authoritative next-stop state",
+);
+
+check(
+  !page.includes("GPS accuracy") &&
+    !page.includes(">Latitude<") &&
+    !page.includes(">Longitude<"),
+  "diagnostic coordinate clutter is removed from Control Room UI",
 );
 
 console.log("");

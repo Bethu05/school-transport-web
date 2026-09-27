@@ -22,7 +22,7 @@ const panel = read("src/super-admin/TenantOnboardingPanel.tsx");
 
 const management = read("src/super-admin/TenantManagementPage.tsx");
 
-console.log("Platform 15-step onboarding frontend checkpoint");
+console.log("Platform five-phase onboarding frontend checkpoint");
 
 console.log("-----------------------------------------------");
 
@@ -68,11 +68,12 @@ check(
 );
 
 check(
-  panel.includes("onboarding control centre") &&
-    panel.includes("workflow.steps") &&
-    panel.includes("step.stepOrder") &&
-    panel.includes("step.stepName"),
-  "all canonical backend steps are rendered from persisted workflow state",
+  panel.includes("workflow.steps") &&
+    panel.includes("onboardingPhaseDefinitions") &&
+    panel.includes("completionStepKeys") &&
+    panel.includes("phases.map((phase, phaseIndex)") &&
+    !panel.includes("activePhase.steps.map((step)"),
+  "five visible phases remain driven by persisted canonical workflow evidence",
 );
 
 check(
@@ -89,7 +90,8 @@ check(
 
 check(
   panel.includes('"data_migration"') &&
-    panel.includes("Record migration complete") &&
+    panel.includes("Mark import complete") &&
+    panel.includes("Confirm skip import") &&
     panel.includes("no_migration_required"),
   "Step 10 supports recorded migration evidence and valid no-migration cases",
 );

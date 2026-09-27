@@ -42,7 +42,9 @@ check(
 );
 
 check(
-  /emphasis\s*:\s*isNextStop/.test(page),
+  /const\s+emphasis\s*=[\s\S]{0,180}isNextStop[\s\S]{0,100}["']next-stop["']/.test(
+    page,
+  ) && /emphasis\s*,/.test(page),
   "next stop receives explicit map emphasis",
 );
 

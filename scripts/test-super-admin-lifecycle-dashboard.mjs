@@ -64,7 +64,7 @@ check(
 
 check(
   onboarding.includes("School applications") &&
-    onboarding.includes("15-step onboarding") &&
+    onboarding.includes("5-phase onboarding") &&
     onboarding.includes("<SchoolSetupReviewPanel"),
   "onboarding separates pre-tenant applications from post-approval workflow",
 );
@@ -72,7 +72,7 @@ check(
 check(
   onboarding.includes("<TenantOnboardingPanel") &&
     onboarding.includes("Open onboarding"),
-  "top-level onboarding opens the canonical 15-step control centre",
+  "top-level onboarding opens the five-phase control centre backed by the canonical onboarding workflow",
 );
 
 check(

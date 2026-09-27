@@ -1,19 +1,15 @@
 import { useState } from "react";
 
-import { CheckCircleRounded, SaveRounded } from "@mui/icons-material";
+import { SaveRounded } from "@mui/icons-material";
 
 import {
   Alert,
   Box,
   Button,
   Checkbox,
-  Chip,
   CircularProgress,
   MenuItem,
   Paper,
-  Radio,
-  RadioGroup,
-  FormControlLabel,
   Stack,
   TextField,
   Typography,
@@ -22,17 +18,16 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
-  applyPlatformTenantSalesConfiguration,
-  getPlatformPlan,
-  getPlatformTenantCapacity,
-  listPlatformPlans,
-  listPlatformTenantFeatureStates,
-  listPlatformTenants,
+  applyPlatformOnboardingTenantSalesConfiguration as applyPlatformTenantSalesConfiguration,
+  getPlatformOnboardingCommercialPlan as getPlatformPlan,
+  getPlatformOnboardingTenantCapacity as getPlatformTenantCapacity,
+  getPlatformOnboardingSummary,
+  listPlatformOnboardingCommercialPlans as listPlatformPlans,
+  listPlatformOnboardingTenantFeatureStates as listPlatformTenantFeatureStates,
   reconcilePlatformOnboarding,
   type PlatformOnboardingStep,
   type PlatformPlanDetail,
   type PlatformPlanFeature,
-  type PlatformSalesCapacitySource,
   type PlatformTenantCapacityState,
   type PlatformTenantFeatureState,
   type PlatformTenantListItem,
@@ -46,12 +41,8 @@ interface OnboardingCommercialReviewProps {
   onTenantUpdated: (tenant: PlatformTenantListItem) => void;
 }
 
-type CapacityDimension = "schools" | "students" | "vehicles" | "drivers";
-
-type AddonCommercialTreatment = "addon" | "contract";
-
 interface AddonSelection {
-  source: AddonCommercialTreatment;
+  source: "addon" | "contract";
 
   reason: string;
 
@@ -63,69 +54,11 @@ interface CommercialDealEditorProps {
 
   plan: PlatformPlanDetail;
 
-  commercialSteps: PlatformOnboardingStep[];
-
   currentCapacity: PlatformTenantCapacityState | null;
 
   featureStates: PlatformTenantFeatureState[];
 
   onTenantUpdated: (tenant: PlatformTenantListItem) => void;
-}
-
-const commercialSubprocesses = [
-  {
-    stepKey: "package_selection",
-    label: "Choose tier",
-  },
-
-  {
-    stepKey: "package_limits",
-    label: "Confirm capacity",
-  },
-
-  {
-    stepKey: "feature_exceptions",
-    label: "Additional features",
-  },
-
-  {
-    stepKey: "trial_configuration",
-    label: "Access period",
-  },
-] as const;
-
-function stepComplete(step: PlatformOnboardingStep | undefined): boolean {
-  return step?.status === "completed" || step?.status === "skipped";
-}
-
-function humanize(value: string): string {
-  return value
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function futureTrialDate(): string {
-  const date = new Date();
-
-  date.setDate(date.getDate() + 14);
-
-  return date.toISOString().slice(0, 10);
-}
-
-function categoryLabel(category: string): string {
-  return humanize(category);
-}
-
-function featureModeLabel(feature: PlatformPlanFeature): string {
-  if (feature.mode === "included") {
-    return "Included";
-  }
-
-  if (feature.mode === "addon") {
-    return "Optional";
-  }
-
-  return "Unavailable";
 }
 
 function parseWholeNumber(value: string): number | null {
@@ -142,205 +75,9 @@ function parseWholeNumber(value: string): number | null {
   return parsed;
 }
 
-function SubprocessTracker({ steps }: { steps: PlatformOnboardingStep[] }) {
-  return (
-    <Box
-      sx={{
-        display: "grid",
-
-        gridTemplateColumns: {
-          xs: "1fr",
-          sm: "repeat(2, minmax(0, 1fr))",
-          xl: "repeat(4, minmax(0, 1fr))",
-        },
-
-        gap: 1,
-      }}
-    >
-      {commercialSubprocesses.map((process, index) => {
-        const backendStep = steps.find(
-          (step) => step.stepKey === process.stepKey,
-        );
-
-        const complete = stepComplete(backendStep);
-
-        return (
-          <Paper
-            key={process.stepKey}
-            variant="outlined"
-            sx={{
-              p: 1.5,
-
-              borderRadius: 2,
-
-              borderColor: complete
-                ? "success.main"
-                : backendStep?.status === "blocked"
-                  ? "error.main"
-                  : "divider",
-
-              bgcolor: complete ? "success.50" : "background.paper",
-            }}
-          >
-            <Stack
-              direction="row"
-              spacing={1}
-              sx={{
-                alignItems: "center",
-              }}
-            >
-              <Box
-                sx={{
-                  width: 28,
-                  height: 28,
-
-                  flexShrink: 0,
-
-                  display: "grid",
-
-                  placeItems: "center",
-
-                  borderRadius: "50%",
-
-                  bgcolor: complete ? "success.main" : "action.hover",
-
-                  color: complete ? "common.white" : "text.secondary",
-
-                  fontSize: 10,
-
-                  fontWeight: 900,
-                }}
-              >
-                {complete ? (
-                  <CheckCircleRounded
-                    sx={{
-                      fontSize: 17,
-                    }}
-                  />
-                ) : (
-                  index + 1
-                )}
-              </Box>
-
-              <Box
-                sx={{
-                  minWidth: 0,
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontSize: 10.5,
-
-                    fontWeight: 850,
-                  }}
-                >
-                  {process.label}
-                </Typography>
-
-                <Typography
-                  sx={{
-                    mt: 0.1,
-
-                    color: "text.secondary",
-
-                    fontSize: 8.5,
-                  }}
-                >
-                  {backendStep ? humanize(backendStep.status) : "Pending"}
-                </Typography>
-              </Box>
-            </Stack>
-          </Paper>
-        );
-      })}
-    </Box>
-  );
-}
-
-function SectionHeading({
-  number,
-  title,
-  description,
-}: {
-  number: number;
-
-  title: string;
-
-  description: string;
-}) {
-  return (
-    <Box>
-      <Stack
-        direction="row"
-        spacing={1.25}
-        sx={{
-          alignItems: "center",
-        }}
-      >
-        <Box
-          sx={{
-            width: 30,
-            height: 30,
-
-            flexShrink: 0,
-
-            display: "grid",
-
-            placeItems: "center",
-
-            borderRadius: 1.5,
-
-            bgcolor: "primary.main",
-
-            color: "common.white",
-
-            fontSize: 11,
-
-            fontWeight: 900,
-          }}
-        >
-          {number}
-        </Box>
-
-        <Typography
-          sx={{
-            fontSize: 16,
-
-            fontWeight: 900,
-
-            letterSpacing: "-0.02em",
-          }}
-        >
-          {title}
-        </Typography>
-      </Stack>
-
-      <Typography
-        sx={{
-          mt: 0.75,
-
-          ml: {
-            xs: 0,
-            sm: 5.25,
-          },
-
-          color: "text.secondary",
-
-          fontSize: 10.5,
-
-          lineHeight: 1.65,
-        }}
-      >
-        {description}
-      </Typography>
-    </Box>
-  );
-}
-
 function CommercialDealEditor({
   tenant,
   plan,
-  commercialSteps,
   currentCapacity,
   featureStates,
   onTenantUpdated,
@@ -356,72 +93,47 @@ function CommercialDealEditor({
     plan.capacityDefaults.vehicles !== null &&
     plan.capacityDefaults.drivers !== null;
 
-  const packageDefaults = {
-    schools: plan.capacityDefaults.schools ?? 0,
-
-    students: plan.capacityDefaults.students ?? 0,
-
-    vehicles: plan.capacityDefaults.vehicles ?? 0,
-
-    drivers: plan.capacityDefaults.drivers ?? 0,
-  };
-
-  const initialCapacity =
+  /*
+   * Capacity remains part of the canonical commercial transaction,
+   * but it is not another onboarding form.
+   *
+   * A newly selected package receives its configured defaults.
+   * Revisiting the same package preserves already-recorded capacity.
+   */
+  const capacity =
     samePlan && currentCapacity
       ? {
           schools: currentCapacity.schools.limit,
-
           students: currentCapacity.students.limit,
-
           vehicles: currentCapacity.vehicles.limit,
-
           drivers: currentCapacity.drivers.limit,
         }
-      : packageDefaults;
+      : {
+          schools: plan.capacityDefaults.schools ?? 0,
+          students: plan.capacityDefaults.students ?? 0,
+          vehicles: plan.capacityDefaults.vehicles ?? 0,
+          drivers: plan.capacityDefaults.drivers ?? 0,
+        };
 
-  const [capacity, setCapacity] = useState<Record<CapacityDimension, string>>({
-    schools: String(initialCapacity.schools),
-
-    students: String(initialCapacity.students),
-
-    vehicles: String(initialCapacity.vehicles),
-
-    drivers: String(initialCapacity.drivers),
-  });
-
-  const [capacitySource, setCapacitySource] = useState<
-    Exclude<PlatformSalesCapacitySource, "billing">
-  >(
-    currentCapacity?.source === "promotion"
-      ? "promotion"
-      : currentCapacity?.source === "manual"
-        ? "manual"
-        : "contract",
+  const optionalFeatures = plan.features.filter(
+    (feature) =>
+      feature.status === "active" &&
+      !feature.isSafetyBaseline &&
+      feature.mode === "addon",
   );
 
-  const [capacityReason, setCapacityReason] = useState(
-    samePlan ? (currentCapacity?.notes ?? "") : "",
-  );
+  const includedFeatureCount = plan.features.filter(
+    (feature) =>
+      feature.status === "active" &&
+      !feature.isSafetyBaseline &&
+      feature.mode === "included",
+  ).length;
 
-  const [subscriptionStatus, setSubscriptionStatus] = useState<
-    "active" | "trialing"
-  >(tenant.subscriptionStatus === "trialing" ? "trialing" : "active");
-
-  const [trialEndDate, setTrialEndDate] = useState(
-    tenant.subscriptionStatus === "trialing" && tenant.subscriptionEndsAt
-      ? tenant.subscriptionEndsAt.slice(0, 10)
-      : futureTrialDate(),
-  );
-
-  const [dealReference, setDealReference] = useState("");
-
-  const [dealNotes, setDealNotes] = useState("");
-
-  const planFeaturesById = new Map(
+  const featuresById = new Map(
     plan.features.map((feature) => [feature.id, feature]),
   );
 
-  function buildInitialAddonSelections(): Record<string, AddonSelection> {
+  function initialAddons(): Record<string, AddonSelection> {
     if (!samePlan) {
       return {};
     }
@@ -429,8 +141,7 @@ function CommercialDealEditor({
     const selections: Record<string, AddonSelection> = {};
 
     for (const state of featureStates) {
-      const feature = planFeaturesById.get(state.featureId);
-
+      const feature = featuresById.get(state.featureId);
       const override = state.override;
 
       if (
@@ -444,9 +155,7 @@ function CommercialDealEditor({
 
       selections[feature.id] = {
         source: override.source,
-
-        reason: override.notes ?? "",
-
+        reason: override.notes ?? "Selected during onboarding",
         limitValue:
           override.limitValue !== null
             ? String(override.limitValue)
@@ -459,74 +168,27 @@ function CommercialDealEditor({
     return selections;
   }
 
-  const [addonSelections, setAddonSelections] = useState<
-    Record<string, AddonSelection>
-  >(buildInitialAddonSelections);
+  const existingAddons = initialAddons();
 
-  const visiblePremiumFeatures = plan.features.filter(
-    (feature) => feature.status === "active" && !feature.isSafetyBaseline,
-  );
+  const [addonSelections, setAddonSelections] =
+    useState<Record<string, AddonSelection>>(existingAddons);
 
-  const [focusedFeatureId, setFocusedFeatureId] = useState(
-    visiblePremiumFeatures[0]?.id ?? "",
+  const [showAdditionalFeatures, setShowAdditionalFeatures] = useState(
+    Object.keys(existingAddons).length > 0,
   );
 
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const parsedCapacity = {
-    schools: parseWholeNumber(capacity.schools),
+  const subscriptionStatus =
+    tenant.subscriptionStatus === "trialing" ? "trialing" : "active";
 
-    students: parseWholeNumber(capacity.students),
-
-    vehicles: parseWholeNumber(capacity.vehicles),
-
-    drivers: parseWholeNumber(capacity.drivers),
-  };
-
-  const capacityValid = Object.values(parsedCapacity).every(
-    (value) => value !== null,
-  );
-
-  const capacityChanged =
-    capacityValid &&
-    (Object.keys(packageDefaults) as CapacityDimension[]).some(
-      (dimension) => parsedCapacity[dimension] !== packageDefaults[dimension],
-    );
-
-  const capacityReasonValid =
-    !capacityChanged || capacityReason.trim().length >= 3;
-
-  const addonReasonsValid = Object.values(addonSelections).every(
-    (selection) => selection.reason.trim().length >= 3,
-  );
-
-  const addonLimitsValid = Object.values(addonSelections).every((selection) => {
-    if (!selection.limitValue.trim()) {
-      return true;
-    }
-
-    return parseWholeNumber(selection.limitValue) !== null;
-  });
-
-  const trialDateValid =
-    subscriptionStatus === "active" ||
-    (Boolean(trialEndDate) &&
-      new Date(`${trialEndDate}T23:59:59+03:00`).getTime() > Date.now());
-
-  /*
-   * The onboarding screen intentionally supports the ordinary
-   * billable-add-on / included-in-contract sales workflow.
-   *
-   * If another type of override already exists, fail closed instead
-   * of silently replacing an existing commercial decision.
-   */
   const unsupportedExistingOverrides = samePlan
     ? featureStates.filter((state) => {
         if (!state.override) {
           return false;
         }
 
-        const feature = planFeaturesById.get(state.featureId);
+        const feature = featuresById.get(state.featureId);
 
         return !(
           feature?.mode === "addon" &&
@@ -537,83 +199,106 @@ function CommercialDealEditor({
       })
     : [];
 
+  const addonLimitsValid = Object.values(addonSelections).every((selection) => {
+    if (!selection.limitValue.trim()) {
+      return true;
+    }
+
+    return parseWholeNumber(selection.limitValue) !== null;
+  });
+
   const validationMessages: string[] = [];
 
   if (!capacityDefaultsReady) {
     validationMessages.push(
-      "The selected tier does not have complete capacity defaults.",
-    );
-  }
-
-  if (!capacityValid) {
-    validationMessages.push(
-      "Capacity must contain whole numbers of zero or greater.",
-    );
-  }
-
-  if (!capacityReasonValid) {
-    validationMessages.push("Negotiated capacity requires a reason.");
-  }
-
-  if (!addonReasonsValid) {
-    validationMessages.push(
-      "Every selected additional feature requires a reason.",
+      "This package needs capacity defaults before it can be selected.",
     );
   }
 
   if (!addonLimitsValid) {
-    validationMessages.push("Feature limits must be whole numbers.");
+    validationMessages.push(
+      "Additional feature allowances must be whole numbers.",
+    );
   }
 
-  if (!trialDateValid) {
-    validationMessages.push("A trial requires a future end date.");
+  if (
+    subscriptionStatus === "trialing" &&
+    !tenant.subscriptionEndsAt
+  ) {
+    validationMessages.push(
+      "The existing trial does not have a valid end date.",
+    );
   }
 
   if (unsupportedExistingOverrides.length > 0) {
     validationMessages.push(
-      "Existing feature overrides outside the normal onboarding sales workflow must be reviewed from Manage School first.",
+      "Existing specialist feature overrides must be reviewed from Manage School before this setup can be changed.",
     );
   }
 
-  const mutation = useMutation({
-    mutationFn: async () => {
-      if (
-        parsedCapacity.schools === null ||
-        parsedCapacity.students === null ||
-        parsedCapacity.vehicles === null ||
-        parsedCapacity.drivers === null
-      ) {
-        throw new Error("Commercial capacity is invalid.");
+  function toggleAddon(
+    feature: PlatformPlanFeature,
+    selected: boolean,
+  ): void {
+    setSuccessMessage(null);
+
+    setAddonSelections((currentSelections) => {
+      const next = {
+        ...currentSelections,
+      };
+
+      if (!selected) {
+        delete next[feature.id];
+
+        return next;
       }
 
-      return applyPlatformTenantSalesConfiguration(tenant.id, {
+      next[feature.id] = {
+        source: "addon",
+        reason: "Selected during onboarding",
+        limitValue:
+          feature.limitValue !== null ? String(feature.limitValue) : "",
+      };
+
+      return next;
+    });
+  }
+
+  function updateAddonLimit(featureId: string, value: string): void {
+    setSuccessMessage(null);
+
+    setAddonSelections((currentSelections) => {
+      const selection = currentSelections[featureId];
+
+      if (!selection) {
+        return currentSelections;
+      }
+
+      return {
+        ...currentSelections,
+
+        [featureId]: {
+          ...selection,
+          limitValue: value,
+        },
+      };
+    });
+  }
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      applyPlatformTenantSalesConfiguration(tenant.id, {
         planId: plan.id,
 
         status: subscriptionStatus,
 
-        ...(subscriptionStatus === "trialing"
+        ...(subscriptionStatus === "trialing" && tenant.subscriptionEndsAt
           ? {
-              endsAt: `${trialEndDate}T23:59:59+03:00`,
+              endsAt: tenant.subscriptionEndsAt,
             }
           : {}),
 
-        capacity: {
-          schools: parsedCapacity.schools,
-
-          students: parsedCapacity.students,
-
-          vehicles: parsedCapacity.vehicles,
-
-          drivers: parsedCapacity.drivers,
-
-          ...(capacityChanged
-            ? {
-                source: capacitySource,
-
-                reason: capacityReason.trim(),
-              }
-            : {}),
-        },
+        capacity,
 
         featureExceptions: Object.entries(addonSelections).map(
           ([featureId, selection]) => ({
@@ -623,7 +308,7 @@ function CommercialDealEditor({
 
             source: selection.source,
 
-            reason: selection.reason.trim(),
+            reason: selection.reason,
 
             ...(selection.limitValue.trim()
               ? {
@@ -632,20 +317,7 @@ function CommercialDealEditor({
               : {}),
           }),
         ),
-
-        ...(dealReference.trim()
-          ? {
-              dealReference: dealReference.trim(),
-            }
-          : {}),
-
-        ...(dealNotes.trim()
-          ? {
-              dealNotes: dealNotes.trim(),
-            }
-          : {}),
-      });
-    },
+      }),
 
     onSuccess: async (result) => {
       queryClient.setQueryData(
@@ -658,22 +330,37 @@ function CommercialDealEditor({
         result.featureStates,
       );
 
-      const tenants = await listPlatformTenants();
+      const summary = await getPlatformOnboardingSummary(tenant.id);
 
-      queryClient.setQueryData(["platform", "tenants"], tenants);
+      const refreshedSubscriptionStatus =
+        summary.commercial?.subscriptionStatus;
 
-      const refreshedTenant = tenants.find(
-        (candidate) => candidate.id === tenant.id,
-      );
+      const nextSubscriptionStatus =
+        refreshedSubscriptionStatus === "active" ||
+        refreshedSubscriptionStatus === "trialing" ||
+        refreshedSubscriptionStatus === "cancelled" ||
+        refreshedSubscriptionStatus === "expired"
+          ? refreshedSubscriptionStatus
+          : null;
 
-      if (refreshedTenant) {
-        onTenantUpdated(refreshedTenant);
-      }
+      onTenantUpdated({
+        ...tenant,
+        id: summary.tenant.id,
+        name: summary.tenant.name,
+        slug: summary.tenant.slug,
+        status: summary.tenant.status,
+        timezone: summary.tenant.timezone,
+        planCode: summary.commercial?.planCode ?? null,
+        planName: summary.commercial?.planName ?? null,
+        subscriptionStatus: nextSubscriptionStatus,
+        subscriptionStartsAt: summary.commercial?.startsAt ?? null,
+        subscriptionEndsAt: summary.commercial?.endsAt ?? null,
+      });
 
       /*
-       * This is the important boundary:
-       * UI state never marks onboarding complete itself.
-       * The backend reconciler evaluates the audited sales event.
+       * The backend remains authoritative.
+       * Saving the compact presentation form does not directly mark
+       * canonical onboarding evidence complete.
        */
       const workflow = await reconcilePlatformOnboarding(tenant.id);
 
@@ -698,669 +385,239 @@ function CommercialDealEditor({
     },
   });
 
-  function updateCapacity(dimension: CapacityDimension, value: string): void {
-    setCapacity((current) => ({
-      ...current,
-
-      [dimension]: value,
-    }));
-
-    setSuccessMessage(null);
-  }
-
-  function toggleAddon(feature: PlatformPlanFeature, selected: boolean): void {
-    setFocusedFeatureId(feature.id);
-
-    setAddonSelections((current) => {
-      const next = {
-        ...current,
-      };
-
-      if (!selected) {
-        delete next[feature.id];
-
-        return next;
-      }
-
-      next[feature.id] = {
-        source: "addon",
-
-        reason: "",
-
-        limitValue:
-          feature.limitValue !== null ? String(feature.limitValue) : "",
-      };
-
-      return next;
-    });
-
-    setSuccessMessage(null);
-  }
-
-  function updateAddon(
-    featureId: string,
-    patch: Partial<AddonSelection>,
-  ): void {
-    setAddonSelections((current) => {
-      const existing = current[featureId];
-
-      if (!existing) {
-        return current;
-      }
-
-      return {
-        ...current,
-
-        [featureId]: {
-          ...existing,
-
-          ...patch,
-        },
-      };
-    });
-
-    setSuccessMessage(null);
-  }
-
-  const focusedFeature =
-    plan.features.find((feature) => feature.id === focusedFeatureId) ?? null;
-
-  const includedFeatureCount = visiblePremiumFeatures.filter(
-    (feature) => feature.mode === "included",
-  ).length;
-
-  const optionalFeatureCount = visiblePremiumFeatures.filter(
-    (feature) => feature.mode === "addon",
-  ).length;
-
-  const selectedAddonCount = Object.keys(addonSelections).length;
-
   return (
-    <Stack spacing={3}>
-      <SubprocessTracker steps={commercialSteps} />
+    <Stack spacing={1.5}>
+      <Paper
+        variant="outlined"
+        sx={{
+          p: 1.5,
+          borderRadius: 1.5,
+          borderColor: "rgba(255, 255, 255, 0.10)",
+          bgcolor: "rgba(255, 255, 255, 0.03)",
+        }}
+      >
+        <Stack
+          direction={{
+            xs: "column",
+            sm: "row",
+          }}
+          spacing={1}
+          sx={{
+            alignItems: {
+              xs: "stretch",
+              sm: "center",
+            },
+            justifyContent: "space-between",
+          }}
+        >
+          <Box>
+            <Typography
+              sx={{
+                fontSize: 11.5,
+                fontWeight: 850,
+              }}
+            >
+              {plan.name}
+            </Typography>
 
-      {/* ======================================================
-          1. TIER
-          ====================================================== */}
+            <Typography
+              sx={{
+                mt: 0.2,
+                color: "text.secondary",
+                fontSize: 9.5,
+              }}
+            >
+              Package limits and {includedFeatureCount} included feature
+              {includedFeatureCount === 1 ? "" : "s"} apply automatically.
+            </Typography>
+          </Box>
+        </Stack>
+      </Paper>
 
       <Paper
         variant="outlined"
         sx={{
-          p: {
-            xs: 2,
-            md: 2.5,
-          },
-
-          borderRadius: 2.5,
+          p: 1.25,
+          borderRadius: 1.5,
+          borderColor: showAdditionalFeatures
+            ? "rgba(37, 99, 235, 0.42)"
+            : "rgba(255, 255, 255, 0.10)",
+          bgcolor: showAdditionalFeatures
+            ? "rgba(37, 99, 235, 0.07)"
+            : "rgba(255, 255, 255, 0.025)",
         }}
       >
-        <Stack spacing={2}>
-          <SectionHeading
-            number={1}
-            title="Choose tier"
-            description="Select the base commercial package for this school. Capacity and optional features are reviewed separately below."
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            alignItems: "center",
+          }}
+        >
+          <Checkbox
+            size="small"
+            checked={showAdditionalFeatures}
+            onChange={(event) => {
+              const enabled = event.target.checked;
+
+              setShowAdditionalFeatures(enabled);
+              setSuccessMessage(null);
+
+              if (!enabled) {
+                setAddonSelections({});
+              }
+            }}
           />
 
-          <Box
-            sx={{
-              ml: {
-                xs: 0,
-                sm: 5.25,
-              },
-            }}
-          >
-            <Stack
-              direction={{
-                xs: "column",
-                md: "row",
-              }}
-              spacing={1}
+          <Box sx={{ minWidth: 0 }}>
+            <Typography
               sx={{
-                alignItems: {
-                  xs: "flex-start",
-                  md: "center",
-                },
+                fontSize: 11,
+                fontWeight: 850,
               }}
             >
-              <Chip color="primary" label={plan.name} />
+              Purchase additional features
+            </Typography>
 
-              <Chip
+            <Typography
+              sx={{
+                mt: 0.1,
+                color: "text.secondary",
+                fontSize: 9,
+              }}
+            >
+              Enable only when this school is buying features outside the
+              selected package.
+            </Typography>
+          </Box>
+        </Stack>
+      </Paper>
+
+      {showAdditionalFeatures ? (
+        <Stack spacing={0.75}>
+          {optionalFeatures.map((feature) => {
+            const selection = addonSelections[feature.id];
+            const selected = Boolean(selection);
+
+            return (
+              <Paper
+                key={feature.id}
                 variant="outlined"
-                label={`${includedFeatureCount} included`}
-              />
-
-              <Chip
-                variant="outlined"
-                label={`${optionalFeatureCount} optional`}
-              />
-            </Stack>
-
-            {plan.description ? (
-              <Typography
                 sx={{
-                  mt: 1.25,
-
-                  color: "text.secondary",
-
-                  fontSize: 10.5,
-
-                  lineHeight: 1.65,
+                  px: 1.25,
+                  py: 1,
+                  borderRadius: 1.5,
+                  borderColor: selected
+                    ? "rgba(37, 99, 235, 0.42)"
+                    : "rgba(255, 255, 255, 0.08)",
+                  bgcolor: selected
+                    ? "rgba(37, 99, 235, 0.06)"
+                    : "transparent",
                 }}
               >
-                {plan.description}
-              </Typography>
-            ) : null}
-          </Box>
-        </Stack>
-      </Paper>
-
-      {/* ======================================================
-          2. CAPACITY
-          ====================================================== */}
-
-      <Paper
-        variant="outlined"
-        sx={{
-          p: {
-            xs: 2,
-            md: 2.5,
-          },
-
-          borderRadius: 2.5,
-        }}
-      >
-        <Stack spacing={2}>
-          <SectionHeading
-            number={2}
-            title="Confirm capacity"
-            description="Package limits are pre-filled. Only change a value when the contract gives this school a different allowance."
-          />
-
-          {!capacityDefaultsReady ? (
-            <Alert severity="error">
-              Capacity defaults must be configured for this tier before it can
-              be sold.
-            </Alert>
-          ) : null}
-
-          <Box
-            sx={{
-              display: "grid",
-
-              gridTemplateColumns: {
-                xs: "1fr",
-                sm: "repeat(2, minmax(0, 1fr))",
-                xl: "repeat(4, minmax(0, 1fr))",
-              },
-
-              gap: 1.25,
-            }}
-          >
-            {(
-              [
-                ["schools", "Schools"],
-
-                ["students", "Students"],
-
-                ["vehicles", "Buses / vehicles"],
-
-                ["drivers", "Drivers"],
-              ] as const
-            ).map(([dimension, label]) => (
-              <TextField
-                key={dimension}
-                size="small"
-                type="number"
-                label={label}
-                value={capacity[dimension]}
-                onChange={(event) =>
-                  updateCapacity(dimension, event.target.value)
-                }
-                helperText={`Tier default: ${packageDefaults[dimension]}`}
-                slotProps={{
-                  htmlInput: {
-                    min: 0,
-                    step: 1,
-                  },
-                }}
-                fullWidth
-              />
-            ))}
-          </Box>
-
-          {capacityChanged ? (
-            <Box
-              sx={{
-                display: "grid",
-
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  md: "240px minmax(0, 1fr)",
-                },
-
-                gap: 1.25,
-              }}
-            >
-              <TextField
-                select
-                size="small"
-                label="Exception basis"
-                value={capacitySource}
-                onChange={(event) =>
-                  setCapacitySource(
-                    event.target.value as Exclude<
-                      PlatformSalesCapacitySource,
-                      "billing"
-                    >,
-                  )
-                }
-                fullWidth
-              >
-                <MenuItem value="contract">Contract</MenuItem>
-
-                <MenuItem value="promotion">Promotion</MenuItem>
-
-                <MenuItem value="manual">Approved manual exception</MenuItem>
-              </TextField>
-
-              <TextField
-                size="small"
-                label="Reason for different capacity"
-                value={capacityReason}
-                onChange={(event) => setCapacityReason(event.target.value)}
-                placeholder="Why does this school differ from the tier defaults?"
-                fullWidth
-              />
-            </Box>
-          ) : (
-            <Alert severity="success">
-              This school is using the normal capacity bundled with the selected
-              tier.
-            </Alert>
-          )}
-        </Stack>
-      </Paper>
-
-      {/* ======================================================
-          3. PREMIUM / OPTIONAL FEATURES
-          ====================================================== */}
-
-      <Paper
-        variant="outlined"
-        sx={{
-          p: {
-            xs: 2,
-            md: 2.5,
-          },
-
-          borderRadius: 2.5,
-        }}
-      >
-        <Stack spacing={2}>
-          <SectionHeading
-            number={3}
-            title="Additional features"
-            description="Use the checkbox for simple feature selection. Features already bundled with the tier are shown as included; unavailable features remain locked."
-          />
-
-          <Stack spacing={0.75}>
-            {visiblePremiumFeatures.map((feature) => {
-              const included = feature.mode === "included";
-
-              const selectable = feature.mode === "addon";
-
-              const selection = addonSelections[feature.id];
-
-              const checked = included || Boolean(selection);
-
-              return (
-                <Paper
-                  key={feature.id}
-                  variant="outlined"
-                  onClick={() => setFocusedFeatureId(feature.id)}
+                <Stack
+                  direction={{
+                    xs: "column",
+                    sm: "row",
+                  }}
+                  spacing={1}
                   sx={{
-                    p: 1.25,
-
-                    borderRadius: 2,
-
-                    borderColor: selection ? "primary.main" : "divider",
-
-                    cursor: "pointer",
+                    alignItems: {
+                      xs: "stretch",
+                      sm: "center",
+                    },
                   }}
                 >
                   <Stack
                     direction="row"
-                    spacing={1}
+                    spacing={0.75}
                     sx={{
                       alignItems: "center",
+                      flex: 1,
+                      minWidth: 0,
                     }}
                   >
                     <Checkbox
                       size="small"
-                      checked={checked}
-                      disabled={!selectable}
-                      onClick={(event) => event.stopPropagation()}
+                      checked={selected}
                       onChange={(event) =>
                         toggleAddon(feature, event.target.checked)
                       }
                     />
 
-                    <Box
-                      sx={{
-                        minWidth: 0,
-
-                        flex: 1,
-                      }}
-                    >
+                    <Box sx={{ minWidth: 0 }}>
                       <Typography
                         sx={{
-                          fontSize: 11,
-
-                          fontWeight: 850,
+                          fontSize: 10.5,
+                          fontWeight: 800,
                         }}
                       >
                         {feature.name}
                       </Typography>
 
-                      <Typography
-                        sx={{
-                          mt: 0.1,
-
-                          color: "text.secondary",
-
-                          fontSize: 8.5,
-                        }}
-                      >
-                        {categoryLabel(feature.category)}
-                      </Typography>
-                    </Box>
-
-                    <Chip
-                      size="small"
-                      label={featureModeLabel(feature)}
-                      color={
-                        included ? "success" : selectable ? "info" : "default"
-                      }
-                      variant="outlined"
-                    />
-                  </Stack>
-
-                  {selection && selectable ? (
-                    <Box
-                      sx={{
-                        mt: 1.25,
-
-                        ml: {
-                          xs: 0,
-                          sm: 5,
-                        },
-
-                        display: "grid",
-
-                        gridTemplateColumns: {
-                          xs: "1fr",
-                          md:
-                            feature.limitValue !== null
-                              ? "200px minmax(0, 1fr) 180px"
-                              : "200px minmax(0, 1fr)",
-                        },
-
-                        gap: 1,
-                      }}
-                    >
-                      <TextField
-                        select
-                        size="small"
-                        label="Commercial treatment"
-                        value={selection.source}
-                        onChange={(event) =>
-                          updateAddon(feature.id, {
-                            source: event.target
-                              .value as AddonCommercialTreatment,
-                          })
-                        }
-                        fullWidth
-                      >
-                        <MenuItem value="addon">Billable add-on</MenuItem>
-
-                        <MenuItem value="contract">
-                          Included in contract
-                        </MenuItem>
-                      </TextField>
-
-                      <TextField
-                        size="small"
-                        label="Reason"
-                        value={selection.reason}
-                        onChange={(event) =>
-                          updateAddon(feature.id, {
-                            reason: event.target.value,
-                          })
-                        }
-                        placeholder="Why has this feature been added?"
-                        fullWidth
-                      />
-
-                      {feature.limitValue !== null ? (
-                        <TextField
-                          size="small"
-                          type="number"
-                          label="Total allowance"
-                          value={selection.limitValue}
-                          onChange={(event) =>
-                            updateAddon(feature.id, {
-                              limitValue: event.target.value,
-                            })
-                          }
-                          slotProps={{
-                            htmlInput: {
-                              min: 0,
-                              step: 1,
-                            },
+                      {feature.description ? (
+                        <Typography
+                          sx={{
+                            mt: 0.1,
+                            color: "text.secondary",
+                            fontSize: 8.5,
+                            lineHeight: 1.35,
                           }}
-                          fullWidth
-                        />
+                        >
+                          {feature.description}
+                        </Typography>
                       ) : null}
                     </Box>
-                  ) : null}
-                </Paper>
-              );
-            })}
-          </Stack>
+                  </Stack>
 
-          {visiblePremiumFeatures.length === 0 ? (
+                  {selected &&
+                  selection &&
+                  feature.limitValue !== null ? (
+                    <TextField
+                      size="small"
+                      type="number"
+                      label="Allowance"
+                      value={selection.limitValue}
+                      onChange={(event) =>
+                        updateAddonLimit(feature.id, event.target.value)
+                      }
+                      slotProps={{
+                        htmlInput: {
+                          min: 0,
+                          step: 1,
+                        },
+                      }}
+                      sx={{
+                        width: {
+                          xs: "100%",
+                          sm: 130,
+                        },
+                      }}
+                    />
+                  ) : null}
+                </Stack>
+              </Paper>
+            );
+          })}
+
+          {optionalFeatures.length === 0 ? (
             <Alert severity="info">
-              No optional premium features are configured for this tier.
+              This package has no separately purchasable features.
             </Alert>
           ) : null}
-
-          <Stack
-            direction="row"
-            spacing={1}
-            useFlexGap
-            sx={{
-              flexWrap: "wrap",
-            }}
-          >
-            <Chip
-              color="primary"
-              label={`${selectedAddonCount} additional selected`}
-            />
-
-            <Chip
-              variant="outlined"
-              label={`${includedFeatureCount} already included`}
-            />
-          </Stack>
-
-          {focusedFeature ? (
-            <Box
-              sx={{
-                p: 2,
-
-                borderRadius: 2,
-
-                bgcolor: "action.hover",
-              }}
-            >
-              <Typography
-                sx={{
-                  color: "text.secondary",
-
-                  fontSize: 8.5,
-
-                  fontWeight: 850,
-
-                  textTransform: "uppercase",
-
-                  letterSpacing: "0.07em",
-                }}
-              >
-                Feature description
-              </Typography>
-
-              <Typography
-                sx={{
-                  mt: 0.5,
-
-                  fontSize: 12,
-
-                  fontWeight: 850,
-                }}
-              >
-                {focusedFeature.name}
-              </Typography>
-
-              <Typography
-                sx={{
-                  mt: 0.4,
-
-                  color: "text.secondary",
-
-                  fontSize: 10.5,
-
-                  lineHeight: 1.65,
-                }}
-              >
-                {focusedFeature.description ??
-                  "No additional description has been configured for this feature."}
-              </Typography>
-            </Box>
-          ) : null}
         </Stack>
-      </Paper>
-
-      {/* ======================================================
-          4. ACCESS / TRIAL
-          ====================================================== */}
-
-      <Paper
-        variant="outlined"
-        sx={{
-          p: {
-            xs: 2,
-            md: 2.5,
-          },
-
-          borderRadius: 2.5,
-        }}
-      >
-        <Stack spacing={2}>
-          <SectionHeading
-            number={4}
-            title="Access period"
-            description="Choose paid access or a time-limited trial. This is saved with the tier, capacity and additional features as one reviewed commercial decision."
-          />
-
-          <RadioGroup
-            row
-            value={subscriptionStatus}
-            onChange={(event) =>
-              setSubscriptionStatus(event.target.value as "active" | "trialing")
-            }
-          >
-            <FormControlLabel
-              value="active"
-              control={<Radio />}
-              label="Paid / active"
-            />
-
-            <FormControlLabel
-              value="trialing"
-              control={<Radio />}
-              label="Trial"
-            />
-          </RadioGroup>
-
-          {subscriptionStatus === "trialing" ? (
-            <TextField
-              size="small"
-              type="date"
-              label="Trial end date"
-              value={trialEndDate}
-              onChange={(event) => setTrialEndDate(event.target.value)}
-              slotProps={{
-                inputLabel: {
-                  shrink: true,
-                },
-              }}
-              fullWidth
-            />
-          ) : null}
-
-          <Box
-            sx={{
-              display: "grid",
-
-              gridTemplateColumns: {
-                xs: "1fr",
-                md: "minmax(0, 0.7fr) minmax(0, 1.3fr)",
-              },
-
-              gap: 1.25,
-            }}
-          >
-            <TextField
-              size="small"
-              label="Contract / deal reference"
-              value={dealReference}
-              onChange={(event) => setDealReference(event.target.value)}
-              fullWidth
-            />
-
-            <TextField
-              size="small"
-              label="Commercial notes"
-              value={dealNotes}
-              onChange={(event) => setDealNotes(event.target.value)}
-              fullWidth
-            />
-          </Box>
-        </Stack>
-      </Paper>
+      ) : null}
 
       {unsupportedExistingOverrides.length > 0 ? (
         <Alert severity="warning">
-          This school has existing feature overrides that cannot safely be
-          represented by this onboarding form. Review those overrides under
-          Manage School first.
+          Existing specialist feature overrides require review under Manage
+          School before changing this package.
         </Alert>
       ) : null}
 
       {validationMessages.length > 0 ? (
         <Alert severity="warning">
-          <Stack spacing={0.4}>
-            {validationMessages.map((message) => (
-              <Typography
-                key={message}
-                sx={{
-                  fontSize: 10,
-                }}
-              >
-                • {message}
-              </Typography>
-            ))}
-          </Stack>
+          {validationMessages.join(" ")}
         </Alert>
       ) : null}
 
@@ -1376,61 +633,43 @@ function CommercialDealEditor({
         <Alert severity="success">{successMessage}</Alert>
       ) : null}
 
-      <Button
-        variant="contained"
-        size="large"
-        startIcon={
-          mutation.isPending ? (
-            <CircularProgress size={18} color="inherit" />
-          ) : (
-            <SaveRounded />
-          )
-        }
-        disabled={mutation.isPending || validationMessages.length > 0}
-        onClick={() => {
-          setSuccessMessage(null);
-
-          mutation.mutate();
-        }}
+      <Box
         sx={{
-          minHeight: 50,
-
-          borderRadius: 2,
-
-          px: 3,
-
-          textTransform: "none",
-
-          fontSize: 13,
-
-          fontWeight: 900,
-        }}
-        fullWidth
-      >
-        {mutation.isPending
-          ? "Saving commercial setup..."
-          : "Save commercial setup"}
-      </Button>
-
-      <Typography
-        sx={{
-          textAlign: "center",
-
-          color: "text.secondary",
-
-          fontSize: 9,
+          display: "flex",
+          justifyContent: "flex-end",
         }}
       >
-        The green Commercial Setup status comes from backend onboarding
-        reconciliation, not from local UI state.
-      </Typography>
+        <Button
+          variant="contained"
+          startIcon={
+            mutation.isPending ? (
+              <CircularProgress size={16} color="inherit" />
+            ) : (
+              <SaveRounded />
+            )
+          }
+          disabled={mutation.isPending || validationMessages.length > 0}
+          onClick={() => {
+            setSuccessMessage(null);
+            mutation.mutate();
+          }}
+          sx={{
+            minWidth: 210,
+            minHeight: 42,
+            borderRadius: 1.5,
+            textTransform: "none",
+            fontWeight: 850,
+          }}
+        >
+          {mutation.isPending ? "Saving..." : "Save commercial setup"}
+        </Button>
+      </Box>
     </Stack>
   );
 }
 
 export function OnboardingCommercialReview({
   tenant,
-  commercialSteps,
   onTenantUpdated,
 }: OnboardingCommercialReviewProps) {
   const [selectedPlanOverride, setSelectedPlanOverride] = useState("");
@@ -1476,42 +715,40 @@ export function OnboardingCommercialReview({
   });
 
   return (
-    <Stack spacing={2.5}>
+    <Stack spacing={1.5}>
       <Box>
         <Typography
           sx={{
-            fontSize: 18,
-
+            fontSize: 15,
             fontWeight: 900,
-
-            letterSpacing: "-0.025em",
+            letterSpacing: "-0.02em",
           }}
         >
-          Commercial Setup
+          Package
         </Typography>
 
         <Typography
           sx={{
-            mt: 0.4,
-
+            mt: 0.25,
             color: "text.secondary",
-
-            fontSize: 11,
-
-            lineHeight: 1.65,
+            fontSize: 9.5,
           }}
         >
-          One commercial decision covering tier, capacity, optional features and
-          access period.
+          Choose the school&apos;s package. Its standard limits and included
+          features are applied automatically.
         </Typography>
       </Box>
 
       <TextField
         select
-        label="Tier / package"
+        size="small"
+        label="Plan / package"
         value={selectedPlanId}
         onChange={(event) => setSelectedPlanOverride(event.target.value)}
         disabled={plansQuery.isLoading}
+        sx={{
+          maxWidth: 420,
+        }}
         fullWidth
       >
         {sellablePlans.map((plan) => (
@@ -1522,44 +759,33 @@ export function OnboardingCommercialReview({
       </TextField>
 
       {plansQuery.isError ? (
-        <Alert severity="error">Unable to load commercial tiers.</Alert>
+        <Alert severity="error">Unable to load available packages.</Alert>
       ) : null}
 
       {!selectedPlanId ? (
-        <Alert severity="info">
-          Choose the school&apos;s commercial tier to continue.
-        </Alert>
+        <Alert severity="info">Choose a package to continue.</Alert>
       ) : null}
 
       {selectedPlanId && planQuery.isLoading ? (
         <Box
           sx={{
-            py: 5,
-
+            py: 2,
             display: "grid",
-
             placeItems: "center",
           }}
         >
-          <CircularProgress size={28} />
+          <CircularProgress size={24} />
         </Box>
       ) : null}
 
       {planQuery.isError ? (
-        <Alert severity="error">Unable to load the selected tier.</Alert>
+        <Alert severity="error">Unable to load the selected package.</Alert>
       ) : null}
 
       {featureStatesQuery.isError ? (
         <Alert severity="error">
-          Existing feature entitlements could not be loaded. Saving is blocked
-          to prevent accidental replacement of unknown overrides.
-        </Alert>
-      ) : null}
-
-      {capacityQuery.isError ? (
-        <Alert severity="info">
-          Existing tenant capacity could not be read. The selected tier defaults
-          will be used as the starting point.
+          Existing feature settings could not be loaded. Saving is blocked to
+          avoid overwriting unknown settings.
         </Alert>
       ) : null}
 
@@ -1571,7 +797,6 @@ export function OnboardingCommercialReview({
           key={[tenant.id, planQuery.data.id].join(":")}
           tenant={tenant}
           plan={planQuery.data}
-          commercialSteps={commercialSteps}
           currentCapacity={capacityQuery.data ?? null}
           featureStates={featureStatesQuery.data ?? []}
           onTenantUpdated={onTenantUpdated}

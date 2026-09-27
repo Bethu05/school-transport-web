@@ -37,7 +37,7 @@ export interface LiveMapMarker {
 
   kind?: "vehicle" | "stop";
 
-  emphasis?: "next-stop";
+  emphasis?: "next-stop" | "completed-stop" | "upcoming-stop";
 
   label: string;
 
@@ -117,7 +117,7 @@ interface LiveTrackingMapProps {
 
   onMarkerClick?: (markerKey: string) => void;
 
-  height?: number;
+  height?: number | string;
 }
 
 const TRACKING_PLANNED_ROUTE_SOURCE = "tracking-planned-route";
@@ -354,6 +354,16 @@ function createStopElement(marker: LiveMapMarker): HTMLDivElement {
     marker.emphasis === "next-stop",
   );
 
+  element.classList.toggle(
+    "tracking-map-stop--completed",
+    marker.emphasis === "completed-stop",
+  );
+
+  element.classList.toggle(
+    "tracking-map-stop--upcoming",
+    marker.emphasis === "upcoming-stop",
+  );
+
   const pin = document.createElement("div");
 
   pin.className = "tracking-map-stop__pin";
@@ -540,6 +550,8 @@ export function LiveTrackingMap({
   }, [onMarkerClick]);
 
   const lastMarkerKeySignatureRef = useRef("");
+
+  const lastPlannedRouteKeyRef = useRef<string | null>(null);
 
   /**
    * Prevent ordinary GPS position updates from repeatedly
@@ -937,6 +949,64 @@ export function LiveTrackingMap({
     );
   }, [plannedRoute, remainingRoute, trails, connections, mapReady]);
 
+  /**
+   * An in-progress trip may exist before its GPS device has sent
+   * the first packet.
+   *
+   * In that state the canonical route is still useful operational
+   * information, so fit the camera to the route without requiring
+   * a vehicle marker.
+   */
+  useEffect(() => {
+    const map = mapRef.current;
+
+    if (!map || !mapReady) {
+      return;
+    }
+
+    if (markers.some((marker) => marker.kind !== "stop")) {
+      lastPlannedRouteKeyRef.current = null;
+
+      return;
+    }
+
+    if (!plannedRoute || plannedRoute.coordinates.length < 2) {
+      return;
+    }
+
+    const firstCoordinate = plannedRoute.coordinates[0];
+
+    const lastCoordinate =
+      plannedRoute.coordinates[plannedRoute.coordinates.length - 1];
+
+    const routeSignature = [
+      plannedRoute.key,
+      plannedRoute.coordinates.length,
+      firstCoordinate[0],
+      firstCoordinate[1],
+      lastCoordinate[0],
+      lastCoordinate[1],
+    ].join(":");
+
+    if (lastPlannedRouteKeyRef.current === routeSignature) {
+      return;
+    }
+
+    lastPlannedRouteKeyRef.current = routeSignature;
+
+    const bounds = new LngLatBounds();
+
+    for (const coordinate of plannedRoute.coordinates) {
+      bounds.extend(coordinate);
+    }
+
+    map.fitBounds(bounds, {
+      padding: 60,
+      maxZoom: 15,
+      duration: 700,
+    });
+  }, [mapReady, markers.length, plannedRoute]);
+
   // ==========================================================
   // CREATE / UPDATE LIVE MARKERS
   // ==========================================================
@@ -985,6 +1055,16 @@ export function LiveTrackingMap({
         element.classList.toggle(
           "tracking-map-stop--next",
           marker.kind === "stop" && marker.emphasis === "next-stop",
+        );
+
+        element.classList.toggle(
+          "tracking-map-stop--completed",
+          marker.kind === "stop" && marker.emphasis === "completed-stop",
+        );
+
+        element.classList.toggle(
+          "tracking-map-stop--upcoming",
+          marker.kind === "stop" && marker.emphasis === "upcoming-stop",
         );
 
         element.classList.toggle(
@@ -1144,7 +1224,9 @@ export function LiveTrackingMap({
     // recenter or zoom the operator's map.
     // --------------------------------------------------------
 
-    const keySignature = markers
+    const fleetMarkers = markers.filter((marker) => marker.kind !== "stop");
+
+    const keySignature = fleetMarkers
       .map((marker) => marker.key)
       .sort()
       .join("|");
@@ -1155,13 +1237,13 @@ export function LiveTrackingMap({
 
     lastMarkerKeySignatureRef.current = keySignature;
 
-    if (markers.length === 0) {
+    if (fleetMarkers.length === 0) {
       return;
     }
 
-    if (markers.length === 1) {
+    if (fleetMarkers.length === 1) {
       map.easeTo({
-        center: [markers[0].longitude, markers[0].latitude],
+        center: [fleetMarkers[0].longitude, fleetMarkers[0].latitude],
 
         zoom: 15,
 
@@ -1173,7 +1255,7 @@ export function LiveTrackingMap({
 
     const bounds = new LngLatBounds();
 
-    for (const marker of markers) {
+    for (const marker of fleetMarkers) {
       bounds.extend([marker.longitude, marker.latitude]);
     }
 
@@ -1224,39 +1306,56 @@ export function LiveTrackingMap({
     );
   }
 
-  if (markers.length === 0) {
+  if (markers.length === 0 && !plannedRoute) {
     return (
       <Paper
+        data-tracking-map-waiting
         elevation={0}
         sx={{
+          height: "100%",
+          minHeight: 0,
+          width: "100%",
           p: 4,
-
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
           textAlign: "center",
-
           border: "1px solid",
-
           borderColor: "divider",
+          borderRadius: 0,
+          boxSizing: "border-box",
         }}
       >
-        <MapRounded
-          sx={{
-            fontSize: 40,
+        <Box>
+          <MapRounded
+            sx={{
+              fontSize: 40,
+              color: "text.secondary",
+            }}
+          />
 
-            color: "text.secondary",
-          }}
-        />
+          <Typography
+            sx={{
+              mt: 1,
+              color: "text.secondary",
+              fontSize: 12.5,
+              fontWeight: 700,
+            }}
+          >
+            Waiting for active route or GPS signal.
+          </Typography>
 
-        <Typography
-          sx={{
-            mt: 1,
-
-            color: "text.secondary",
-
-            fontSize: 12.5,
-          }}
-        >
-          Waiting for GPS coordinates before displaying the map.
-        </Typography>
+          <Typography
+            sx={{
+              mt: 0.5,
+              color: "text.secondary",
+              fontSize: 10.5,
+            }}
+          >
+            The map will open automatically when operational tracking data is
+            available.
+          </Typography>
+        </Box>
       </Paper>
     );
   }
@@ -1273,16 +1372,77 @@ export function LiveTrackingMap({
 
         borderColor: "divider",
 
-        borderRadius: 2.5,
+        borderRadius: 0,
+        height,
+        minHeight: 0,
       }}
     >
       <Box
         ref={containerRef}
         className="tracking-map"
         sx={{
-          height,
+          height: "100%",
+          minHeight: 0,
         }}
       />
+
+      {markers.length === 0 && !plannedRoute ? (
+        <Box
+          data-tracking-map-empty-state
+          sx={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 2,
+            display: "grid",
+            placeItems: "center",
+            px: 2,
+            pointerEvents: "none",
+          }}
+        >
+          <Box
+            sx={{
+              px: 2.25,
+              py: 1.75,
+              maxWidth: 380,
+              textAlign: "center",
+              bgcolor: "rgba(255, 255, 255, 0.82)",
+              backdropFilter: "blur(10px)",
+              border: "1px solid rgba(15, 23, 42, 0.08)",
+              borderRadius: "2px",
+              boxShadow:
+                "0 14px 34px rgba(15, 23, 42, 0.14), 0 3px 8px rgba(15, 23, 42, 0.06)",
+            }}
+          >
+            <MapRounded
+              sx={{
+                fontSize: 32,
+                color: "text.secondary",
+              }}
+            />
+
+            <Typography
+              sx={{
+                mt: 0.65,
+                fontWeight: 800,
+                fontSize: 12.5,
+              }}
+            >
+              No active journey on the map
+            </Typography>
+
+            <Typography
+              sx={{
+                mt: 0.35,
+                color: "text.secondary",
+                fontSize: 10.5,
+              }}
+            >
+              Routes and vehicles will appear automatically when a journey
+              becomes active.
+            </Typography>
+          </Box>
+        </Box>
+      ) : null}
     </Paper>
   );
 }

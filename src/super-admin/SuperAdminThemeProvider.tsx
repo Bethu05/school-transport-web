@@ -7,14 +7,13 @@ interface SuperAdminThemeProviderProps {
 }
 
 /**
- * Platform Super Admin has its own visual environment.
+ * Platform Administration has its own command-centre visual environment.
  *
- * This theme is deliberately nested beneath the application theme so:
+ * The theme remains nested beneath the ordinary application theme so:
  *
- * - /platform can use a dark glass UI
+ * - /platform can use a dedicated dark-grey command-centre treatment
  * - tenant operational pages keep their existing styling
- * - dialogs opened from Super Admin retain the same dark theme even
- *   though MUI renders them through a portal
+ * - dialogs opened from Super Admin inherit the same command-centre theme
  */
 export function SuperAdminThemeProvider({
   children,
@@ -32,24 +31,21 @@ export function SuperAdminThemeProvider({
           },
 
           background: {
-            // Deep navy-indigo, not pure black
-            default: "#0B1220",
+            default: "#20252B",
 
             /*
-             * Keep this translucent.
-             *
-             * Components using bgcolor="background.paper" will therefore
-             * remain glass surfaces instead of becoming opaque cards.
+             * Keep platform surfaces translucent so the whole environment
+             * reads as one command centre rather than disconnected cards.
              */
-            paper: "rgba(17, 28, 52, 0.68)",
+            paper: "rgba(48, 55, 63, 0.76)",
           },
 
           text: {
-            primary: "#F1F5F9",
-            secondary: "rgba(186, 199, 216, 0.78)",
+            primary: "#F4F6F8",
+            secondary: "rgba(216, 222, 228, 0.72)",
           },
 
-          divider: "rgba(148, 163, 184, 0.14)",
+          divider: "rgba(255, 255, 255, 0.10)",
         },
 
         typography: {
@@ -66,16 +62,16 @@ export function SuperAdminThemeProvider({
               root: {
                 backgroundImage: "none",
 
-                backgroundColor: "rgba(17, 28, 52, 0.62)",
+                backgroundColor: "rgba(48, 55, 63, 0.72)",
 
-                borderColor: "rgba(148, 163, 184, 0.15)",
+                borderColor: "rgba(255, 255, 255, 0.09)",
 
-                backdropFilter: "blur(20px) saturate(140%)",
+                backdropFilter: "blur(18px) saturate(125%)",
 
-                WebkitBackdropFilter: "blur(20px) saturate(140%)",
+                WebkitBackdropFilter: "blur(18px) saturate(125%)",
 
                 boxShadow:
-                  "0 20px 60px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(148, 163, 184, 0.06)",
+                  "0 18px 46px rgba(0, 0, 0, 0.22), 0 1px 0 rgba(255, 255, 255, 0.04) inset",
               },
             },
           },
@@ -85,16 +81,16 @@ export function SuperAdminThemeProvider({
               paper: {
                 backgroundImage: "none",
 
-                backgroundColor: "rgba(11, 18, 36, 0.92)",
+                backgroundColor: "rgba(39, 45, 52, 0.96)",
 
-                border: "1px solid rgba(148, 163, 184, 0.16)",
+                border: "1px solid rgba(255, 255, 255, 0.10)",
 
-                backdropFilter: "blur(28px) saturate(145%)",
+                backdropFilter: "blur(24px) saturate(130%)",
 
-                WebkitBackdropFilter: "blur(28px) saturate(145%)",
+                WebkitBackdropFilter: "blur(24px) saturate(130%)",
 
                 boxShadow:
-                  "0 36px 110px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(148, 163, 184, 0.08)",
+                  "0 30px 90px rgba(0, 0, 0, 0.48), 0 1px 0 rgba(255, 255, 255, 0.05) inset",
               },
             },
           },
@@ -102,11 +98,11 @@ export function SuperAdminThemeProvider({
           MuiTableCell: {
             styleOverrides: {
               root: {
-                borderColor: "rgba(148, 163, 184, 0.11)",
+                borderColor: "rgba(255, 255, 255, 0.075)",
               },
 
               head: {
-                color: "rgba(226, 232, 240, 0.78)",
+                color: "rgba(232, 236, 240, 0.84)",
 
                 fontWeight: 800,
               },
@@ -119,7 +115,7 @@ export function SuperAdminThemeProvider({
                 transition: "background-color 140ms ease",
 
                 "&.MuiTableRow-hover:hover": {
-                  backgroundColor: "rgba(148, 163, 184, 0.06)",
+                  backgroundColor: "rgba(255, 255, 255, 0.045)",
                 },
               },
             },
@@ -128,16 +124,16 @@ export function SuperAdminThemeProvider({
           MuiOutlinedInput: {
             styleOverrides: {
               root: {
-                backgroundColor: "rgba(8, 14, 28, 0.42)",
+                backgroundColor: "rgba(15, 19, 24, 0.30)",
 
                 backdropFilter: "blur(12px)",
 
                 "& .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "rgba(148, 163, 184, 0.20)",
+                  borderColor: "rgba(255, 255, 255, 0.13)",
                 },
 
                 "&:hover .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "rgba(148, 163, 184, 0.38)",
+                  borderColor: "rgba(255, 255, 255, 0.24)",
                 },
 
                 "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
@@ -160,7 +156,7 @@ export function SuperAdminThemeProvider({
           MuiButton: {
             styleOverrides: {
               root: {
-                borderRadius: 9,
+                borderRadius: 5,
               },
             },
           },

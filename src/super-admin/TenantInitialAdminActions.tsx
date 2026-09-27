@@ -14,8 +14,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
-  createInitialTenantAdmin,
-  getPlatformTenantOnboardingStatus,
+  createPlatformOnboardingInitialAdmin as createInitialTenantAdmin,
+  getPlatformOnboardingInitialAdminStatus as getPlatformTenantOnboardingStatus,
   type PlatformTenantListItem,
   type PlatformTenantOnboardingStatus,
 } from "./platform.api";

@@ -28,6 +28,8 @@ export const FRONTEND_PERMISSIONS = {
   DRIVERS_MANAGE_APP_ACCESS: "drivers.manage_app_access",
   VEHICLES_READ: "vehicles.read",
   VEHICLES_IMPORT: "vehicles.import",
+
+  CONTROL_ROOM_READ: "control_room.read",
   ROUTES_READ: "routes.read",
   TRIPS_READ: "trips.read",
   TRIPS_CREATE: "trips.create",
@@ -83,6 +85,8 @@ export const FRONTEND_PERMISSIONS = {
   GUARDIANS_MANAGE_STUDENTS: "guardians.manage_students",
 
   GUARDIANS_MANAGE_APP_ACCESS: "guardians.manage_app_access",
+
+  GUARDIANS_READ_OWN_ACTIVE_TRIP: "guardians.read_own_active_trip",
 
   /**
    * Tenant identity administration.

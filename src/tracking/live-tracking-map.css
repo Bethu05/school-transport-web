@@ -165,6 +165,29 @@
 }
 
 /* ==========================================================
+   ROUTE STOP PROGRESSION
+   ========================================================== */
+
+.tracking-map-stop--completed .tracking-map-stop__pin {
+  background: #64748b;
+  opacity: 0.72;
+  transform: scale(0.9);
+}
+
+.tracking-map-stop--completed .tracking-map-stop__label {
+  color: #64748b;
+  opacity: 0.78;
+}
+
+.tracking-map-stop--upcoming .tracking-map-stop__pin {
+  background: #172554;
+}
+
+.tracking-map-stop--upcoming .tracking-map-stop__label {
+  color: #334155;
+}
+
+/* ==========================================================
    POPUPS
    ========================================================== */
 
