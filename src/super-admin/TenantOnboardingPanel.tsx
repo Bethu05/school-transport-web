@@ -16,8 +16,6 @@ import {
 } from "@mui/material";
 
 import {
-  CheckRounded,
-  ErrorOutlineRounded,
   NavigateBeforeRounded,
   NavigateNextRounded,
   RefreshRounded,
@@ -28,6 +26,13 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useState } from "react";
+
+import { useAuth } from "../auth/AuthProvider";
+
+import {
+  FRONTEND_PLATFORM_PERMISSIONS,
+  hasFrontendPlatformPermission,
+} from "../auth/platform-permissions";
 
 import { TenantAdminRecoveryActions } from "./TenantAdminRecoveryActions";
 
@@ -152,6 +157,96 @@ const commercialBackendStepKeys = new Set([
   "feature_exceptions",
   "trial_configuration",
 ]);
+
+interface OnboardingPhaseDefinition {
+  key: string;
+  label: string;
+  description: string;
+  stepKeys: readonly string[];
+  completionStepKeys: readonly string[];
+}
+
+const onboardingPhaseDefinitions: readonly OnboardingPhaseDefinition[] = [
+  {
+    key: "application_verification",
+    label: "Application & Verification",
+    description: "Application, approval queue and organisation verification.",
+    stepKeys: ["application_registration", "approval_queue", "verification"],
+    completionStepKeys: [
+      "application_registration",
+      "approval_queue",
+      "verification",
+    ],
+  },
+  {
+    key: "tenant_commercial_setup",
+    label: "Tenant & Commercial Setup",
+    description:
+      "Choose the package and any optional purchasable features.",
+    stepKeys: [
+      "tenant_provisioning",
+      "package_selection",
+      "package_limits",
+      "feature_exceptions",
+      "trial_configuration",
+    ],
+    completionStepKeys: [
+      "tenant_provisioning",
+      "package_selection",
+      "package_limits",
+      "feature_exceptions",
+      "trial_configuration",
+    ],
+  },
+  {
+    key: "administrator_data",
+    label: "Administrator & Data",
+    description: "Administrator provisioning and any required data migration.",
+    stepKeys: ["account_setup", "data_migration"],
+    completionStepKeys: ["account_setup", "data_migration"],
+  },
+  {
+    key: "launch_readiness",
+    label: "Launch Readiness",
+    description: "Validate the school against the backend launch gate.",
+    stepKeys: ["launch_validation"],
+    completionStepKeys: ["launch_validation"],
+  },
+  {
+    key: "activation_handover",
+    label: "Activation & Handover",
+    description: "Activate the school and complete operational handover.",
+    stepKeys: ["activation", "onboarding_summary"],
+    completionStepKeys: ["activation", "onboarding_summary"],
+  },
+];
+
+function onboardingPhaseStatus(
+  steps: readonly PlatformOnboardingStep[],
+  completionStepKeys: readonly string[],
+): PlatformOnboardingStepStatus {
+  const completionSteps = completionStepKeys
+    .map((key) => steps.find((step) => step.stepKey === key))
+    .filter((step): step is PlatformOnboardingStep => step !== undefined);
+
+  if (completionSteps.some((step) => step.status === "blocked")) {
+    return "blocked";
+  }
+
+  if (completionSteps.length > 0 && completionSteps.every(stepComplete)) {
+    return "completed";
+  }
+
+  if (
+    completionSteps.some(
+      (step) => step.status === "in_progress" || stepComplete(step),
+    )
+  ) {
+    return "in_progress";
+  }
+
+  return "pending";
+}
 
 function StepEvidence({ step }: { step: PlatformOnboardingStep }) {
   return (
@@ -301,6 +396,38 @@ export function TenantOnboardingPanel({
 }: TenantOnboardingPanelProps) {
   const queryClient = useQueryClient();
 
+  const { isSuperAdmin, platformPermissions } = useAuth();
+
+  const canApproveOnboarding = hasFrontendPlatformPermission(
+    platformPermissions,
+    FRONTEND_PLATFORM_PERMISSIONS.ONBOARDING_APPROVE,
+  );
+
+  const canManageOnboarding =
+    hasFrontendPlatformPermission(
+      platformPermissions,
+      FRONTEND_PLATFORM_PERMISSIONS.ONBOARDING_MANAGE,
+    ) ||
+    hasFrontendPlatformPermission(
+      platformPermissions,
+      FRONTEND_PLATFORM_PERMISSIONS.ONBOARDING_UPDATE_ASSIGNED,
+    );
+
+  const canConfigureCommercial = hasFrontendPlatformPermission(
+    platformPermissions,
+    FRONTEND_PLATFORM_PERMISSIONS.ONBOARDING_CONFIGURE_COMMERCIAL,
+  );
+
+  const canProvisionAdmin = hasFrontendPlatformPermission(
+    platformPermissions,
+    FRONTEND_PLATFORM_PERMISSIONS.ONBOARDING_PROVISION_ADMIN,
+  );
+
+  const canActivateTenant = hasFrontendPlatformPermission(
+    platformPermissions,
+    FRONTEND_PLATFORM_PERMISSIONS.SCHOOL_ACTIVATE,
+  );
+
   const workflowKey = [
     "platform",
     "onboarding",
@@ -320,6 +447,8 @@ export function TenantOnboardingPanel({
     useState<MigrationMethod["value"]>("imported_xlsx");
 
   const [migrationNotes, setMigrationNotes] = useState("");
+
+  const [launchReviewConfirmed, setLaunchReviewConfirmed] = useState(false);
 
   const [activationNotes, setActivationNotes] = useState("");
 
@@ -527,28 +656,64 @@ export function TenantOnboardingPanel({
 
   const visibleSteps = steps;
 
+  /*
+   * Production onboarding defaults only through canonical Steps 1-13.
+   * Demo-only Steps 14-15 remain persisted and inspectable, but never
+   * become the default production workflow position.
+   */
+  const operationalSteps = steps.filter((step) => step.stepOrder <= 13);
+
   const defaultStep =
-    visibleSteps.find((step) => !stepComplete(step)) ??
-    visibleSteps[visibleSteps.length - 1];
+    operationalSteps.find((step) => !stepComplete(step)) ??
+    operationalSteps[operationalSteps.length - 1] ??
+    steps[0];
 
   const activeStep =
     visibleSteps.find((step) => step.stepOrder === selectedStepOrder) ??
     defaultStep;
 
-  const activeIndex = visibleSteps.findIndex(
-    (step) => step.stepOrder === activeStep.stepOrder,
+  const phases = onboardingPhaseDefinitions.map((definition) => ({
+    ...definition,
+
+    steps: steps.filter((step) => definition.stepKeys.includes(step.stepKey)),
+
+    status: onboardingPhaseStatus(steps, definition.completionStepKeys),
+  }));
+
+  const activePhase =
+    phases.find((phase) =>
+      phase.steps.some((step) => step.stepOrder === activeStep.stepOrder),
+    ) ?? phases.find((phase) => phase.steps.length > 0);
+
+  if (!activePhase) {
+    return <Alert severity="error">Onboarding phases are unavailable.</Alert>;
+  }
+
+  const activePhaseKey = activePhase.key;
+
+  const activePhaseIndex = phases.findIndex(
+    (phase) => phase.key === activePhaseKey,
   );
 
-  const previousStep = activeIndex > 0 ? visibleSteps[activeIndex - 1] : null;
+  function phaseEntryStep(
+    phase: (typeof phases)[number],
+  ): PlatformOnboardingStep | undefined {
+    const completionSteps = phase.steps.filter((step) =>
+      phase.completionStepKeys.includes(step.stepKey),
+    );
 
-  const nextStep =
-    activeIndex < visibleSteps.length - 1
-      ? visibleSteps[activeIndex + 1]
-      : null;
+    return (
+      completionSteps.find((step) => !stepComplete(step)) ??
+      completionSteps[completionSteps.length - 1] ??
+      phase.steps[0]
+    );
+  }
 
-  const activeVisualStatus = activeStep.status;
+  const previousPhase =
+    activePhaseIndex > 0 ? phases[activePhaseIndex - 1] : null;
 
-  const activeVisualName = activeStep.stepName;
+  const nextPhase =
+    activePhaseIndex < phases.length - 1 ? phases[activePhaseIndex + 1] : null;
 
   const summary = summaryQuery.data;
 
@@ -569,6 +734,674 @@ export function TenantOnboardingPanel({
   const handleTenantUpdated = onTenantUpdated ?? (() => undefined);
 
   function renderStepContent() {
+    /*
+     * Phase 1 is deliberately presented as one operator review.
+     * The canonical application / queue / verification records remain
+     * persisted backend evidence, but are not exposed as separate screens.
+     */
+    if (activePhaseKey === "application_verification") {
+      const verificationStep = steps.find(
+        (step) => step.stepKey === "verification",
+      );
+
+      return (
+        <Stack spacing={2}>
+          <Box>
+            <Typography
+              sx={{
+                fontSize: 16,
+                fontWeight: 900,
+                letterSpacing: "-0.02em",
+              }}
+            >
+              Application review
+            </Typography>
+
+            <Typography
+              sx={{
+                mt: 0.4,
+                color: "text.secondary",
+                fontSize: 10.5,
+                lineHeight: 1.6,
+              }}
+            >
+              Review the school application and record the verification decision
+              before continuing to commercial setup.
+            </Typography>
+          </Box>
+
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 1.75,
+              borderRadius: 1.5,
+              borderColor: "rgba(255, 255, 255, 0.10)",
+              bgcolor: "rgba(255, 255, 255, 0.035)",
+            }}
+          >
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "minmax(0, 1.4fr) repeat(2, minmax(0, 1fr))",
+                },
+                gap: 1.5,
+                alignItems: "center",
+              }}
+            >
+              <Box sx={{ minWidth: 0 }}>
+                <Typography
+                  sx={{
+                    color: "text.secondary",
+                    fontSize: 8.5,
+                    fontWeight: 800,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  School
+                </Typography>
+
+                <Typography
+                  sx={{
+                    mt: 0.35,
+                    fontSize: 13,
+                    fontWeight: 850,
+                  }}
+                >
+                  {tenant.name}
+                </Typography>
+
+                <Typography
+                  sx={{
+                    mt: 0.2,
+                    color: "text.secondary",
+                    fontSize: 9.5,
+                  }}
+                >
+                  {humanize(tenant.status)}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography
+                  sx={{
+                    mb: 0.55,
+                    color: "text.secondary",
+                    fontSize: 8.5,
+                    fontWeight: 800,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  Application status
+                </Typography>
+
+                <Chip
+                  size="small"
+                  label={humanize(workflow.approvalStatus)}
+                  color={
+                    workflow.approvalStatus === "approved"
+                      ? "success"
+                      : workflow.approvalStatus === "rejected"
+                        ? "error"
+                        : "warning"
+                  }
+                  variant="outlined"
+                />
+              </Box>
+
+              <Box>
+                <Typography
+                  sx={{
+                    mb: 0.55,
+                    color: "text.secondary",
+                    fontSize: 8.5,
+                    fontWeight: 800,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  Verification status
+                </Typography>
+
+                <Chip
+                  size="small"
+                  label={humanize(verificationStep?.status ?? "pending")}
+                  color={stepColor(verificationStep?.status ?? "pending")}
+                  variant="outlined"
+                />
+              </Box>
+            </Box>
+          </Paper>
+
+          {workflow.approvalStatus === "approved" ? (
+            <Alert severity="success">
+              School application approved. Commercial setup can now proceed.
+            </Alert>
+          ) : null}
+
+          {workflow.approvalStatus === "rejected" ? (
+            <Alert severity="error">
+              Application rejected
+              {workflow.rejectionReason ? ` — ${workflow.rejectionReason}` : ""}
+            </Alert>
+          ) : null}
+
+          {workflow.approvalStatus === "pending_review" ? (
+            <Alert severity="info">
+              Review the application details, record any relevant verification
+              notes, then approve or reject the school.
+            </Alert>
+          ) : null}
+
+          <TextField
+            label="Verification notes / rejection reason"
+            value={approvalNotes}
+            onChange={(event) => {
+              setApprovalNotes(event.target.value);
+              approvalMutation.reset();
+            }}
+            disabled={busy || live || !canApproveOnboarding}
+            multiline
+            minRows={3}
+            helperText={
+              canApproveOnboarding
+                ? "Optional when approving. A reason is required when rejecting."
+                : "Read-only: your platform access does not allow approval decisions."
+            }
+            fullWidth
+          />
+        </Stack>
+      );
+    }
+
+    /*
+     * Phase 3 combines administrator provisioning and data migration
+     * into one operator-facing workspace.
+     *
+     * Canonical account_setup and data_migration records remain
+     * independently persisted by the backend.
+     */
+    if (activePhaseKey === "administrator_data") {
+      const migrationAlreadyRecorded =
+        migrationStep !== undefined && stepComplete(migrationStep);
+
+      const skipImport =
+        migrationMethod === "no_migration_required" ||
+        migrationStep?.status === "skipped";
+
+      return (
+        <Stack spacing={1.75}>
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 1.75,
+              borderRadius: 1.5,
+              borderColor: "rgba(255, 255, 255, 0.10)",
+              bgcolor: "rgba(255, 255, 255, 0.03)",
+            }}
+          >
+            <Stack spacing={1.5}>
+              <Box>
+                <Typography
+                  sx={{
+                    fontSize: 15,
+                    fontWeight: 900,
+                    letterSpacing: "-0.02em",
+                  }}
+                >
+                  Initial administrator
+                </Typography>
+
+                <Typography
+                  sx={{
+                    mt: 0.3,
+                    color: "text.secondary",
+                    fontSize: 9.5,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Create or confirm the school administrator who will take over
+                  day-to-day setup after onboarding.
+                </Typography>
+              </Box>
+
+              {canProvisionAdmin ? (
+                <TenantInitialAdminActions tenant={tenant} />
+              ) : (
+                <Alert severity="info">
+                  Initial administrator provisioning is read-only for your
+                  current platform access.
+                </Alert>
+              )}
+
+              {isSuperAdmin ? (
+                <>
+                  <Divider />
+
+                  <TenantAdminRecoveryActions tenant={tenant} />
+                </>
+              ) : null}
+            </Stack>
+          </Paper>
+
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 1.75,
+              borderRadius: 1.5,
+              borderColor: "rgba(255, 255, 255, 0.10)",
+              bgcolor: "rgba(255, 255, 255, 0.03)",
+            }}
+          >
+            <Stack spacing={1.4}>
+              <Stack
+                direction={{
+                  xs: "column",
+                  sm: "row",
+                }}
+                spacing={1}
+                sx={{
+                  alignItems: {
+                    xs: "flex-start",
+                    sm: "center",
+                  },
+                  justifyContent: "space-between",
+                }}
+              >
+                <Box>
+                  <Typography
+                    sx={{
+                      fontSize: 15,
+                      fontWeight: 900,
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
+                    Data Migration / Import
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      mt: 0.3,
+                      color: "text.secondary",
+                      fontSize: 9.5,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    Import existing transport data, or confirm that this school
+                    is starting with a clean dataset.
+                  </Typography>
+                </Box>
+
+                {migrationStep ? (
+                  <Chip
+                    size="small"
+                    label={humanize(migrationStep.status)}
+                    color={
+                      stepComplete(migrationStep)
+                        ? "success"
+                        : stepColor(migrationStep.status)
+                    }
+                    variant="outlined"
+                  />
+                ) : null}
+              </Stack>
+
+              {migrationAlreadyRecorded ? (
+                <Alert severity="success">
+                  {migrationStep?.status === "skipped"
+                    ? "Import was intentionally skipped and the decision has been recorded."
+                    : "Migration/import evidence has been recorded."}
+                </Alert>
+              ) : (
+                <>
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      px: 1.25,
+                      py: 1,
+                      borderRadius: 1.5,
+                      borderColor: skipImport
+                        ? "rgba(37, 99, 235, 0.42)"
+                        : "rgba(255, 255, 255, 0.08)",
+                      bgcolor: skipImport
+                        ? "rgba(37, 99, 235, 0.06)"
+                        : "transparent",
+                    }}
+                  >
+                    <Stack
+                      direction="row"
+                      spacing={0.75}
+                      sx={{
+                        alignItems: "center",
+                      }}
+                    >
+                      <Checkbox
+                        size="small"
+                        checked={skipImport}
+                        disabled={
+                          busy ||
+                          !canManageOnboarding ||
+                          workflow.approvalStatus !== "approved" ||
+                          live
+                        }
+                        onChange={(event) => {
+                          migrationMutation.reset();
+
+                          if (event.target.checked) {
+                            setMigrationMethod("no_migration_required");
+
+                            if (migrationNotes.trim().length < 3) {
+                              setMigrationNotes(
+                                "School will start fresh without imported legacy data.",
+                              );
+                            }
+
+                            return;
+                          }
+
+                          setMigrationMethod("imported_xlsx");
+
+                          if (
+                            migrationNotes ===
+                            "School will start fresh without imported legacy data."
+                          ) {
+                            setMigrationNotes("");
+                          }
+                        }}
+                      />
+
+                      <Box>
+                        <Typography
+                          sx={{
+                            fontSize: 10.5,
+                            fontWeight: 850,
+                          }}
+                        >
+                          Skip import — start fresh
+                        </Typography>
+
+                        <Typography
+                          sx={{
+                            mt: 0.1,
+                            color: "text.secondary",
+                            fontSize: 8.5,
+                          }}
+                        >
+                          Use when the school has no existing transport records
+                          to migrate.
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Paper>
+
+                  {!skipImport ? (
+                    <TextField
+                      select
+                      size="small"
+                      label="Import method"
+                      value={migrationMethod}
+                      onChange={(event) => {
+                        setMigrationMethod(
+                          event.target.value as MigrationMethod["value"],
+                        );
+
+                        migrationMutation.reset();
+                      }}
+                      disabled={
+                        busy ||
+                        !canManageOnboarding ||
+                        workflow.approvalStatus !== "approved" ||
+                        live
+                      }
+                      sx={{
+                        maxWidth: 420,
+                      }}
+                      fullWidth
+                    >
+                      {migrationMethods
+                        .filter(
+                          (method) =>
+                            method.value !== "no_migration_required",
+                        )
+                        .map((method) => (
+                          <MenuItem
+                            key={method.value}
+                            value={method.value}
+                          >
+                            {method.label}
+                          </MenuItem>
+                        ))}
+                    </TextField>
+                  ) : null}
+
+                  <TextField
+                    size="small"
+                    label={
+                      skipImport
+                        ? "Reason for skipping import"
+                        : "Import evidence / notes"
+                    }
+                    value={migrationNotes}
+                    onChange={(event) => {
+                      setMigrationNotes(event.target.value);
+
+                      migrationMutation.reset();
+                    }}
+                    placeholder={
+                      skipImport
+                        ? "Example: New school — no legacy transport data exists."
+                        : "Example: Student and route workbook imported and validated."
+                    }
+                    disabled={
+                      busy ||
+                      !canManageOnboarding ||
+                      workflow.approvalStatus !== "approved" ||
+                      live
+                    }
+                    multiline
+                    minRows={2}
+                    fullWidth
+                  />
+                </>
+              )}
+
+              {migrationStep?.completionMethod ? (
+                <Typography
+                  sx={{
+                    color: "text.secondary",
+                    fontSize: 8.5,
+                  }}
+                >
+                  Recorded method:{" "}
+                  {humanize(migrationStep.completionMethod)}
+                </Typography>
+              ) : null}
+            </Stack>
+          </Paper>
+        </Stack>
+      );
+    }
+
+    if (activePhaseKey === "launch_readiness") {
+      return (
+        <Stack spacing={1.5}>
+          <Typography sx={{ fontSize: 15, fontWeight: 900 }}>
+            Launch readiness
+          </Typography>
+
+          {readyToActivate ? (
+            <Alert severity="success">
+              All required onboarding evidence is currently satisfied.
+            </Alert>
+          ) : (
+            <Alert severity="warning">
+              Outstanding onboarding requirements remain.
+            </Alert>
+          )}
+
+          {summary && summary.blockers.length > 0 ? (
+            <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1.5 }}>
+              <Typography sx={{ mb: 0.75, fontSize: 10.5, fontWeight: 850 }}>
+                Outstanding items
+              </Typography>
+
+              {summary.blockers.map((blocker) => (
+                <Typography
+                  key={blocker.stepKey}
+                  sx={{ color: "text.secondary", fontSize: 9.5 }}
+                >
+                  • {blocker.stepName}
+                </Typography>
+              ))}
+            </Paper>
+          ) : null}
+
+          <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1.5 }}>
+            <Stack direction="row" spacing={0.75}>
+              <Checkbox
+                size="small"
+                checked={launchReviewConfirmed}
+                disabled={busy || !canManageOnboarding || live}
+                onChange={(event) => {
+                  setLaunchReviewConfirmed(event.target.checked);
+                  reconcileMutation.reset();
+                }}
+              />
+
+              <Box>
+                <Typography sx={{ fontSize: 10.5, fontWeight: 850 }}>
+                  Confirm personal review
+                </Typography>
+
+                <Typography sx={{ color: "text.secondary", fontSize: 8.75 }}>
+                  I have personally reviewed the launch-readiness evidence and
+                  confirm that I am deliberately initiating this validation.
+                </Typography>
+              </Box>
+            </Stack>
+          </Paper>
+        </Stack>
+      );
+    }
+
+    if (activePhaseKey === "activation_handover") {
+      const migrationStatus = migrationStep?.status ?? "pending";
+
+      return (
+        <Stack spacing={1.5}>
+          <Typography sx={{ fontSize: 15, fontWeight: 900 }}>
+            Activation & handover
+          </Typography>
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
+                lg: "repeat(4, minmax(0, 1fr))",
+              },
+              gap: 1,
+            }}
+          >
+            <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1.5 }}>
+              <Typography sx={{ color: "text.secondary", fontSize: 8 }}>
+                PACKAGE
+              </Typography>
+              <Typography sx={{ mt: 0.4, fontSize: 10.5, fontWeight: 850 }}>
+                {summary?.commercial?.planName ?? tenant.planName ?? "Not configured"}
+              </Typography>
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1.5 }}>
+              <Typography sx={{ color: "text.secondary", fontSize: 8 }}>
+                ADMINISTRATOR
+              </Typography>
+              <Typography sx={{ mt: 0.4, fontSize: 10.5, fontWeight: 850 }}>
+                {summary?.initialAdmin?.email ?? "Not configured"}
+              </Typography>
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1.5 }}>
+              <Typography sx={{ color: "text.secondary", fontSize: 8 }}>
+                DATA MIGRATION
+              </Typography>
+              <Box sx={{ mt: 0.5 }}>
+                <Chip
+                  size="small"
+                  label={humanize(migrationStatus)}
+                  color={stepColor(migrationStatus)}
+                  variant="outlined"
+                />
+              </Box>
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1.5 }}>
+              <Typography sx={{ color: "text.secondary", fontSize: 8 }}>
+                LAUNCH READINESS
+              </Typography>
+              <Box sx={{ mt: 0.5 }}>
+                <Chip
+                  size="small"
+                  label={live ? "Live" : readyToActivate ? "Ready" : "Pending"}
+                  color={live || readyToActivate ? "success" : "warning"}
+                  variant="outlined"
+                />
+              </Box>
+            </Paper>
+          </Box>
+
+          {live ? (
+            <Alert severity="success">
+              School onboarding is complete and the school is live. Operational
+              ownership can now be handed over to the school administrator.
+            </Alert>
+          ) : readyToActivate ? (
+            <Alert severity="success">
+              All launch requirements are satisfied. The school is ready for activation.
+            </Alert>
+          ) : (
+            <Alert severity="warning">
+              Activation remains locked until Launch Readiness is satisfied.
+            </Alert>
+          )}
+
+          {!live ? (
+            <TextField
+              size="small"
+              label="Activation / handover note"
+              value={activationNotes}
+              onChange={(event) => {
+                setActivationNotes(event.target.value);
+                activationMutation.reset();
+              }}
+              disabled={busy || !readyToActivate || !canActivateTenant}
+              multiline
+              minRows={2}
+              fullWidth
+            />
+          ) : null}
+        </Stack>
+      );
+    }
+
+    if (activePhaseKey === "tenant_commercial_setup") {
+      return canConfigureCommercial ? (
+        <OnboardingCommercialReview
+          tenant={tenant}
+          commercialSteps={commercialSteps}
+          onTenantUpdated={handleTenantUpdated}
+        />
+      ) : (
+        <Alert severity="info">
+          Commercial setup is read-only for your current platform access.
+        </Alert>
+      );
+    }
+
     switch (activeStep.stepKey) {
       case "application_registration":
         return (
@@ -661,10 +1494,14 @@ export function TenantOnboardingPanel({
 
                 approvalMutation.reset();
               }}
-              disabled={busy || live}
+              disabled={busy || live || !canApproveOnboarding}
               multiline
               minRows={5}
-              helperText="Required when rejecting; optional when approving."
+              helperText={
+                canApproveOnboarding
+                  ? "Required when rejecting; optional when approving."
+                  : "Read-only: your platform permissions do not allow an approval decision."
+              }
               fullWidth
             />
           </Stack>
@@ -694,22 +1531,37 @@ export function TenantOnboardingPanel({
       case "package_limits":
       case "feature_exceptions":
       case "trial_configuration":
-        return (
+        return canConfigureCommercial ? (
           <OnboardingCommercialReview
             tenant={tenant}
             commercialSteps={commercialSteps}
             onTenantUpdated={handleTenantUpdated}
           />
+        ) : (
+          <Alert severity="info">
+            Commercial setup is read-only for your current platform access.
+          </Alert>
         );
 
       case "account_setup":
         return (
           <Stack spacing={3}>
-            <TenantInitialAdminActions tenant={tenant} />
+            {canProvisionAdmin ? (
+              <TenantInitialAdminActions tenant={tenant} />
+            ) : (
+              <Alert severity="info">
+                Initial administrator provisioning is not included in your
+                current platform access.
+              </Alert>
+            )}
 
-            <Divider />
+            {isSuperAdmin ? (
+              <>
+                <Divider />
 
-            <TenantAdminRecoveryActions tenant={tenant} />
+                <TenantAdminRecoveryActions tenant={tenant} />
+              </>
+            ) : null}
           </Stack>
         );
 
@@ -780,8 +1632,8 @@ export function TenantOnboardingPanel({
             {migrationAlreadyRecorded ? (
               <Alert severity="success">
                 {migrationStep?.status === "skipped"
-                  ? "Import was intentionally skipped. Step 7 is complete and onboarding progress has been updated."
-                  : "Migration evidence has been recorded. Step 7 is complete."}
+                  ? "Import was intentionally skipped and onboarding progress has been updated."
+                  : "Migration evidence has been recorded."}
               </Alert>
             ) : null}
 
@@ -805,6 +1657,7 @@ export function TenantOnboardingPanel({
                   checked={skipImport}
                   disabled={
                     busy ||
+                    !canManageOnboarding ||
                     workflow.approvalStatus !== "approved" ||
                     live ||
                     migrationAlreadyRecorded
@@ -1205,7 +2058,7 @@ export function TenantOnboardingPanel({
         display: "flex",
         flexDirection: "column",
 
-        bgcolor: "background.default",
+        bgcolor: "transparent",
       }}
     >
       {/* ====================================================
@@ -1223,7 +2076,10 @@ export function TenantOnboardingPanel({
 
           py: 1.75,
 
-          bgcolor: "background.paper",
+          bgcolor: "rgba(48, 55, 63, 0.46)",
+
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
 
           borderBottom: "1px solid",
           borderColor: "divider",
@@ -1282,7 +2138,7 @@ export function TenantOnboardingPanel({
           >
             <Chip
               size="small"
-              label={`Step ${activeStep.stepOrder} of ${steps.length}`}
+              label={`Phase ${activePhaseIndex + 1} of ${phases.length}`}
               color="primary"
             />
 
@@ -1321,7 +2177,7 @@ export function TenantOnboardingPanel({
       ) : null}
 
       {/* ====================================================
-          LEFT STEP RAIL + FOCUSED STEP CONTENT
+          FIVE-PHASE RAIL + PHASE CONTENT
           ==================================================== */}
 
       <Box
@@ -1358,139 +2214,101 @@ export function TenantOnboardingPanel({
 
             borderColor: "divider",
 
-            bgcolor: "background.paper",
+            bgcolor: "rgba(42, 48, 55, 0.56)",
+
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
           }}
         >
           <Box sx={{ p: 1.25 }}>
-            {visibleSteps.map((step) => {
-              const selected = step.stepOrder === activeStep.stepOrder;
+            {phases.map((phase, phaseIndex) => {
+              const selected = phase.key === activePhaseKey;
 
-              const complete = stepComplete(step);
-
-              const visualStatus = step.status;
-
-              const visualName = step.stepName;
-
-              const demoOnly = step.stepOrder >= 14;
+              const entryStep = phaseEntryStep(phase);
 
               return (
                 <ButtonBase
-                  key={step.stepKey}
-                  onClick={() => setSelectedStepOrder(step.stepOrder)}
+                  key={phase.key}
+                  disabled={!entryStep}
+                  onClick={() => {
+                    if (entryStep) {
+                      setSelectedStepOrder(entryStep.stepOrder);
+                    }
+                  }}
                   sx={{
                     width: "100%",
-
-                    mb: 0.5,
-
+                    mb: 0.6,
                     textAlign: "left",
-
                     borderRadius: 2,
                   }}
                 >
                   <Box
                     sx={{
                       width: "100%",
-
                       display: "grid",
-
-                      gridTemplateColumns: "38px minmax(0, 1fr) auto",
-
+                      gridTemplateColumns: "34px minmax(0, 1fr) auto",
                       alignItems: "center",
-
                       gap: 1,
-
-                      p: 1,
-
+                      p: 1.1,
                       border: "1px solid",
-
-                      borderColor: selected ? "primary.main" : "transparent",
-
-                      bgcolor: selected ? "action.selected" : "transparent",
-
-                      borderRadius: 2,
-
-                      "&:hover": {
-                        bgcolor: "action.hover",
-                      },
+                      borderColor: selected
+                        ? "rgba(37, 99, 235, 0.42)"
+                        : "transparent",
+                      bgcolor: selected
+                        ? "rgba(57, 65, 74, 0.68)"
+                        : "transparent",
+                      borderRadius: 1.5,
                     }}
                   >
                     <Box
                       sx={{
-                        width: 32,
-                        height: 32,
-
+                        width: 28,
+                        height: 28,
                         display: "grid",
                         placeItems: "center",
-
                         borderRadius: "50%",
-
-                        bgcolor: complete
-                          ? "success.main"
-                          : selected
-                            ? "primary.main"
-                            : "action.hover",
-
-                        color:
-                          complete || selected
-                            ? "common.white"
-                            : "text.secondary",
-
-                        fontSize: 11,
+                        bgcolor: selected
+                          ? "primary.main"
+                          : "rgba(255, 255, 255, 0.08)",
+                        color: selected
+                          ? "primary.contrastText"
+                          : "text.secondary",
+                        fontSize: 10,
                         fontWeight: 900,
                       }}
                     >
-                      {complete ? (
-                        <CheckRounded
-                          sx={{
-                            fontSize: 17,
-                          }}
-                        />
-                      ) : visualStatus === "blocked" ? (
-                        <ErrorOutlineRounded
-                          sx={{
-                            fontSize: 17,
-                          }}
-                        />
-                      ) : (
-                        step.stepOrder
-                      )}
+                      {phaseIndex + 1}
                     </Box>
 
-                    <Box
-                      sx={{
-                        minWidth: 0,
-                      }}
-                    >
+                    <Box sx={{ minWidth: 0 }}>
                       <Typography
                         sx={{
                           fontSize: 10.5,
-
-                          fontWeight: selected ? 850 : 700,
-
-                          lineHeight: 1.3,
+                          fontWeight: 850,
+                          lineHeight: 1.35,
                         }}
                       >
-                        Step {step.stepOrder}
-                        {" — "}
-                        {visualName}
+                        {phase.label}
                       </Typography>
 
                       <Typography
                         sx={{
-                          mt: 0.15,
-
+                          mt: 0.25,
                           color: "text.secondary",
-
                           fontSize: 8.5,
+                          lineHeight: 1.35,
                         }}
                       >
-                        {humanize(visualStatus)}
+                        {phase.description}
                       </Typography>
                     </Box>
 
-                    {demoOnly ? (
-                      <Chip size="small" label="Demo" variant="outlined" />
-                    ) : null}
+                    <Chip
+                      size="small"
+                      label={humanize(phase.status)}
+                      color={stepColor(phase.status)}
+                      variant="outlined"
+                    />
                   </Box>
                 </ButtonBase>
               );
@@ -1513,6 +2331,23 @@ export function TenantOnboardingPanel({
             sx={{
               maxWidth: 960,
               mx: "auto",
+
+              p: {
+                xs: 2,
+                md: 2.5,
+              },
+
+              border: "1px solid",
+              borderColor: "rgba(255, 255, 255, 0.10)",
+
+              borderRadius: 1.5,
+
+              bgcolor: "rgba(48, 55, 63, 0.58)",
+
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
+
+              boxShadow: "0 16px 42px rgba(15, 23, 42, 0.08)",
             }}
           >
             <Box
@@ -1540,7 +2375,7 @@ export function TenantOnboardingPanel({
                     letterSpacing: "0.07em",
                   }}
                 >
-                  Step {activeStep.stepOrder}
+                  Phase {activePhaseIndex + 1}
                 </Typography>
 
                 <Typography
@@ -1558,7 +2393,7 @@ export function TenantOnboardingPanel({
                     letterSpacing: "-0.03em",
                   }}
                 >
-                  {activeVisualName}
+                  {activePhase.label}
                 </Typography>
               </Box>
 
@@ -1573,8 +2408,8 @@ export function TenantOnboardingPanel({
               >
                 <Chip
                   size="small"
-                  label={humanize(activeVisualStatus)}
-                  color={stepColor(activeVisualStatus)}
+                  label={humanize(activePhase.status)}
+                  color={stepColor(activePhase.status)}
                   variant="outlined"
                 />
 
@@ -1592,7 +2427,12 @@ export function TenantOnboardingPanel({
 
             {renderStepContent()}
 
-            {activeStep.stepKey !== "package_selection" ? (
+            {activePhaseKey !== "application_verification" &&
+            activePhaseKey !== "tenant_commercial_setup" &&
+            activePhaseKey !== "administrator_data" &&
+            activePhaseKey !== "launch_readiness" &&
+            activePhaseKey !== "activation_handover" &&
+            activeStep.stepKey !== "package_selection" ? (
               <StepEvidence step={activeStep} />
             ) : null}
           </Box>
@@ -1614,7 +2454,10 @@ export function TenantOnboardingPanel({
 
           py: 1.25,
 
-          bgcolor: "background.paper",
+          bgcolor: "rgba(39, 45, 52, 0.78)",
+
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
 
           borderTop: "1px solid",
           borderColor: "divider",
@@ -1653,23 +2496,28 @@ export function TenantOnboardingPanel({
         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
           <Button
             startIcon={<NavigateBeforeRounded />}
-            disabled={!previousStep || busy}
+            disabled={!previousPhase || busy}
             onClick={() => {
-              if (previousStep) {
-                setSelectedStepOrder(previousStep.stepOrder);
+              if (previousPhase) {
+                const step = phaseEntryStep(previousPhase);
+
+                if (step) {
+                  setSelectedStepOrder(step.stepOrder);
+                }
               }
             }}
           >
             Previous
           </Button>
 
-          {workflow.approvalStatus === "approved" &&
-          !live &&
-          activeStep.stepOrder < 14 ? (
+          {canManageOnboarding &&
+          activePhaseKey === "launch_readiness" &&
+          workflow.approvalStatus === "approved" &&
+          !live ? (
             <Button
               variant="outlined"
               startIcon={<RefreshRounded />}
-              disabled={busy}
+              disabled={busy || !launchReviewConfirmed}
               onClick={() => {
                 reconcileMutation.reset();
 
@@ -1677,8 +2525,8 @@ export function TenantOnboardingPanel({
               }}
             >
               {reconcileMutation.isPending
-                ? "Reconciling..."
-                : "Reconcile verified evidence"}
+                ? "Validating..."
+                : "Run launch validation"}
             </Button>
           ) : null}
         </Stack>
@@ -1690,7 +2538,8 @@ export function TenantOnboardingPanel({
           }}
           spacing={1}
         >
-          {activeStep.stepKey === "verification" &&
+          {canApproveOnboarding &&
+          activePhaseKey === "application_verification" &&
           workflow.approvalStatus === "pending_review" ? (
             <Button
               variant="outlined"
@@ -1710,7 +2559,8 @@ export function TenantOnboardingPanel({
             </Button>
           ) : null}
 
-          {activeStep.stepKey === "verification" &&
+          {canApproveOnboarding &&
+          activePhaseKey === "application_verification" &&
           workflow.approvalStatus !== "approved" ? (
             <Button
               variant="contained"
@@ -1729,7 +2579,8 @@ export function TenantOnboardingPanel({
             </Button>
           ) : null}
 
-          {activeStep.stepKey === "data_migration" &&
+          {canManageOnboarding &&
+          activePhaseKey === "administrator_data" &&
           !live &&
           migrationStep &&
           !stepComplete(migrationStep) ? (
@@ -1755,7 +2606,9 @@ export function TenantOnboardingPanel({
             </Button>
           ) : null}
 
-          {activeStep.stepKey === "activation" && !live ? (
+          {canActivateTenant &&
+          activePhaseKey === "activation_handover" &&
+          !live ? (
             <Button
               variant="contained"
               color="success"
@@ -1769,14 +2622,14 @@ export function TenantOnboardingPanel({
             >
               {activationMutation.isPending
                 ? "Activating..."
-                : "Activate tenant"}
+                : "Activate school"}
             </Button>
           ) : null}
 
           <Button
             variant="contained"
             endIcon={<NavigateNextRounded />}
-            disabled={!nextStep || busy}
+            disabled={!nextPhase || busy}
             onClick={() => {
               /*
                * Navigation only.
@@ -1784,12 +2637,16 @@ export function TenantOnboardingPanel({
                * Deliberately does NOT mutate
                * onboarding evidence.
                */
-              if (nextStep) {
-                setSelectedStepOrder(nextStep.stepOrder);
+              if (nextPhase) {
+                const step = phaseEntryStep(nextPhase);
+
+                if (step) {
+                  setSelectedStepOrder(step.stepOrder);
+                }
               }
             }}
           >
-            Next step
+            Next phase
           </Button>
         </Stack>
       </Box>

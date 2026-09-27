@@ -36,6 +36,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../auth/AuthProvider";
 
+import {
+  FRONTEND_PERMISSIONS,
+  hasFrontendPermission,
+} from "../auth/frontend-permissions";
+
 import { PaginationControls } from "../components/PaginationControls";
 
 import {
@@ -50,6 +55,7 @@ import {
 } from "./vehicles.api";
 
 import { VehicleFormDialog } from "./VehicleFormDialog";
+import { VehicleImportDialog } from "./VehicleImportDialog";
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -102,9 +108,14 @@ function errorMessage(error: unknown): string {
 }
 
 export function VehiclesPage() {
-  const { tenant, activeSchool } = useAuth();
+  const { tenant, activeSchool, permissions } = useAuth();
 
   const queryClient = useQueryClient();
+
+  const canImportVehicles = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.VEHICLES_IMPORT,
+  );
 
   const [search, setSearch] = useState("");
 
@@ -116,6 +127,7 @@ export function VehiclesPage() {
   const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
 
   const [formOpen, setFormOpen] = useState(false);
+  const [vehicleImportOpen, setVehicleImportOpen] = useState(false);
 
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
 
@@ -418,6 +430,15 @@ export function VehiclesPage() {
               borderColor: "rgba(201,165,92,0.22)",
             }}
           />
+
+          {canImportVehicles ? (
+            <Button
+              variant="outlined"
+              onClick={() => setVehicleImportOpen(true)}
+            >
+              Import CSV
+            </Button>
+          ) : null}
 
           <Button
             variant="contained"
@@ -1013,6 +1034,14 @@ export function VehiclesPage() {
       ) : null}
 
       {/* CREATE / EDIT */}
+
+      <VehicleImportDialog
+        open={vehicleImportOpen}
+        tenantId={tenantId ?? ""}
+        schoolId={activeSchool.id}
+        schoolName={activeSchool.name}
+        onClose={() => setVehicleImportOpen(false)}
+      />
 
       <VehicleFormDialog
         key={`${formOpen ? "open" : "closed"}:${editingVehicle?.id ?? "new"}`}

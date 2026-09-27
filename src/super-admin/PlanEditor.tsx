@@ -1,8 +1,4 @@
-import {
-  InfoOutlined,
-  LockRounded,
-  SaveRounded,
-} from "@mui/icons-material";
+import { InfoOutlined, LockRounded, SaveRounded } from "@mui/icons-material";
 
 import {
   Alert,
@@ -10,15 +6,10 @@ import {
   Button,
   Chip,
   CircularProgress,
-  MenuItem,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -37,13 +28,12 @@ import {
   type PlatformPlanFeatureMode,
 } from "./platform.api";
 
-interface FeatureRowProps {
+interface PlanFeatureControlProps {
   plan: PlatformPlanDetail;
-
   feature: PlatformPlanFeature;
 }
 
-function FeatureRow({ plan, feature }: FeatureRowProps) {
+function PlanFeatureControl({ plan, feature }: PlanFeatureControlProps) {
   const queryClient = useQueryClient();
 
   const [mode, setMode] = useState<PlatformPlanFeatureMode>(feature.mode);
@@ -51,8 +41,6 @@ function FeatureRow({ plan, feature }: FeatureRowProps) {
   const [limitValue, setLimitValue] = useState(
     feature.limitValue === null ? "" : String(feature.limitValue),
   );
-
-  const [saved, setSaved] = useState(false);
 
   const safetyLocked =
     feature.isSafetyBaseline && plan.status === "active" && plan.isSellable;
@@ -65,329 +53,204 @@ function FeatureRow({ plan, feature }: FeatureRowProps) {
   const validLimit =
     parsedLimit === null || (Number.isInteger(parsedLimit) && parsedLimit >= 0);
 
-  const requiresLimit = quotaBearing && mode !== "unavailable";
-
-  const changed =
-    mode !== feature.mode ||
-    (quotaBearing &&
-      mode !== "unavailable" &&
-      parsedLimit !== feature.limitValue);
-
-  const canSave =
-    !safetyLocked &&
-    changed &&
-    validLimit &&
-    (!requiresLimit || parsedLimit !== null);
+  const limitChanged = quotaBearing && parsedLimit !== feature.limitValue;
 
   const mutation = useMutation({
-    mutationFn: () => {
-      if (!canSave) {
-        throw new Error("Enter a valid package configuration.");
-      }
-
-      return setPlatformPlanFeature(plan.id, feature.id, {
-        mode,
-
-        ...(quotaBearing && mode !== "unavailable" && parsedLimit !== null
-          ? {
-              limitValue: parsedLimit,
-            }
-          : {}),
-      });
-    },
+    mutationFn: ({
+      nextMode,
+      nextLimit,
+    }: {
+      nextMode: PlatformPlanFeatureMode;
+      nextLimit: number | null;
+    }) =>
+      setPlatformPlanFeature(plan.id, feature.id, {
+        mode: nextMode,
+        ...(nextLimit !== null ? { limitValue: nextLimit } : {}),
+      }),
 
     onSuccess: async (result) => {
+      setMode(result.mode);
+
+      setLimitValue(
+        result.limitValue === null ? "" : String(result.limitValue),
+      );
+
       queryClient.setQueryData<PlatformPlanDetail>(
         ["platform", "plan", plan.id],
-        (current) => {
-          if (!current) {
-            return current;
-          }
-
-          return {
-            ...current,
-
-            features: current.features.map((item) =>
-              item.id === feature.id
-                ? {
-                    ...item,
-
-                    mode: result.mode,
-
-                    limitValue: result.limitValue,
-                  }
-                : item,
-            ),
-          };
-        },
+        (current) =>
+          current
+            ? {
+                ...current,
+                features: current.features.map((item) =>
+                  item.id === feature.id
+                    ? {
+                        ...item,
+                        mode: result.mode,
+                        limitValue: result.limitValue,
+                      }
+                    : item,
+                ),
+              }
+            : current,
       );
 
       await queryClient.invalidateQueries({
         queryKey: ["platform", "plans"],
       });
-
-      setSaved(true);
     },
   });
 
+  function changeMode(nextMode: PlatformPlanFeatureMode | null) {
+    if (!nextMode || safetyLocked || mutation.isPending) {
+      return;
+    }
+
+    setMode(nextMode);
+
+    mutation.mutate({
+      nextMode,
+      nextLimit: validLimit ? parsedLimit : null,
+    });
+  }
+
   return (
-    <TableRow
-      hover
+    <Box
       sx={{
-        bgcolor: feature.isSafetyBaseline
-          ? "rgba(46, 125, 50, 0.06)"
-          : mode === "unavailable"
-            ? "rgba(237, 108, 2, 0.06)"
-            : undefined,
-
-        "&:hover": {
-          bgcolor: feature.isSafetyBaseline
-            ? "rgba(46, 125, 50, 0.10)"
-            : mode === "unavailable"
-              ? "rgba(237, 108, 2, 0.10)"
-              : undefined,
+        py: 1.15,
+        display: "grid",
+        gridTemplateColumns: {
+          xs: "1fr",
+          md: "minmax(0,1fr) auto auto",
         },
-
-        "&:last-child td": {
-          borderBottom: 0,
-        },
+        alignItems: "center",
+        gap: 1.25,
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
       }}
     >
-      <TableCell
-        sx={{
-          width: "42%",
-        }}
-      >
+      <Box sx={{ minWidth: 0 }}>
         <Box
           sx={{
             display: "flex",
-
             alignItems: "center",
-
-            gap: 0.75,
-
-            minWidth: 0,
+            gap: 0.7,
           }}
         >
-          <Box
-            sx={{
-              minWidth: 0,
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
+          <Typography sx={{ fontSize: 11, fontWeight: 800 }}>
+            {mode === "included" ? "✓ " : mode === "addon" ? "+ " : ""}
+            {feature.name}
+          </Typography>
 
-                alignItems: "center",
-
-                gap: 0.6,
-              }}
-            >
-              <Typography
+          {feature.isSafetyBaseline ? (
+            <Tooltip title="Required safety baseline">
+              <LockRounded
                 sx={{
-                  fontSize: 12,
-
-                  fontWeight: 750,
+                  width: 13,
+                  height: 13,
+                  color: "success.main",
                 }}
-              >
-                {feature.name}
-              </Typography>
+              />
+            </Tooltip>
+          ) : null}
 
-              {feature.description ? (
-                <Tooltip title={feature.description} arrow>
-                  <InfoOutlined
-                    sx={{
-                      width: 15,
-
-                      height: 15,
-
-                      color: "text.secondary",
-                    }}
-                  />
-                </Tooltip>
-              ) : null}
-
-              {safetyLocked ? (
-                <Tooltip title="Required safety-baseline feature" arrow>
-                  <LockRounded
-                    sx={{
-                      width: 14,
-
-                      height: 14,
-
-                      color: "success.main",
-                    }}
-                  />
-                </Tooltip>
-              ) : null}
-            </Box>
-
-            <Typography
-              noWrap
-              sx={{
-                mt: 0.15,
-
-                color: "text.secondary",
-
-                fontSize: 9,
-              }}
-            >
-              {feature.key}
-            </Typography>
-          </Box>
+          {feature.description ? (
+            <Tooltip title={feature.description}>
+              <InfoOutlined
+                sx={{
+                  width: 13,
+                  height: 13,
+                  color: "text.secondary",
+                }}
+              />
+            </Tooltip>
+          ) : null}
         </Box>
-      </TableCell>
 
-      <TableCell
-        sx={{
-          width: 110,
-        }}
-      >
-        <Chip
-          size="small"
-          label={feature.category}
-          variant="outlined"
+        <Typography
           sx={{
-            height: 22,
-
-            fontSize: 9,
-
-            textTransform: "capitalize",
-          }}
-        />
-      </TableCell>
-
-      <TableCell
-        sx={{
-          width: 135,
-        }}
-      >
-        <TextField
-          select
-          size="small"
-          value={mode}
-          disabled={safetyLocked || mutation.isPending}
-          onChange={(event) => {
-            setMode(event.target.value as PlatformPlanFeatureMode);
-
-            setSaved(false);
-          }}
-          sx={{
-            width: 125,
-
-            "& .MuiInputBase-root": {
-              height: 32,
-
-              fontSize: 10.5,
-            },
+            mt: 0.2,
+            color: "text.secondary",
+            fontSize: 8.5,
           }}
         >
-          <MenuItem value="included">Included</MenuItem>
+          {feature.category}
+        </Typography>
+      </Box>
 
-          <MenuItem value="addon">Add-on</MenuItem>
-
-          <MenuItem value="unavailable">Unavailable</MenuItem>
-        </TextField>
-      </TableCell>
-
-      <TableCell
-        sx={{
-          width: 100,
-        }}
-      >
-        {quotaBearing ? (
+      {quotaBearing && mode !== "unavailable" ? (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.6,
+          }}
+        >
           <TextField
             size="small"
             type="number"
-            value={mode === "unavailable" ? "" : limitValue}
-            placeholder="—"
-            disabled={
-              safetyLocked || mutation.isPending || mode === "unavailable"
-            }
-            onChange={(event) => {
-              setLimitValue(event.target.value);
-
-              setSaved(false);
-            }}
+            label="Limit"
+            value={limitValue}
+            disabled={mutation.isPending}
+            onChange={(event) => setLimitValue(event.target.value)}
             slotProps={{
               htmlInput: {
                 min: 0,
-
                 step: 1,
-
-                "aria-label": `${feature.name} package limit`,
               },
             }}
+            sx={{ width: 90 }}
           />
-        ) : (
-          <Typography
-            sx={{
-              color: "text.disabled",
 
-              fontSize: 12,
-
-              textAlign: "center",
-            }}
-          >
-            —
-          </Typography>
-        )}
-      </TableCell>
-
-      <TableCell
-        align="right"
-        sx={{
-          width: 85,
-        }}
-      >
-        {safetyLocked ? (
-          <Typography
-            sx={{
-              color: "success.main",
-
-              fontSize: 9,
-
-              fontWeight: 750,
-            }}
-          >
-            Required
-          </Typography>
-        ) : (
           <Button
             size="small"
-            disabled={!canSave || mutation.isPending}
-            onClick={() => {
-              setSaved(false);
-
-              mutation.mutate();
-            }}
-            sx={{
-              minWidth: 58,
-
-              textTransform: "none",
-
-              fontSize: 10,
-            }}
+            disabled={
+              !limitChanged ||
+              !validLimit ||
+              parsedLimit === null ||
+              mutation.isPending
+            }
+            onClick={() =>
+              mutation.mutate({
+                nextMode: mode,
+                nextLimit: parsedLimit,
+              })
+            }
           >
-            {mutation.isPending ? "Saving" : saved ? "Saved" : "Save"}
+            Save
           </Button>
-        )}
+        </Box>
+      ) : (
+        <Box />
+      )}
 
-        {mutation.isError ? (
-          <Typography
-            sx={{
-              mt: 0.3,
+      <ToggleButtonGroup
+        exclusive
+        size="small"
+        value={mode}
+        disabled={safetyLocked || mutation.isPending}
+        onChange={(_, value) =>
+          changeMode(value as PlatformPlanFeatureMode | null)
+        }
+        aria-label={`${feature.name} package access`}
+      >
+        <ToggleButton value="included">Core</ToggleButton>
 
-              color: "error.main",
+        <ToggleButton value="addon">Add-on</ToggleButton>
 
-              fontSize: 8,
-            }}
-          >
-            Error
-          </Typography>
-        ) : null}
-      </TableCell>
-    </TableRow>
+        <ToggleButton value="unavailable">Off</ToggleButton>
+      </ToggleButtonGroup>
+
+      {mutation.isError ? (
+        <Typography
+          sx={{
+            gridColumn: "1 / -1",
+            color: "error.main",
+            fontSize: 8.5,
+          }}
+        >
+          Unable to update feature.
+        </Typography>
+      ) : null}
+    </Box>
   );
 }
 
@@ -395,15 +258,7 @@ interface PlanCapacityDefaultsEditorProps {
   plan: PlatformPlanDetail;
 }
 
-/**
- * Central package-level operating defaults.
- *
- * These numbers define the package starting point used by Sales.
- * Tenant-specific negotiated capacity remains separate.
- */
-function PlanCapacityDefaultsEditor({
-  plan,
-}: PlanCapacityDefaultsEditorProps) {
+function PlanCapacityDefaultsEditor({ plan }: PlanCapacityDefaultsEditorProps) {
   const queryClient = useQueryClient();
 
   const defaults = plan.capacityDefaults;
@@ -467,18 +322,15 @@ function PlanCapacityDefaultsEditor({
         );
       }
 
-      return setPlatformPlanCapacityDefaults(
-        plan.id,
-        {
-          schools: schoolLimit,
+      return setPlatformPlanCapacityDefaults(plan.id, {
+        schools: schoolLimit,
 
-          students: studentLimit,
+        students: studentLimit,
 
-          vehicles: vehicleLimit,
+        vehicles: vehicleLimit,
 
-          drivers: driverLimit,
-        },
-      );
+        drivers: driverLimit,
+      });
     },
 
     onSuccess: (capacityDefaults) => {
@@ -501,15 +353,15 @@ function PlanCapacityDefaultsEditor({
   return (
     <Box
       sx={{
-        mt: 2,
-
-        p: 1.5,
+        p: 1.75,
 
         border: "1px solid",
 
-        borderColor: "divider",
+        borderColor: "rgba(255, 255, 255, 0.09)",
 
-        borderRadius: 2,
+        borderRadius: 2.5,
+
+        bgcolor: "rgba(255, 255, 255, 0.035)",
       }}
     >
       <Box
@@ -545,8 +397,8 @@ function PlanCapacityDefaultsEditor({
               lineHeight: 1.5,
             }}
           >
-            Default operating allowances automatically offered when Sales selects
-            this package.
+            Default operating allowances automatically offered when Sales
+            selects this package.
           </Typography>
         </Box>
 
@@ -633,6 +485,7 @@ function PlanCapacityDefaultsEditor({
             slotProps={{
               htmlInput: {
                 min: 0,
+
                 step: 1,
               },
             }}
@@ -693,9 +546,7 @@ function PlanCapacityDefaultsEditor({
             mutation.mutate();
           }}
         >
-          {mutation.isPending
-            ? "Saving..."
-            : "Save package capacity"}
+          {mutation.isPending ? "Saving..." : "Save package capacity"}
         </Button>
       </Box>
     </Box>
@@ -707,39 +558,57 @@ export function PlanEditor() {
 
   const plansQuery = useQuery({
     queryKey: ["platform", "plans"],
-
     queryFn: listPlatformPlans,
   });
 
   const plans = plansQuery.data ?? [];
 
-  /**
-   * Do not show the internal Demo package in the main commercial
-   * editor. It remains available in the backend for development.
+  /*
+   * Demo remains an internal development package and must not appear
+   * in the customer-facing commercial product catalogue.
    */
   const visiblePlans = plans.filter((plan) => plan.code !== "demo");
 
-  const selectedPlanId = selectedPlanState || visiblePlans[0]?.id || "";
+  const selectedPlanId =
+    selectedPlanState &&
+    visiblePlans.some((plan) => plan.id === selectedPlanState)
+      ? selectedPlanState
+      : (visiblePlans[0]?.id ?? "");
 
   const planQuery = useQuery({
     queryKey: ["platform", "plan", selectedPlanId],
-
     queryFn: () => getPlatformPlan(selectedPlanId),
-
     enabled: selectedPlanId !== "",
+    staleTime: 30_000,
   });
+
+  const selectedPlan = planQuery.data;
+
+  const liveFeatures =
+    selectedPlan?.features.filter(
+      (feature) => feature.releaseStage !== "future",
+    ) ?? [];
+
+  const coreFeatures = liveFeatures.filter(
+    (feature) => feature.mode === "included",
+  );
+
+  const addonFeatures = liveFeatures.filter(
+    (feature) => feature.mode === "addon",
+  );
+
+  const unavailableFeatures = liveFeatures.filter(
+    (feature) => feature.mode === "unavailable",
+  );
+
+  const futureFeatures =
+    selectedPlan?.features.filter(
+      (feature) => feature.releaseStage === "future",
+    ) ?? [];
 
   if (plansQuery.isLoading) {
     return (
-      <Box
-        sx={{
-          minHeight: 280,
-
-          display: "grid",
-
-          placeItems: "center",
-        }}
-      >
+      <Box sx={{ minHeight: 280, display: "grid", placeItems: "center" }}>
         <CircularProgress size={28} />
       </Box>
     );
@@ -755,240 +624,343 @@ export function PlanEditor() {
     );
   }
 
+  if (visiblePlans.length === 0) {
+    return (
+      <Alert severity="warning">
+        No commercial packages are currently available.
+      </Alert>
+    );
+  }
+
   return (
     <Box>
-      {/* ====================================================
-          COMPACT HEADER
-          ==================================================== */}
-
-      <Box
+      <Typography
         sx={{
-          display: "flex",
+          fontSize: 18,
+          fontWeight: 900,
+          letterSpacing: "-0.02em",
+        }}
+      >
+        Commercial Packages
+      </Typography>
 
-          alignItems: {
-            xs: "flex-start",
+      <Typography
+        sx={{
+          mt: 0.35,
+          maxWidth: 700,
+          color: "text.secondary",
+          fontSize: 10.5,
+          lineHeight: 1.6,
+        }}
+      >
+        Select a package to review its included capabilities, capacity and
+        optional features.
+      </Typography>
 
-            md: "center",
+      <ToggleButtonGroup
+        exclusive
+        fullWidth
+        value={selectedPlanId}
+        onChange={(_, value: string | null) => {
+          if (value) {
+            setSelectedPlanState(value);
+          }
+        }}
+        aria-label="Commercial package"
+        sx={{
+          mt: 2,
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "repeat(2, minmax(0, 1fr))",
+            md: `repeat(${visiblePlans.length}, minmax(0, 1fr))`,
           },
-
-          justifyContent: "space-between",
-
-          gap: 2,
-
-          flexDirection: {
-            xs: "column",
-
-            md: "row",
+          gap: 0.75,
+          "& .MuiToggleButtonGroup-grouped": {
+            m: 0,
+            border: "1px solid rgba(255,255,255,0.10) !important",
+            borderRadius: "12px !important",
           },
         }}
       >
-        <Box>
-          <Typography
+        {visiblePlans.map((plan) => (
+          <ToggleButton
+            key={plan.id}
+            value={plan.id}
             sx={{
-              fontSize: 17,
-
-              fontWeight: 850,
-            }}
-          >
-            Plan Editor
-          </Typography>
-
-          <Typography
-            sx={{
-              mt: 0.35,
-
+              py: 1.25,
+              px: 1,
               color: "text.secondary",
-
-              fontSize: 11,
+              fontSize: 10,
+              fontWeight: 850,
+              textTransform: "none",
+              bgcolor: "rgba(255,255,255,0.035)",
+              "&.Mui-selected": {
+                color: "text.primary",
+                bgcolor: "rgba(255,255,255,0.11)",
+              },
             }}
           >
-            Configure which capabilities each commercial package includes.
-          </Typography>
-        </Box>
+            {plan.name}
+          </ToggleButton>
+        ))}
+      </ToggleButtonGroup>
 
-        <TextField
-          select
-          size="small"
-          label="Plan"
-          value={selectedPlanId}
-          onChange={(event) => {
-            setSelectedPlanState(event.target.value);
-          }}
-          sx={{
-            width: {
-              xs: "100%",
-
-              md: 165,
-            },
-
-            "& .MuiInputBase-root": {
-              height: 34,
-
-              fontSize: 11,
-            },
-
-            "& .MuiInputLabel-root": {
-              fontSize: 11,
-            },
-          }}
-        >
-          {visiblePlans.map((plan) => (
-            <MenuItem key={plan.id} value={plan.id}>
-              {plan.name}
-            </MenuItem>
-          ))}
-        </TextField>
-      </Box>
-
-      {/* ====================================================
-          SELECTED PLAN SUMMARY
-          ==================================================== */}
-
-      {planQuery.data ? (
-        <Box
-          sx={{
-            mt: 2,
-
-            display: "flex",
-
-            alignItems: "center",
-
-            justifyContent: "space-between",
-
-            gap: 2,
-          }}
-        >
-          <Box>
-            <Typography
-              sx={{
-                fontSize: 13,
-
-                fontWeight: 800,
-              }}
-            >
-              {planQuery.data.name}
-            </Typography>
-
-            <Typography
-              sx={{
-                mt: 0.25,
-
-                color: "text.secondary",
-
-                fontSize: 9.5,
-              }}
-            >
-              Feature descriptions are available from the information icon.
-            </Typography>
+      <Box
+        sx={{
+          mt: 2.5,
+          pt: 2.25,
+          borderTop: "1px solid rgba(255,255,255,0.10)",
+        }}
+      >
+        {planQuery.isLoading ? (
+          <Box sx={{ minHeight: 240, display: "grid", placeItems: "center" }}>
+            <CircularProgress size={26} />
           </Box>
+        ) : null}
 
-          <Stack direction="row" spacing={1}>
-            <Chip
-              size="small"
-              label={planQuery.data.status}
-              variant="outlined"
-              color={planQuery.data.status === "active" ? "success" : "default"}
-            />
+        {planQuery.isError ? (
+          <Alert severity="error">
+            {planQuery.error instanceof Error
+              ? planQuery.error.message
+              : "Unable to load package"}
+          </Alert>
+        ) : null}
 
-            <Chip
-              size="small"
-              label={planQuery.data.isSellable ? "Sellable" : "Internal"}
-              variant="outlined"
-            />
-          </Stack>
-        </Box>
-      ) : null}
+        {planQuery.data ? (
+          <Stack spacing={1.5}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: {
+                  xs: "flex-start",
+                  sm: "center",
+                },
+                justifyContent: "space-between",
+                flexDirection: {
+                  xs: "column",
+                  sm: "row",
+                },
+                gap: 1,
+              }}
+            >
+              <Box>
+                <Typography sx={{ fontSize: 15, fontWeight: 900 }}>
+                  {planQuery.data.name}
+                </Typography>
 
-      {planQuery.data ? (
-        <PlanCapacityDefaultsEditor
-          key={[
-            planQuery.data.id,
-            planQuery.data.capacityDefaults.updatedAt ?? "unconfigured",
-          ].join(":")}
-          plan={planQuery.data}
-        />
-      ) : null}
+                <Typography
+                  sx={{
+                    mt: 0.2,
+                    color: "text.secondary",
+                    fontSize: 9.5,
+                  }}
+                >
+                  Detailed package configuration
+                </Typography>
+              </Box>
 
-      {/* ====================================================
-          FEATURE TABLE
-          ==================================================== */}
-
-      {planQuery.isLoading ? (
-        <Box
-          sx={{
-            minHeight: 260,
-
-            display: "grid",
-
-            placeItems: "center",
-          }}
-        >
-          <CircularProgress size={26} />
-        </Box>
-      ) : null}
-
-      {planQuery.isError ? (
-        <Alert
-          severity="error"
-          sx={{
-            mt: 2,
-          }}
-        >
-          {planQuery.error instanceof Error
-            ? planQuery.error.message
-            : "Unable to load plan"}
-        </Alert>
-      ) : null}
-
-      {planQuery.data ? (
-        <TableContainer
-          sx={{
-            mt: 1.5,
-
-            border: "1px solid",
-
-            borderColor: "divider",
-
-            borderRadius: 2,
-
-            maxHeight: "calc(100vh - 330px)",
-          }}
-        >
-          <Table size="small" stickyHeader>
-            <TableHead>
-              <TableRow>
-                <TableCell>Feature</TableCell>
-
-                <TableCell>Category</TableCell>
-
-                <TableCell>Access</TableCell>
-
-                <TableCell>Limit</TableCell>
-
-                <TableCell align="right">Action</TableCell>
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-              {planQuery.data.features.map((feature) => (
-                <FeatureRow
-                  key={[
-                    planQuery.data.id,
-
-                    feature.id,
-
-                    feature.mode,
-
-                    feature.limitValue ?? "none",
-                  ].join(":")}
-                  plan={planQuery.data}
-                  feature={feature}
+              <Stack direction="row" spacing={0.7}>
+                <Chip
+                  size="small"
+                  label={planQuery.data.status}
+                  variant="outlined"
+                  color={
+                    planQuery.data.status === "active" ? "success" : "default"
+                  }
                 />
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      ) : null}
+
+                <Chip
+                  size="small"
+                  label={planQuery.data.isSellable ? "Sellable" : "Internal"}
+                  variant="outlined"
+                />
+              </Stack>
+            </Box>
+
+            <PlanCapacityDefaultsEditor
+              key={[
+                planQuery.data.id,
+                planQuery.data.capacityDefaults.updatedAt ?? "unconfigured",
+              ].join(":")}
+              plan={planQuery.data}
+            />
+
+            <Box
+              sx={{
+                border: "1px solid rgba(255,255,255,0.09)",
+                borderRadius: 2.5,
+                overflow: "hidden",
+                bgcolor: "rgba(255,255,255,0.025)",
+              }}
+            >
+              <Box sx={{ px: 1.75, py: 1.35 }}>
+                <Typography
+                  sx={{
+                    fontSize: 11,
+                    fontWeight: 900,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.07em",
+                  }}
+                >
+                  Core
+                </Typography>
+
+                <Typography
+                  sx={{
+                    mt: 0.2,
+                    color: "text.secondary",
+                    fontSize: 8.5,
+                  }}
+                >
+                  Features bundled directly into this package.
+                </Typography>
+
+                <Box sx={{ mt: 0.8 }}>
+                  {coreFeatures.map((feature) => (
+                    <PlanFeatureControl
+                      key={[
+                        selectedPlan!.id,
+                        feature.id,
+                        feature.mode,
+                        feature.limitValue ?? "none",
+                      ].join(":")}
+                      plan={selectedPlan!}
+                      feature={feature}
+                    />
+                  ))}
+                </Box>
+              </Box>
+
+              <Box
+                sx={{
+                  px: 1.75,
+                  py: 1.35,
+                  borderTop: "1px solid rgba(255,255,255,0.09)",
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: 11,
+                    fontWeight: 900,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.07em",
+                  }}
+                >
+                  Add-ons
+                </Typography>
+
+                <Typography
+                  sx={{
+                    mt: 0.2,
+                    color: "text.secondary",
+                    fontSize: 8.5,
+                  }}
+                >
+                  Optional live capabilities that can be bundled, sold
+                  separately or switched off.
+                </Typography>
+
+                <Box sx={{ mt: 0.8 }}>
+                  {[...addonFeatures, ...unavailableFeatures].map((feature) => (
+                    <PlanFeatureControl
+                      key={[
+                        selectedPlan!.id,
+                        feature.id,
+                        feature.mode,
+                        feature.limitValue ?? "none",
+                      ].join(":")}
+                      plan={selectedPlan!}
+                      feature={feature}
+                    />
+                  ))}
+                </Box>
+              </Box>
+
+              <Box
+                sx={{
+                  px: 1.75,
+                  py: 1.35,
+                  borderTop: "1px solid rgba(255,255,255,0.09)",
+                  bgcolor: "rgba(255,255,255,0.02)",
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: 11,
+                    fontWeight: 900,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.07em",
+                  }}
+                >
+                  Future Releases
+                </Typography>
+
+                <Typography
+                  sx={{
+                    mt: 0.2,
+                    color: "text.secondary",
+                    fontSize: 8.5,
+                  }}
+                >
+                  Roadmap capabilities. These cannot yet be enabled for a
+                  customer package.
+                </Typography>
+
+                <Stack spacing={0} sx={{ mt: 0.8 }}>
+                  {futureFeatures.map((feature) => (
+                    <Box
+                      key={feature.id}
+                      sx={{
+                        py: 1.15,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 1,
+                        borderBottom: "1px solid rgba(255,255,255,0.06)",
+                      }}
+                    >
+                      <Box>
+                        <Typography
+                          sx={{
+                            fontSize: 11,
+                            fontWeight: 800,
+                          }}
+                        >
+                          ○ {feature.name}
+                        </Typography>
+
+                        <Typography
+                          sx={{
+                            mt: 0.2,
+                            color: "text.secondary",
+                            fontSize: 8.5,
+                          }}
+                        >
+                          {feature.description}
+                        </Typography>
+                      </Box>
+
+                      <Chip size="small" label="Future" variant="outlined" />
+                    </Box>
+                  ))}
+
+                  {futureFeatures.length === 0 ? (
+                    <Typography
+                      sx={{
+                        py: 1,
+                        color: "text.secondary",
+                        fontSize: 9,
+                      }}
+                    >
+                      No future releases currently listed.
+                    </Typography>
+                  ) : null}
+                </Stack>
+              </Box>
+            </Box>
+          </Stack>
+        ) : null}
+      </Box>
     </Box>
   );
 }

@@ -652,6 +652,8 @@ export interface PlatformPlanFeature {
 
   status: string;
 
+  releaseStage: "live" | "future";
+
   isSafetyBaseline: boolean;
 
   mode: PlatformPlanFeatureMode;
@@ -1279,6 +1281,83 @@ export function activatePlatformOnboarding(
 }
 
 // ============================================================
+// PERMISSION-SCOPED ONBOARDING RESOURCES
+//
+// These routes are deliberately separate from the broader
+// Super Admin commercial control plane.
+// ============================================================
+
+export async function listPlatformOnboardingCommercialPlans(): Promise<
+  PlatformPlanSummary[]
+> {
+  const response = await apiRequest<PlatformPlanListResponse>(
+    "/platform/onboarding/commercial/plans",
+  );
+
+  return response.items;
+}
+
+export function getPlatformOnboardingCommercialPlan(
+  planId: string,
+): Promise<PlatformPlanDetail> {
+  return apiRequest<PlatformPlanDetail>(
+    `/platform/onboarding/commercial/plans/${planId}`,
+  );
+}
+
+export function getPlatformOnboardingTenantCapacity(
+  tenantId: string,
+): Promise<PlatformTenantCapacityState> {
+  return apiRequest<PlatformTenantCapacityState>(
+    `/platform/onboarding/tenants/${tenantId}/commercial/capacity`,
+  );
+}
+
+export async function listPlatformOnboardingTenantFeatureStates(
+  tenantId: string,
+): Promise<PlatformTenantFeatureState[]> {
+  const response = await apiRequest<PlatformTenantFeatureStatesResponse>(
+    `/platform/onboarding/tenants/${tenantId}/commercial/features`,
+  );
+
+  return response.items;
+}
+
+export function applyPlatformOnboardingTenantSalesConfiguration(
+  tenantId: string,
+  input: ApplyPlatformTenantSalesConfigurationInput,
+): Promise<PlatformSalesConfigurationResult> {
+  return apiRequest<PlatformSalesConfigurationResult>(
+    `/platform/onboarding/tenants/${tenantId}/commercial`,
+    {
+      method: "PUT",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function getPlatformOnboardingInitialAdminStatus(
+  tenantId: string,
+): Promise<PlatformTenantOnboardingStatus> {
+  return apiRequest<PlatformTenantOnboardingStatus>(
+    `/platform/onboarding/tenants/${tenantId}/initial-admin`,
+  );
+}
+
+export function createPlatformOnboardingInitialAdmin(
+  tenantId: string,
+  input: CreateInitialTenantAdminInput,
+): Promise<PlatformInitialTenantAdminResult> {
+  return apiRequest<PlatformInitialTenantAdminResult>(
+    `/platform/onboarding/tenants/${tenantId}/initial-admin`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+// ============================================================
 // REVIEWED TENANT SALES CONFIGURATION
 //
 // This is the canonical onboarding commercial transaction for
@@ -1411,6 +1490,32 @@ export interface PlatformAccessRoleCatalogueItem {
   name: string;
 
   description: string | null;
+
+  isSystem: boolean;
+
+  editable: boolean;
+
+  permissionCount: number;
+}
+
+export interface PlatformAccessRoleDetail {
+  key: string;
+
+  name: string;
+
+  description: string | null;
+
+  isSystem: boolean;
+
+  editable: boolean;
+
+  permissionKeys: string[];
+}
+
+export interface PlatformAccessUserPage {
+  items: PlatformAccessUser[];
+
+  total: number;
 }
 
 export interface PlatformPermissionCatalogueItem {
@@ -1485,6 +1590,35 @@ interface PlatformPermissionCatalogueResponse {
   items: PlatformPermissionCatalogueItem[];
 }
 
+export interface ListPlatformAccessUsersInput {
+  search?: string;
+
+  page?: number;
+
+  limit?: number;
+}
+
+export function listPlatformAccessUsers({
+  search = "",
+  page = 1,
+  limit = 12,
+}: ListPlatformAccessUsersInput = {}): Promise<PlatformAccessUserPage> {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+
+  const normalized = search.trim();
+
+  if (normalized) {
+    params.set("q", normalized);
+  }
+
+  return apiRequest<PlatformAccessUserPage>(
+    `/platform/access/users?${params.toString()}`,
+  );
+}
+
 export async function searchPlatformAccessUsers(
   search: string,
 ): Promise<PlatformAccessUser[]> {
@@ -1509,6 +1643,30 @@ export async function listPlatformAccessRoles(): Promise<
   );
 
   return response.items;
+}
+
+export function getPlatformAccessRole(
+  roleKey: string,
+): Promise<PlatformAccessRoleDetail> {
+  return apiRequest<PlatformAccessRoleDetail>(
+    `/platform/access/roles/${encodeURIComponent(roleKey)}`,
+  );
+}
+
+export function replacePlatformRolePermissions(
+  roleKey: string,
+  permissionKeys: string[],
+): Promise<PlatformAccessRoleDetail> {
+  return apiRequest<PlatformAccessRoleDetail>(
+    `/platform/access/roles/${encodeURIComponent(roleKey)}/permissions`,
+    {
+      method: "PUT",
+
+      body: JSON.stringify({
+        permissionKeys,
+      }),
+    },
+  );
 }
 
 export async function listPlatformPermissionCatalogue(): Promise<

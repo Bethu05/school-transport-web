@@ -11,7 +11,7 @@ import {
   SettingsRounded,
 } from "@mui/icons-material";
 
-import { Box, Divider, Paper, Stack, Typography } from "@mui/material";
+import { Box, Button, Divider, Paper, Stack, Typography } from "@mui/material";
 
 import { useNavigate } from "react-router-dom";
 
@@ -147,12 +147,12 @@ export function SuperAdminPage() {
           color: "text.primary",
 
           background:
-            "radial-gradient(circle at 18% 14%, rgba(37, 99, 235, 0.12), transparent 30%), radial-gradient(circle at 82% 20%, rgba(124, 58, 237, 0.10), transparent 32%), linear-gradient(145deg, #050812 0%, #080D1A 45%, #070B14 100%)",
+            "linear-gradient(145deg, #292F36 0%, #242A31 42%, #1E2329 100%)",
 
           display: "grid",
           gridTemplateColumns: {
             xs: "1fr",
-            lg: "216px minmax(0, 1fr) 268px",
+            lg: "204px minmax(0, 1fr) 258px",
           },
         }}
       >
@@ -178,7 +178,7 @@ export function SuperAdminPage() {
             borderRadius: "50%",
 
             background:
-              "radial-gradient(circle, rgba(37, 99, 235, 0.30) 0%, rgba(37, 99, 235, 0.12) 32%, rgba(37, 99, 235, 0) 70%)",
+              "radial-gradient(circle, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.02) 34%, rgba(255, 255, 255, 0) 72%)",
 
             filter: "blur(18px)",
             opacity: 0.75,
@@ -208,7 +208,7 @@ export function SuperAdminPage() {
             borderRadius: "50%",
 
             background:
-              "radial-gradient(circle, rgba(124, 58, 237, 0.28) 0%, rgba(124, 58, 237, 0.10) 34%, rgba(124, 58, 237, 0) 72%)",
+              "radial-gradient(circle, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.014) 36%, rgba(255, 255, 255, 0) 72%)",
 
             filter: "blur(22px)",
             opacity: 0.72,
@@ -238,7 +238,7 @@ export function SuperAdminPage() {
             borderRadius: "50%",
 
             background:
-              "radial-gradient(circle, rgba(6, 182, 212, 0.21) 0%, rgba(6, 182, 212, 0.08) 36%, rgba(6, 182, 212, 0) 72%)",
+              "radial-gradient(circle, rgba(148, 163, 184, 0.08) 0%, rgba(148, 163, 184, 0.025) 36%, rgba(148, 163, 184, 0) 72%)",
 
             filter: "blur(24px)",
             opacity: 0.64,
@@ -356,7 +356,7 @@ export function SuperAdminPage() {
                 : activeSection === "Overview"
                   ? "Monitor school applications, onboarding readiness, live customers, trials and inactive accounts."
                   : activeSection === "Onboarding"
-                    ? "Review applications and move verified schools through the controlled 15-step launch workflow."
+                    ? "Review applications and move verified schools through the controlled five-phase launch workflow."
                     : activeSection === "Schools"
                       ? "Manage live schools, trials, paused subscriptions and deactivated accounts."
                       : activeSection === "Platform Access"
@@ -364,6 +364,81 @@ export function SuperAdminPage() {
                         : "Manage plans and platform administration."}
             </Typography>
           </Box>
+
+          {activeSection !== "Platform Access" ? (
+            <Stack
+              data-super-admin-quick-actions
+              direction="row"
+              spacing={0.75}
+              useFlexGap
+              sx={{
+                mt: 1.5,
+                flexWrap: "wrap",
+              }}
+            >
+              <Button
+                size="small"
+                variant={
+                  activeSection === "Onboarding" ? "contained" : "outlined"
+                }
+                onClick={() => {
+                  setActiveSection("Onboarding");
+                  setManagingTenant(null);
+                }}
+                sx={{
+                  minHeight: 34,
+                  px: 1.5,
+                  textTransform: "none",
+                  fontWeight: 800,
+                  bgcolor:
+                    activeSection === "Onboarding"
+                      ? undefined
+                      : "rgba(255, 255, 255, 0.045)",
+                }}
+              >
+                School applications
+              </Button>
+
+              <Button
+                size="small"
+                variant={activeSection === "Schools" ? "contained" : "outlined"}
+                onClick={() => {
+                  setActiveSection("Schools");
+                  setManagingTenant(null);
+                }}
+                sx={{
+                  minHeight: 34,
+                  px: 1.5,
+                  textTransform: "none",
+                  fontWeight: 800,
+                  bgcolor:
+                    activeSection === "Schools"
+                      ? undefined
+                      : "rgba(255, 255, 255, 0.045)",
+                }}
+              >
+                Manage schools
+              </Button>
+
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => {
+                  setActiveSection("Platform Access");
+                  setManagingTenant(null);
+                }}
+                sx={{
+                  minHeight: 34,
+                  px: 1.5,
+                  textTransform: "none",
+                  fontWeight: 800,
+                  bgcolor: "rgba(255, 255, 255, 0.045)",
+                }}
+              >
+                Platform users
+              </Button>
+            </Stack>
+          ) : null}
 
           <Paper
             elevation={0}
@@ -397,14 +472,17 @@ export function SuperAdminPage() {
               },
 
               border: "1px solid",
-              borderColor: "rgba(148, 163, 184, 0.16)",
+              borderColor: "rgba(255, 255, 255, 0.085)",
 
-              bgcolor: "rgba(9, 15, 30, 0.48)",
+              borderRadius: 1.25,
 
-              backdropFilter: "blur(22px) saturate(135%)",
-              WebkitBackdropFilter: "blur(22px) saturate(135%)",
+              bgcolor: "rgba(42, 48, 55, 0.66)",
 
-              boxShadow: "0 24px 70px rgba(0, 0, 0, 0.18)",
+              backdropFilter: "blur(20px) saturate(120%)",
+              WebkitBackdropFilter: "blur(20px) saturate(120%)",
+
+              boxShadow:
+                "0 22px 52px rgba(0, 0, 0, 0.22), 0 1px 0 rgba(255, 255, 255, 0.035) inset",
 
               p:
                 activeSection === "Platform Access"
@@ -510,12 +588,12 @@ export function SuperAdminPage() {
             zIndex: 1,
 
             borderLeft: "1px solid",
-            borderColor: "rgba(148, 163, 184, 0.14)",
+            borderColor: "rgba(255, 255, 255, 0.075)",
 
-            bgcolor: "rgba(5, 9, 20, 0.62)",
+            bgcolor: "rgba(30, 35, 41, 0.72)",
 
-            backdropFilter: "blur(24px) saturate(130%)",
-            WebkitBackdropFilter: "blur(24px) saturate(130%)",
+            backdropFilter: "blur(20px) saturate(120%)",
+            WebkitBackdropFilter: "blur(20px) saturate(120%)",
 
             p: 2.25,
           }}

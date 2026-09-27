@@ -93,11 +93,11 @@ check(
 );
 
 const cardSelections =
-  page.match(/selectTrackedVehicle\(\s*vehicle\.id\s*\)/g) ?? [];
+  page.match(/selectTrackedVehicle\(\s*trip\.vehicleId\s*\)/g) ?? [];
 
 check(
   cardSelections.length >= 2,
-  "mouse and keyboard vehicle-card selection use the same focus behavior",
+  "mouse and keyboard active-trip selection use the same focus behavior",
 );
 
 // Existing fleet-fit behavior must remain for initial load.

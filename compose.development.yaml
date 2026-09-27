@@ -1,0 +1,47 @@
+# ==============================================================
+# SCHOOL TRANSPORT WEB — LOCAL DEVELOPMENT / DOCKER PROOF
+#
+# Browser:
+#   http://localhost:5173
+#
+# Container:
+#   nginx listens internally on 8080
+#
+# Vite variables are compiled into the bundle at BUILD TIME.
+# ==============================================================
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.deploy
+
+      args:
+        VITE_API_URL: ${VITE_API_URL:?Set VITE_API_URL}
+        VITE_REALTIME_URL: ${VITE_REALTIME_URL:-http://localhost:3002}
+
+        VITE_MAPBOX_ACCESS_TOKEN: ${VITE_MAPBOX_ACCESS_TOKEN:?Set VITE_MAPBOX_ACCESS_TOKEN}
+        VITE_MAPBOX_STYLE: ${VITE_MAPBOX_STYLE:-mapbox://styles/mapbox/streets-v12}
+
+        # Local frontend is allowed to call localhost backend services.
+        ALLOW_LOCAL_URLS: "true"
+
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:8080:8080"
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-q",
+          "-O",
+          "/dev/null",
+          "http://127.0.0.1:8080/"
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

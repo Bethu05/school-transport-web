@@ -22,6 +22,27 @@ export interface DriverAssignedTrip {
   stopCount: number;
 }
 
+export type DriverTripStartAuthorizationStatus =
+  "pending" | "approved" | "rejected" | "consumed";
+
+export interface DriverTripStartAuthorization {
+  id: string;
+  tenantId: string;
+  tripId: string;
+  requestedByUserId: string;
+  requestedAt: string;
+  scheduledStartAtSnapshot: string;
+  reasonCode: string;
+  reasonText: string | null;
+  status: DriverTripStartAuthorizationStatus;
+  decidedByUserId: string | null;
+  decidedAt: string | null;
+  authorityType: "transport_manager" | "onboard_chaperone" | null;
+  actualStartAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export function getMyAssignedTrip(
   tenantId: string,
 ): Promise<DriverAssignedTrip | null> {
@@ -35,6 +56,32 @@ export function beginMyBoarding(tenantId: string): Promise<DriverAssignedTrip> {
     method: "POST",
     tenantId,
   });
+}
+
+export function getMyStartAuthorization(
+  tenantId: string,
+): Promise<DriverTripStartAuthorization | null> {
+  return apiRequest<DriverTripStartAuthorization | null>(
+    "/me/driver/trip/start-authorization",
+    {
+      tenantId,
+    },
+  );
+}
+
+export function requestMyStartAuthorization(
+  tenantId: string,
+): Promise<DriverTripStartAuthorization> {
+  return apiRequest<DriverTripStartAuthorization>(
+    "/me/driver/trip/start-authorization/request",
+    {
+      method: "POST",
+      tenantId,
+      body: JSON.stringify({
+        reasonCode: "ready_to_depart",
+      }),
+    },
+  );
 }
 
 export function startMyTrip(tenantId: string): Promise<DriverAssignedTrip> {

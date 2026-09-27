@@ -14,7 +14,7 @@ function check(condition, message) {
   console.log(`✓ ${message}`);
 }
 
-check(map.includes("GeoJSONSource"), "MapLibre uses dynamic GeoJSON sources");
+check(map.includes("GeoJSONSource"), "Mapbox uses dynamic GeoJSON sources");
 
 check(
   map.includes("tracking-live-trails"),

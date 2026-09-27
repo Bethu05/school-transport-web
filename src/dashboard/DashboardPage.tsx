@@ -6,6 +6,8 @@ import { GuardianDashboard } from "./guardian/GuardianDashboard";
 
 import { OperationsDashboard } from "./operations/OperationsDashboard";
 
+import { StaffDashboard } from "./staff/StaffDashboard";
+
 /**
  * Dashboard router.
  *
@@ -28,6 +30,9 @@ export function DashboardPage() {
 
     case "transport_manager":
       return <OperationsDashboard managerMode />;
+
+    case "staff":
+      return <StaffDashboard />;
 
     case "owner":
 

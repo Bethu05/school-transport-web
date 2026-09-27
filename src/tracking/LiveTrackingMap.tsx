@@ -7,34 +7,37 @@ import { MapRounded } from "@mui/icons-material";
 import {
   LngLatBounds,
   type GeoJSONSource,
-  Map as MapLibreMap,
+  Map as MapboxMap,
   Marker,
   NavigationControl,
   Popup,
-  setWorkerUrl,
-} from "maplibre-gl";
+} from "mapbox-gl";
 
 import type { FeatureCollection, LineString } from "geojson";
 
-import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-
-import "maplibre-gl/dist/maplibre-gl.css";
+import "mapbox-gl/dist/mapbox-gl.css";
 import "./live-tracking-map.css";
 
 /**
- * MapLibre v6 + Vite:
+ * Mapbox is configured entirely from Vite build-time environment
+ * variables.
  *
- * The worker must be passed through Vite's worker pipeline.
- * Using ?worker&url produces a self-contained production worker.
+ * The browser token must be a public Mapbox token. Never expose
+ * an sk.* secret token through VITE_* configuration.
  */
-setWorkerUrl(workerUrl);
+const MAPBOX_ACCESS_TOKEN =
+  import.meta.env.VITE_MAPBOX_ACCESS_TOKEN?.trim() ?? "";
 
-const OPEN_FREE_MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
+const MAPBOX_STYLE =
+  import.meta.env.VITE_MAPBOX_STYLE?.trim() ||
+  "mapbox://styles/mapbox/streets-v12";
 
 export interface LiveMapMarker {
   key: string;
 
   kind?: "vehicle" | "stop";
+
+  emphasis?: "next-stop" | "completed-stop" | "upcoming-stop";
 
   label: string;
 
@@ -114,7 +117,7 @@ interface LiveTrackingMapProps {
 
   onMarkerClick?: (markerKey: string) => void;
 
-  height?: number;
+  height?: number | string;
 }
 
 const TRACKING_PLANNED_ROUTE_SOURCE = "tracking-planned-route";
@@ -346,6 +349,21 @@ function createStopElement(marker: LiveMapMarker): HTMLDivElement {
 
   element.className = "tracking-map-stop";
 
+  element.classList.toggle(
+    "tracking-map-stop--next",
+    marker.emphasis === "next-stop",
+  );
+
+  element.classList.toggle(
+    "tracking-map-stop--completed",
+    marker.emphasis === "completed-stop",
+  );
+
+  element.classList.toggle(
+    "tracking-map-stop--upcoming",
+    marker.emphasis === "upcoming-stop",
+  );
+
   const pin = document.createElement("div");
 
   pin.className = "tracking-map-stop__pin";
@@ -519,7 +537,7 @@ export function LiveTrackingMap({
 }: LiveTrackingMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const mapRef = useRef<MapLibreMap | null>(null);
+  const mapRef = useRef<MapboxMap | null>(null);
 
   const markerRefs = useRef<Map<string, Marker>>(new Map());
 
@@ -533,6 +551,8 @@ export function LiveTrackingMap({
 
   const lastMarkerKeySignatureRef = useRef("");
 
+  const lastPlannedRouteKeyRef = useRef<string | null>(null);
+
   /**
    * Prevent ordinary GPS position updates from repeatedly
    * re-focusing the selected vehicle.
@@ -545,24 +565,26 @@ export function LiveTrackingMap({
   const [mapReady, setMapReady] = useState(false);
 
   // ==========================================================
-  // INITIALISE MAPLIBRE ONCE
+  // INITIALISE MAPBOX ONCE
   // ==========================================================
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) {
+    if (!containerRef.current || mapRef.current || !MAPBOX_ACCESS_TOKEN) {
       return;
     }
 
-    const map = new MapLibreMap({
+    const map = new MapboxMap({
+      accessToken: MAPBOX_ACCESS_TOKEN,
+
       container: containerRef.current,
 
-      style: OPEN_FREE_MAP_STYLE,
+      style: MAPBOX_STYLE,
 
       center: [0, 0],
 
       zoom: 2,
 
-      attributionControl: {},
+      attributionControl: true,
 
       pitchWithRotate: false,
 
@@ -927,6 +949,64 @@ export function LiveTrackingMap({
     );
   }, [plannedRoute, remainingRoute, trails, connections, mapReady]);
 
+  /**
+   * An in-progress trip may exist before its GPS device has sent
+   * the first packet.
+   *
+   * In that state the canonical route is still useful operational
+   * information, so fit the camera to the route without requiring
+   * a vehicle marker.
+   */
+  useEffect(() => {
+    const map = mapRef.current;
+
+    if (!map || !mapReady) {
+      return;
+    }
+
+    if (markers.some((marker) => marker.kind !== "stop")) {
+      lastPlannedRouteKeyRef.current = null;
+
+      return;
+    }
+
+    if (!plannedRoute || plannedRoute.coordinates.length < 2) {
+      return;
+    }
+
+    const firstCoordinate = plannedRoute.coordinates[0];
+
+    const lastCoordinate =
+      plannedRoute.coordinates[plannedRoute.coordinates.length - 1];
+
+    const routeSignature = [
+      plannedRoute.key,
+      plannedRoute.coordinates.length,
+      firstCoordinate[0],
+      firstCoordinate[1],
+      lastCoordinate[0],
+      lastCoordinate[1],
+    ].join(":");
+
+    if (lastPlannedRouteKeyRef.current === routeSignature) {
+      return;
+    }
+
+    lastPlannedRouteKeyRef.current = routeSignature;
+
+    const bounds = new LngLatBounds();
+
+    for (const coordinate of plannedRoute.coordinates) {
+      bounds.extend(coordinate);
+    }
+
+    map.fitBounds(bounds, {
+      padding: 60,
+      maxZoom: 15,
+      duration: 700,
+    });
+  }, [mapReady, markers.length, plannedRoute]);
+
   // ==========================================================
   // CREATE / UPDATE LIVE MARKERS
   // ==========================================================
@@ -971,6 +1051,21 @@ export function LiveTrackingMap({
 
       if (existingMarker) {
         const element = existingMarker.getElement();
+
+        element.classList.toggle(
+          "tracking-map-stop--next",
+          marker.kind === "stop" && marker.emphasis === "next-stop",
+        );
+
+        element.classList.toggle(
+          "tracking-map-stop--completed",
+          marker.kind === "stop" && marker.emphasis === "completed-stop",
+        );
+
+        element.classList.toggle(
+          "tracking-map-stop--upcoming",
+          marker.kind === "stop" && marker.emphasis === "upcoming-stop",
+        );
 
         element.classList.toggle(
           "tracking-map-vehicle--selected",
@@ -1129,7 +1224,9 @@ export function LiveTrackingMap({
     // recenter or zoom the operator's map.
     // --------------------------------------------------------
 
-    const keySignature = markers
+    const fleetMarkers = markers.filter((marker) => marker.kind !== "stop");
+
+    const keySignature = fleetMarkers
       .map((marker) => marker.key)
       .sort()
       .join("|");
@@ -1140,13 +1237,13 @@ export function LiveTrackingMap({
 
     lastMarkerKeySignatureRef.current = keySignature;
 
-    if (markers.length === 0) {
+    if (fleetMarkers.length === 0) {
       return;
     }
 
-    if (markers.length === 1) {
+    if (fleetMarkers.length === 1) {
       map.easeTo({
-        center: [markers[0].longitude, markers[0].latitude],
+        center: [fleetMarkers[0].longitude, fleetMarkers[0].latitude],
 
         zoom: 15,
 
@@ -1158,7 +1255,7 @@ export function LiveTrackingMap({
 
     const bounds = new LngLatBounds();
 
-    for (const marker of markers) {
+    for (const marker of fleetMarkers) {
       bounds.extend([marker.longitude, marker.latitude]);
     }
 
@@ -1175,39 +1272,90 @@ export function LiveTrackingMap({
     );
   }, [markers, mapReady, selectedMarkerKey, focusMarkerKey, followMarkerKey]);
 
-  if (markers.length === 0) {
+  if (!MAPBOX_ACCESS_TOKEN) {
     return (
       <Paper
-        elevation={0}
+        variant="outlined"
         sx={{
-          p: 4,
-
-          textAlign: "center",
-
-          border: "1px solid",
-
-          borderColor: "divider",
+          p: 3,
+          minHeight: height,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: 3,
         }}
       >
-        <MapRounded
-          sx={{
-            fontSize: 40,
+        <Box sx={{ textAlign: "center", maxWidth: 520 }}>
+          <MapRounded
+            sx={{
+              fontSize: 42,
+              color: "text.secondary",
+              mb: 1,
+            }}
+          />
 
-            color: "text.secondary",
-          }}
-        />
+          <Typography variant="h6" sx={{ fontWeight: 800 }}>
+            Mapbox is not configured
+          </Typography>
 
-        <Typography
-          sx={{
-            mt: 1,
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Configure VITE_MAPBOX_ACCESS_TOKEN and rebuild the web application.
+          </Typography>
+        </Box>
+      </Paper>
+    );
+  }
 
-            color: "text.secondary",
+  if (markers.length === 0 && !plannedRoute) {
+    return (
+      <Paper
+        data-tracking-map-waiting
+        elevation={0}
+        sx={{
+          height: "100%",
+          minHeight: 0,
+          width: "100%",
+          p: 4,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 0,
+          boxSizing: "border-box",
+        }}
+      >
+        <Box>
+          <MapRounded
+            sx={{
+              fontSize: 40,
+              color: "text.secondary",
+            }}
+          />
 
-            fontSize: 12.5,
-          }}
-        >
-          Waiting for GPS coordinates before displaying the map.
-        </Typography>
+          <Typography
+            sx={{
+              mt: 1,
+              color: "text.secondary",
+              fontSize: 12.5,
+              fontWeight: 700,
+            }}
+          >
+            Waiting for active route or GPS signal.
+          </Typography>
+
+          <Typography
+            sx={{
+              mt: 0.5,
+              color: "text.secondary",
+              fontSize: 10.5,
+            }}
+          >
+            The map will open automatically when operational tracking data is
+            available.
+          </Typography>
+        </Box>
       </Paper>
     );
   }
@@ -1224,16 +1372,77 @@ export function LiveTrackingMap({
 
         borderColor: "divider",
 
-        borderRadius: 2.5,
+        borderRadius: 0,
+        height,
+        minHeight: 0,
       }}
     >
       <Box
         ref={containerRef}
         className="tracking-map"
         sx={{
-          height,
+          height: "100%",
+          minHeight: 0,
         }}
       />
+
+      {markers.length === 0 && !plannedRoute ? (
+        <Box
+          data-tracking-map-empty-state
+          sx={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 2,
+            display: "grid",
+            placeItems: "center",
+            px: 2,
+            pointerEvents: "none",
+          }}
+        >
+          <Box
+            sx={{
+              px: 2.25,
+              py: 1.75,
+              maxWidth: 380,
+              textAlign: "center",
+              bgcolor: "rgba(255, 255, 255, 0.82)",
+              backdropFilter: "blur(10px)",
+              border: "1px solid rgba(15, 23, 42, 0.08)",
+              borderRadius: "2px",
+              boxShadow:
+                "0 14px 34px rgba(15, 23, 42, 0.14), 0 3px 8px rgba(15, 23, 42, 0.06)",
+            }}
+          >
+            <MapRounded
+              sx={{
+                fontSize: 32,
+                color: "text.secondary",
+              }}
+            />
+
+            <Typography
+              sx={{
+                mt: 0.65,
+                fontWeight: 800,
+                fontSize: 12.5,
+              }}
+            >
+              No active journey on the map
+            </Typography>
+
+            <Typography
+              sx={{
+                mt: 0.35,
+                color: "text.secondary",
+                fontSize: 10.5,
+              }}
+            >
+              Routes and vehicles will appear automatically when a journey
+              becomes active.
+            </Typography>
+          </Box>
+        </Box>
+      ) : null}
     </Paper>
   );
 }

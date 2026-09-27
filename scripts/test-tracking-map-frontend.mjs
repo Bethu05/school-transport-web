@@ -21,15 +21,20 @@ console.log();
 console.log("Tracking map frontend checkpoint");
 console.log("--------------------------------");
 
-check(/from\s+["']maplibre-gl["']/.test(map), "MapLibre map engine wired");
+check(/from\s+["']mapbox-gl["']/.test(map), "Mapbox map engine wired");
 
-check(map.includes("tiles.openfreemap.org"), "OpenFreeMap vector style wired");
+check(
+  map.includes("VITE_MAPBOX_STYLE") &&
+    map.includes("mapbox://styles/mapbox/streets-v12") &&
+    map.includes("style: MAPBOX_STYLE"),
+  "Mapbox Streets vector style wired",
+);
 
 check(map.includes("fitBounds"), "map automatically fits multiple vehicles");
 
 check(
   map.includes("easeTo"),
-  "single/select/follow camera uses MapLibre movement",
+  "single/select/follow camera uses Mapbox movement",
 );
 
 check(map.includes("accuracyMeters"), "GPS accuracy data supported");
@@ -66,10 +71,7 @@ check(
   "Guardian map derives only authorised active trips",
 );
 
-check(
-  css.includes(".tracking-map-vehicle"),
-  "live bus marker styling present",
-);
+check(css.includes(".tracking-map-vehicle"), "live bus marker styling present");
 
 console.log();
 console.log("Tracking map frontend checkpoint PASSED");

@@ -1,76 +1,83 @@
 import { readFileSync } from "node:fs";
 
-function read(path) {
-  return readFileSync(path, "utf8");
-}
+const source = readFileSync(
+  "src/super-admin/PlanEditor.tsx",
+  "utf8",
+);
 
 function check(condition, label) {
   if (!condition) {
     console.error(`✗ ${label}`);
-
     process.exitCode = 1;
-
     return;
   }
 
   console.log(`✓ ${label}`);
 }
 
-const api = read("src/super-admin/platform.api.ts");
-
-const editor = read("src/super-admin/PlanEditor.tsx");
-
-const page = read("src/super-admin/SuperAdminPage.tsx");
-
-console.log("Platform Plan Editor frontend checkpoint");
-
-console.log("---------------------------------------");
-
-check(api.includes("getPlatformPlan"), "plan detail API is wired");
-
-check(api.includes("setPlatformPlanFeature"), "plan mutation API is wired");
+console.log("Platform Plans product workspace");
+console.log("--------------------------------");
 
 check(
-  editor.includes('label="Plan"'),
-  "commercial plan is selected from a compact dropdown",
+  source.includes("<ToggleButtonGroup") &&
+    source.includes("visiblePlans.map"),
+  "plans use the top package selector",
 );
 
 check(
-  editor.includes("<Table") && editor.includes("<TableRow"),
-  "features render in a compact table instead of individual cards",
+  !source.includes('label="Plan"'),
+  "old plan dropdown is removed",
 );
 
 check(
-  editor.includes('"included"') &&
-    editor.includes('"addon"') &&
-    editor.includes('"unavailable"'),
-  "feature mode dropdown supports all commercial states",
+  source.includes("PlanCapacityDefaultsEditor") &&
+    source.includes('"Schools"') &&
+    source.includes('"Students"') &&
+    source.includes('"Buses"') &&
+    source.includes('"Drivers"'),
+  "package card exposes all capacities",
 );
 
 check(
-  editor.includes("limitValue"),
-  "numeric package allowances remain editable",
+  source.includes("Core") &&
+    source.includes("Add-ons") &&
+    source.includes("Future Releases"),
+  "features are grouped into commercial sections",
 );
 
 check(
-  editor.includes("feature.description") && editor.includes("<Tooltip"),
-  "existing feature descriptions are available without cluttering the page",
+  source.includes('value="included"') &&
+    source.includes('value="addon"') &&
+    source.includes('value="unavailable"'),
+  "feature control supports Core, Add-on and Off",
 );
 
 check(
-  editor.includes("safetyLocked") && editor.includes("Required"),
-  "safety baseline remains protected",
+  source.includes("safetyLocked") &&
+    source.includes("feature.isSafetyBaseline"),
+  "safety baseline remains locked",
 );
 
 check(
-  page.includes("<PlanEditor />"),
-  "Plan Editor remains mounted in Platform Administration",
+  source.includes('feature.releaseStage === "future"'),
+  "future releases use backend roadmap metadata",
+);
+
+check(
+  source.includes("setPlatformPlanFeature"),
+  "feature controls persist through the platform API",
+);
+
+check(
+  !source.includes("<TableContainer"),
+  "old feature table has been removed",
 );
 
 if (process.exitCode) {
+  console.error();
+  console.error("Checkpoint 3 FAILED");
   process.exit(process.exitCode);
 }
 
 console.log();
-
-console.log("Platform Plan Editor frontend checkpoint PASSED");
+console.log("Checkpoint 3 PASSED");
