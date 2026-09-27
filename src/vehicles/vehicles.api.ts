@@ -159,3 +159,45 @@ export function retireVehicle(
     tenantId,
   });
 }
+
+export interface ImportVehicleRowInput {
+  registrationNumber: string;
+  fleetNumber?: string;
+  make?: string;
+  model?: string;
+  manufactureYear?: number;
+  seatCapacity: number;
+  gpsDeviceId?: string;
+  status?: VehicleStatus;
+}
+
+export interface ImportVehiclesInput {
+  schoolId: string;
+  rows: ImportVehicleRowInput[];
+}
+
+export interface ImportVehicleRowResult {
+  rowNumber: number;
+  registrationNumber: string;
+  status: "imported" | "rejected";
+  vehicleId?: string;
+  message?: string;
+}
+
+export interface ImportVehiclesResult {
+  total: number;
+  imported: number;
+  rejected: number;
+  results: ImportVehicleRowResult[];
+}
+
+export function importVehicles(
+  tenantId: string,
+  input: ImportVehiclesInput,
+): Promise<ImportVehiclesResult> {
+  return apiRequest<ImportVehiclesResult>("/vehicles/import", {
+    method: "POST",
+    tenantId,
+    body: JSON.stringify(input),
+  });
+}

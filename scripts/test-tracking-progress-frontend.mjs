@@ -71,8 +71,10 @@ check(
 );
 
 check(
-  operational.includes("<TrackingProgressPanel"),
-  "Operations ETA panel connected",
+  operational.includes("selectedNextStop") &&
+    operational.includes("formatCompactEta") &&
+    operational.includes("etaSeconds"),
+  "Operations compact ETA display connected",
 );
 
 check(

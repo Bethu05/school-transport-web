@@ -104,7 +104,11 @@ function MetricCard({
 
           p: 1.4,
 
-          borderRadius: 1.75,
+          borderRadius: 1.25,
+
+          bgcolor: "rgba(48, 55, 63, 0.58)",
+
+          boxShadow: "0 10px 28px rgba(0, 0, 0, 0.18)",
 
           transition:
             "border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease",
@@ -397,7 +401,9 @@ export function SuperAdminOverview({
         sx={{
           p: 2.25,
 
-          borderRadius: 2,
+          borderRadius: 1.25,
+
+          bgcolor: "rgba(48, 55, 63, 0.54)",
         }}
       >
         <Typography

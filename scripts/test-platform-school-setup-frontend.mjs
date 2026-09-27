@@ -53,7 +53,7 @@ check(
 
 check(
   onboarding.includes("School applications") &&
-    onboarding.includes("15-step onboarding") &&
+    onboarding.includes("5-phase onboarding") &&
     onboarding.includes("<TenantOnboardingPanel"),
   "Super Admin keeps one canonical two-stage onboarding workspace",
 );

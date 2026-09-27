@@ -258,3 +258,40 @@ export function deactivateGuardian(
     tenantId,
   });
 }
+
+export interface ImportGuardianRowInput {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+}
+
+export interface ImportGuardiansInput {
+  rows: ImportGuardianRowInput[];
+}
+
+export interface ImportGuardianRowResult {
+  rowNumber: number;
+  email: string;
+  status: "imported" | "rejected";
+  guardianId?: string;
+  message?: string;
+}
+
+export interface ImportGuardiansResult {
+  total: number;
+  imported: number;
+  rejected: number;
+  results: ImportGuardianRowResult[];
+}
+
+export function importGuardians(
+  tenantId: string,
+  input: ImportGuardiansInput,
+): Promise<ImportGuardiansResult> {
+  return apiRequest<ImportGuardiansResult>("/guardians/import", {
+    method: "POST",
+    tenantId,
+    body: JSON.stringify(input),
+  });
+}

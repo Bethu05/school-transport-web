@@ -46,6 +46,8 @@ import { ChangeUserRoleDialog } from "./ChangeUserRoleDialog";
 
 import { CreateUserDialog } from "./CreateUserDialog";
 
+import { TransportManagerImportDialog } from "./TransportManagerImportDialog";
+
 import { ResetUserPasswordDialog } from "./ResetUserPasswordDialog";
 
 import { UserAccessDialog, type UserAccessAction } from "./UserAccessDialog";
@@ -139,6 +141,11 @@ export function UsersAccessPage() {
     FRONTEND_PERMISSIONS.USERS_CREATE,
   );
 
+  const canImportTransportManagers = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.USERS_IMPORT_TRANSPORT_MANAGERS,
+  );
+
   const canUpdateRole = hasFrontendPermission(
     permissions,
     FRONTEND_PERMISSIONS.USERS_UPDATE_ROLE,
@@ -160,6 +167,9 @@ export function UsersAccessPage() {
   );
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+
+  const [transportManagerImportOpen, setTransportManagerImportOpen] =
+    useState(false);
 
   const [resetUser, setResetUser] = useState<TenantUser | null>(null);
 
@@ -406,23 +416,40 @@ export function UsersAccessPage() {
           </Typography>
         </Box>
 
-        {canCreate ? (
-          <Button
-            variant="contained"
-            startIcon={<AddRounded />}
-            onClick={() => setCreateDialogOpen(true)}
-          >
-            Add user
-          </Button>
-        ) : (
-          <ManageAccountsRounded
-            sx={{
-              fontSize: 40,
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1.25,
+          }}
+        >
+          {canImportTransportManagers ? (
+            <Button
+              variant="outlined"
+              onClick={() => setTransportManagerImportOpen(true)}
+            >
+              Import Transport Managers
+            </Button>
+          ) : null}
 
-              color: "primary.main",
-            }}
-          />
-        )}
+          {canCreate ? (
+            <Button
+              variant="contained"
+              startIcon={<AddRounded />}
+              onClick={() => setCreateDialogOpen(true)}
+            >
+              Add user
+            </Button>
+          ) : !canImportTransportManagers ? (
+            <ManageAccountsRounded
+              sx={{
+                fontSize: 40,
+
+                color: "primary.main",
+              }}
+            />
+          ) : null}
+        </Box>
       </Box>
 
       <Alert
@@ -771,6 +798,12 @@ export function UsersAccessPage() {
           </MenuItem>
         ) : null}
       </Menu>
+
+      <TransportManagerImportDialog
+        open={transportManagerImportOpen}
+        tenantId={tenantId}
+        onClose={() => setTransportManagerImportOpen(false)}
+      />
 
       <CreateUserDialog
         open={createDialogOpen}

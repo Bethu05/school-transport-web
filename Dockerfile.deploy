@@ -7,8 +7,12 @@ COPY . .
 
 ARG VITE_API_URL
 ARG VITE_REALTIME_URL
+ARG VITE_MAPBOX_ACCESS_TOKEN
+ARG VITE_MAPBOX_STYLE=mapbox://styles/mapbox/streets-v12
 ARG ALLOW_LOCAL_URLS=false
-RUN test -n "$VITE_API_URL" && test -n "$VITE_REALTIME_URL" \
+RUN test -n "$VITE_API_URL" \
+    && test -n "$VITE_REALTIME_URL" \
+    && test -n "$VITE_MAPBOX_ACCESS_TOKEN" \
     && npm run build \
     && { [ "$ALLOW_LOCAL_URLS" = "true" ] || ! grep -R -l -E 'http://(localhost|127\.0\.0\.1):300[02]' dist; } \
     && ! grep -R -l -E 'VITE_DEV_PASSWORD|assistant\.platform\.admin@example\.test' dist

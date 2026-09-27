@@ -232,7 +232,7 @@ export function OnboardingWorkspace() {
           onClick={() => setView("workflow")}
           sx={{ textTransform: "none", fontWeight: 800 }}
         >
-          15-step onboarding
+          5-phase onboarding
         </Button>
       </Stack>
 
@@ -462,7 +462,7 @@ export function OnboardingWorkspace() {
         slotProps={{
           backdrop: {
             sx: {
-              backgroundColor: "rgba(15, 23, 42, 0.50)",
+              backgroundColor: "rgba(9, 12, 16, 0.62)",
 
               backdropFilter: "blur(10px)",
             },
@@ -488,17 +488,17 @@ export function OnboardingWorkspace() {
 
             overflow: "hidden",
 
-            borderRadius: 3,
+            borderRadius: 2,
 
-            border: "1px solid rgba(148, 163, 184, 0.22)",
+            border: "1px solid rgba(255, 255, 255, 0.10)",
 
             background:
-              "linear-gradient(145deg, rgba(12, 19, 36, 0.93), rgba(7, 12, 25, 0.88))",
+              "linear-gradient(145deg, rgba(48, 55, 63, 0.98), rgba(32, 37, 43, 0.97))",
 
-            backdropFilter: "blur(24px) saturate(140%)",
-            WebkitBackdropFilter: "blur(24px) saturate(140%)",
+            backdropFilter: "blur(22px) saturate(130%)",
+            WebkitBackdropFilter: "blur(22px) saturate(130%)",
 
-            boxShadow: "0 34px 100px rgba(0, 0, 0, 0.52)",
+            boxShadow: "0 30px 90px rgba(0, 0, 0, 0.48)",
           },
         }}
       >

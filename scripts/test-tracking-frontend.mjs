@@ -48,8 +48,8 @@ check(event("trip.stop.arrived").test(page), "stop-arrival event wired");
 check(event("trip.stop.departed").test(page), "stop-departure event wired");
 
 check(
-  page.includes("FRONTEND_PERMISSIONS.VEHICLES_READ"),
-  "tenant-wide tracking UI requires fleet-read permission",
+  page.includes("FRONTEND_PERMISSIONS.CONTROL_ROOM_READ"),
+  "tenant-wide tracking UI requires Control Room permission",
 );
 
 check(

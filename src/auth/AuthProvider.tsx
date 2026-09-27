@@ -124,6 +124,8 @@ interface AuthContextValue {
 
   login: (credentials: LoginRequest) => Promise<AuthLoginOutcome>;
 
+  refreshPlatformAuthorization: () => Promise<void>;
+
   logout: () => void;
 }
 
@@ -520,6 +522,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   /**
+   * Re-read live platform roles and permissions.
+   *
+   * This is intentionally independent from tenant commercial
+   * access refresh. Platform Access changes must take effect
+   * without waiting for JWT expiry.
+   */
+  async function refreshPlatformAuthorization(): Promise<void> {
+    const response = await getCurrentUser();
+
+    setUser(response.user);
+    setIsSuperAdmin(response.platform.isSuperAdmin);
+    setPlatformRoles(response.platform.roles);
+    setPlatformPermissions(response.platform.permissions);
+    setPasswordChangeRequired(response.security.mustChangePassword);
+
+    if (
+      response.security.mustChangePassword ||
+      response.platform.roles.length > 0
+    ) {
+      clearTenantRuntimeState();
+    }
+  }
+
+  /**
    * Clear local authenticated application state.
    */
   function logout(): void {
@@ -622,6 +648,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
   }, [passwordChangeRequired, tenant?.tenantId]);
 
+  /**
+   * A Super Admin may change this user's role or individual
+   * platform permissions while their browser session is open.
+   *
+   * Refresh when the user returns to the application window.
+   */
+  useEffect(() => {
+    if (!isPlatformUser) {
+      return;
+    }
+
+    function handlePlatformWindowFocus(): void {
+      void refreshPlatformAuthorization();
+    }
+
+    window.addEventListener("focus", handlePlatformWindowFocus);
+
+    return () => {
+      window.removeEventListener("focus", handlePlatformWindowFocus);
+    };
+  }, [isPlatformUser]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -657,6 +705,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       authenticated: user !== null,
 
       login,
+
+      refreshPlatformAuthorization,
 
       logout,
     }),

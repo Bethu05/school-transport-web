@@ -59,8 +59,10 @@ const rendersRawTripId = />\s*\{\s*tripId\s*\}\s*</m.test(panel);
 check(!rendersRawTripId, "trip UUID is not rendered");
 
 check(
-  page.includes("<GuardianTrackingPanel"),
-  "non-fleet Tracking path uses guardian panel",
+  page.includes("FRONTEND_PERMISSIONS.GUARDIANS_READ_OWN_ACTIVE_TRIP") &&
+    page.includes("if (canUseGuardianTracking)") &&
+    page.includes("<GuardianTrackingPanel"),
+  "Guardian Tracking path requires Guardian active-trip permission",
 );
 
 console.log();

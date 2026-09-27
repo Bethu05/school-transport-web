@@ -33,6 +33,8 @@ import { TenantCapacityActions } from "./TenantCapacityActions";
 
 import { TenantCommercialActions } from "./TenantCommercialActions";
 
+import { TenantFeatureAccess } from "./TenantFeatureAccess";
+
 import { TenantFeatureLimits } from "./TenantFeatureLimits";
 
 import { TenantInitialAdminActions } from "./TenantInitialAdminActions";
@@ -126,7 +128,11 @@ function ControlCard({
 
           p: 2.25,
 
-          borderRadius: 2,
+          borderRadius: 1.25,
+
+          bgcolor: "rgba(255, 255, 255, 0.58)",
+
+          boxShadow: "0 8px 24px rgba(15, 23, 42, 0.055)",
 
           transition:
             "border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease",
@@ -460,7 +466,7 @@ export function TenantManagementPage({
 
         <ControlCard
           title="Onboarding"
-          description="15-step approval, setup, readiness and activation workflow."
+          description="Five-phase approval, setup, readiness and activation workflow."
           icon={<FactCheckRounded fontSize="small" />}
           onClick={() => setActivePanel("onboarding")}
         >
@@ -840,7 +846,11 @@ export function TenantManagementPage({
           ) : null}
 
           {activePanel === "features" ? (
-            <TenantFeatureLimits tenant={tenant} />
+            <Stack spacing={3}>
+              <TenantFeatureAccess tenant={tenant} />
+
+              <TenantFeatureLimits tenant={tenant} />
+            </Stack>
           ) : null}
 
           {activePanel === "administrator" ? (

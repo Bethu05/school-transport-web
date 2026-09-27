@@ -49,16 +49,20 @@ import { listRoutes, type Route } from "../routes/routes.api";
 import { listVehicles, type Vehicle } from "../vehicles/vehicles.api";
 
 import {
+  approveTripStartAuthorization,
   cancelTrip,
   boardTrip,
   createTrip,
   completeTrip,
+  getTripStartAuthorization,
   listTrips,
+  rejectTripStartAuthorization,
   scheduleTrip,
   startTrip,
   updateTrip,
   type CreateTripInput,
   type Trip,
+  type TripStartAuthorization,
   type TripStatus,
   type UpdateTripInput,
 } from "./trips.api";
@@ -327,6 +331,11 @@ export function TripsPage() {
     FRONTEND_PERMISSIONS.TRIPS_START,
   );
 
+  const canAuthorizeTripStarts = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.TRIPS_AUTHORIZE_START,
+  );
+
   const canCompleteTrips = hasFrontendPermission(
     permissions,
     FRONTEND_PERMISSIONS.TRIPS_COMPLETE,
@@ -352,6 +361,8 @@ export function TripsPage() {
 
     enabled: Boolean(tenantId && schoolId),
 
+    refetchInterval: 5_000,
+
     queryFn: async () => {
       if (!tenantId || !schoolId) {
         throw new Error("School context is unavailable");
@@ -362,6 +373,85 @@ export function TripsPage() {
       });
     },
   });
+
+  const boardingTripIds = (tripsQuery.data ?? EMPTY_TRIPS)
+    .filter((trip) => trip.status === "boarding")
+    .map((trip) => trip.id);
+
+  const startAuthorizationsQuery = useQuery({
+    queryKey: ["trip-start-authorizations", tenantId, ...boardingTripIds],
+
+    enabled: Boolean(
+      tenantId && canAuthorizeTripStarts && boardingTripIds.length > 0,
+    ),
+
+    refetchInterval: 3_000,
+
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
+
+      const entries = await Promise.all(
+        boardingTripIds.map(async (tripId) => {
+          const authorization = await getTripStartAuthorization(
+            tenantId,
+            tripId,
+          );
+
+          return [tripId, authorization] as const;
+        }),
+      );
+
+      return Object.fromEntries(entries) as Record<
+        string,
+        TripStartAuthorization | null
+      >;
+    },
+  });
+
+  const startAuthorizationMutation = useMutation({
+    mutationFn: async ({
+      tripId,
+      action,
+    }: {
+      tripId: string;
+
+      action: "approve" | "reject";
+    }) => {
+      if (!tenantId) {
+        throw new Error("No active tenant");
+      }
+
+      if (action === "approve") {
+        return approveTripStartAuthorization(tenantId, tripId);
+      }
+
+      return rejectTripStartAuthorization(tenantId, tripId);
+    },
+
+    onSuccess: async (_authorization, variables) => {
+      setMutationError(null);
+
+      setSuccessMessage(
+        variables.action === "approve"
+          ? "Trip start approved."
+          : "Trip start request rejected.",
+      );
+
+      await queryClient.invalidateQueries({
+        queryKey: ["trip-start-authorizations"],
+      });
+
+      await refreshTrips();
+    },
+
+    onError: (error) => {
+      setMutationError(errorMessage(error));
+    },
+  });
+
+  const startAuthorizations = startAuthorizationsQuery.data ?? {};
 
   const routesQuery = useQuery({
     queryKey: ["routes", tenantId, schoolId, "trip-scheduling"],
@@ -1187,7 +1277,15 @@ export function TripsPage() {
 
             const showBoard = canBoardTrips && trip.status === "scheduled";
 
-            const showStart = canStartTrips && trip.status === "boarding";
+            const startAuthorization = startAuthorizations[trip.id] ?? null;
+
+            const showStartApproval =
+              canAuthorizeTripStarts && trip.status === "boarding";
+
+            const showStart =
+              canStartTrips &&
+              !canAuthorizeTripStarts &&
+              trip.status === "boarding";
 
             const showComplete =
               canCompleteTrips && trip.status === "in_progress";
@@ -1419,6 +1517,71 @@ export function TripsPage() {
                     >
                       Board
                     </Button>
+                  ) : null}
+
+                  {showStartApproval ? (
+                    startAuthorization?.status === "pending" ? (
+                      <>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="success"
+                          startIcon={<CheckCircleRounded />}
+                          disabled={startAuthorizationMutation.isPending}
+                          onClick={() => {
+                            setMutationError(null);
+
+                            startAuthorizationMutation.mutate({
+                              tripId: trip.id,
+
+                              action: "approve",
+                            });
+                          }}
+                        >
+                          Approve
+                        </Button>
+
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          disabled={startAuthorizationMutation.isPending}
+                          onClick={() => {
+                            setMutationError(null);
+
+                            startAuthorizationMutation.mutate({
+                              tripId: trip.id,
+
+                              action: "reject",
+                            });
+                          }}
+                        >
+                          Reject
+                        </Button>
+                      </>
+                    ) : startAuthorization?.status === "approved" ? (
+                      <Chip
+                        size="small"
+                        color="success"
+                        label="Start approved"
+                      />
+                    ) : startAuthorization?.status === "rejected" ? (
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        label="Start rejected"
+                      />
+                    ) : (
+                      <Typography
+                        sx={{
+                          color: "text.secondary",
+
+                          fontSize: 11,
+                        }}
+                      >
+                        Awaiting start request
+                      </Typography>
+                    )
                   ) : null}
 
                   {showStart ? (

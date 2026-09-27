@@ -26,7 +26,7 @@ const commercial = read("src/super-admin/OnboardingCommercialReview.tsx");
 
 const management = read("src/super-admin/TenantManagementPage.tsx");
 
-console.log("Super Admin 15-step onboarding console checkpoint");
+console.log("Super Admin five-phase onboarding console checkpoint");
 
 console.log("----------------------------------------------");
 
@@ -53,11 +53,15 @@ check(
 );
 
 check(
-  panel.includes("commercialBackendStepKeys") &&
-    panel.includes("const visibleSteps = steps;") &&
-    panel.includes("Step ${activeStep.stepOrder} of ${steps.length}") &&
-    !panel.includes("hiddenCommercialRailStepKeys"),
-  "all 15 persisted onboarding steps are visible in canonical order",
+  panel.includes("onboardingPhaseDefinitions") &&
+    panel.includes("phases.map((phase, phaseIndex)") &&
+    !panel.includes("activePhase.steps.map((step)") &&
+    panel.includes("Application & Verification") &&
+    panel.includes("Tenant & Commercial Setup") &&
+    panel.includes("Administrator & Data") &&
+    panel.includes("Launch Readiness") &&
+    panel.includes("Activation & Handover"),
+  "five onboarding phases form the only visible workflow rail",
 );
 
 check(
@@ -79,9 +83,9 @@ check(
 
 check(
   panel.includes("Previous") &&
-    panel.includes("Next step") &&
+    panel.includes("Next phase") &&
     panel.includes("Navigation only."),
-  "visual stage navigation remains non-mutating",
+  "five-phase navigation remains non-mutating",
 );
 
 check(
@@ -154,15 +158,15 @@ check(
     panel.includes('"no_migration_required"') &&
     panel.includes("Confirm skip import") &&
     panel.includes("stepComplete(migrationStep)"),
-  "Step 7 supports an auditable skip-import path that counts toward progress",
+  "Step 10 supports an auditable skip-import path that counts toward progress",
 );
 
 if (process.exitCode) {
   console.error();
 
-  console.error("Super Admin 15-step onboarding console checkpoint FAILED");
+  console.error("Super Admin five-phase onboarding console checkpoint FAILED");
 } else {
   console.log();
 
-  console.log("Super Admin 15-step onboarding console checkpoint PASSED");
+  console.log("Super Admin five-phase onboarding console checkpoint PASSED");
 }
