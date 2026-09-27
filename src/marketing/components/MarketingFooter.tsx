@@ -1,6 +1,6 @@
 import { Box, Container, Divider, Typography } from "@mui/material";
 
-import { DirectionsBusRounded } from "@mui/icons-material";
+import { RouteRounded } from "@mui/icons-material";
 
 export function MarketingFooter() {
   return (
@@ -8,7 +8,7 @@ export function MarketingFooter() {
       component="footer"
       sx={{
         mt: 10,
-        bgcolor: "#101828",
+        bgcolor: "#0B1F2A",
         color: "common.white",
       }}
     >
@@ -57,7 +57,7 @@ export function MarketingFooter() {
                 bgcolor: "rgba(255,255,255,0.10)",
               }}
             >
-              <DirectionsBusRounded />
+              <RouteRounded />
             </Box>
 
             <Box>
@@ -66,7 +66,7 @@ export function MarketingFooter() {
                   fontWeight: 850,
                 }}
               >
-                School Transport
+                Afika Mobility
               </Typography>
 
               <Typography
@@ -78,7 +78,7 @@ export function MarketingFooter() {
                   fontSize: 10.5,
                 }}
               >
-                Safer journeys. Smarter operations.
+                Safe journeys. Clear operations. Connected mobility.
               </Typography>
             </Box>
           </Box>
@@ -94,8 +94,8 @@ export function MarketingFooter() {
               lineHeight: 1.7,
             }}
           >
-            A modern transport operations platform connecting schools, transport
-            teams, drivers and families.
+            A connected transport operations platform bringing routes, vehicles,
+            drivers, passengers and operational visibility together.
           </Typography>
         </Box>
 
@@ -128,7 +128,7 @@ export function MarketingFooter() {
               fontSize: 10,
             }}
           >
-            © sirb-Technologies 2026
+            © 2026 Afika Mobility
           </Typography>
 
           <Typography
@@ -138,7 +138,7 @@ export function MarketingFooter() {
               fontSize: 10,
             }}
           >
-            School Transport Operations Platform
+            Transport Operations Platform
           </Typography>
         </Box>
       </Container>

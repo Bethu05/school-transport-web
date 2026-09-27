@@ -1,6 +1,6 @@
 import { Box, Button, Container, Typography } from "@mui/material";
 
-import { DirectionsBusRounded, LoginRounded } from "@mui/icons-material";
+import { LoginRounded, RouteRounded } from "@mui/icons-material";
 
 import { useNavigate } from "react-router-dom";
 
@@ -19,17 +19,27 @@ export function MarketingHeader() {
         top: 0,
         zIndex: 20,
 
-        borderBottom: "1px solid",
-        borderColor: "divider",
+        py: { xs: 1, md: 1.25 },
+        px: { xs: 1, md: 1.5 },
 
-        bgcolor: "rgba(255,255,255,0.94)",
-        backdropFilter: "blur(14px)",
+        bgcolor: "transparent",
       }}
     >
       <Container
         maxWidth="xl"
         sx={{
-          minHeight: 76,
+          minHeight: { xs: 60, md: 64 },
+
+          px: { xs: 1.4, md: 2 },
+
+          border: "1px solid rgba(8,127,121,0.14)",
+          borderRadius: 3,
+
+          bgcolor: "rgba(242,247,247,0.82)",
+          backdropFilter: "blur(18px) saturate(145%)",
+          WebkitBackdropFilter: "blur(18px) saturate(145%)",
+
+          boxShadow: "0 14px 34px rgba(11,31,42,0.10)",
 
           display: "flex",
           alignItems: "center",
@@ -47,8 +57,8 @@ export function MarketingHeader() {
         >
           <Box
             sx={{
-              width: 42,
-              height: 42,
+              width: 38,
+              height: 38,
 
               display: "grid",
               placeItems: "center",
@@ -56,10 +66,11 @@ export function MarketingHeader() {
               borderRadius: 2,
 
               bgcolor: "primary.main",
+              boxShadow: "0 8px 20px rgba(8,127,121,0.20)",
               color: "primary.contrastText",
             }}
           >
-            <DirectionsBusRounded />
+            <RouteRounded />
           </Box>
 
           <Box>
@@ -70,7 +81,7 @@ export function MarketingHeader() {
                 lineHeight: 1.1,
               }}
             >
-              School Transport
+              AFIKA
             </Typography>
 
             <Typography
@@ -81,7 +92,7 @@ export function MarketingHeader() {
                 fontWeight: 650,
               }}
             >
-              by sirb-Technologies
+              Mobility
             </Typography>
           </Box>
         </Box>
@@ -98,7 +109,7 @@ export function MarketingHeader() {
           }}
         >
           <Button component="a" href="#features" color="inherit">
-            Features
+            Platform
           </Button>
 
           <Button component="a" href="#how-it-works" color="inherit">
@@ -128,7 +139,7 @@ export function MarketingHeader() {
               },
             }}
           >
-            Request a demo
+            Book a demo
           </Button>
 
           <Button
