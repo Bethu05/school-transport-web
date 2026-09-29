@@ -27,14 +27,12 @@ check(
 );
 
 check(
-  panel.includes('value="users"') &&
-    panel.includes('value="roles"'),
+  panel.includes('value="users"') && panel.includes('value="roles"'),
   "workspace separates Users and Roles",
 );
 
 check(
-  panel.includes("usersQuery") &&
-    panel.includes("<Pagination"),
+  panel.includes("usersQuery") && panel.includes("<Pagination"),
   "user directory uses server-side pagination",
 );
 
@@ -51,14 +49,12 @@ check(
 );
 
 check(
-  panel.includes("draftRolePermissions") &&
-    panel.includes("Save role"),
+  panel.includes("draftRolePermissions") && panel.includes("Save role"),
   "role permission templates are editable",
 );
 
 check(
-  panel.includes("Protected role") &&
-    panel.includes("!selectedRole.editable"),
+  panel.includes("Protected role") && panel.includes("!selectedRole.editable"),
   "protected roles cannot be edited",
 );
 
@@ -75,6 +71,36 @@ check(
     panel.includes("Suspend") &&
     panel.includes("Restore"),
   "existing platform-user lifecycle actions remain available",
+);
+
+check(
+  panel.includes("Confirm temporary password") &&
+    panel.includes("resetConfirmPassword"),
+  "Platform user reset requires password confirmation",
+);
+
+check(
+  panel.includes("Temporary password and confirmation do not match.") &&
+    panel.includes("Passwords do not match."),
+  "Platform user reset rejects mismatched passwords",
+);
+
+check(
+  panel.includes("Set Temporary Password") &&
+    panel.includes("resetPlatformAccessUserPassword"),
+  "Super Admin can set a temporary password for a Platform user",
+);
+
+check(
+  panel.includes("They must change it at next sign-in.") &&
+    api.includes("/password/reset"),
+  "Platform user is forced into next-login password change flow",
+);
+
+check(
+  panel.includes("resetMutation.isError") &&
+    panel.includes("Password could not be reset."),
+  "Platform password reset surfaces failures inside the dialog",
 );
 
 if (process.exitCode) {

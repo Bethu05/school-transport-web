@@ -31,6 +31,7 @@ import {
   CheckCircleRounded,
   PersonRounded,
   ScheduleRounded,
+  SettingsRounded,
 } from "@mui/icons-material";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -57,6 +58,7 @@ import {
   getTripStartAuthorization,
   listTrips,
   rejectTripStartAuthorization,
+  returnTripToDraft,
   scheduleTrip,
   startTrip,
   updateTrip,
@@ -316,9 +318,24 @@ export function TripsPage() {
     FRONTEND_PERMISSIONS.TRIPS_SCHEDULE,
   );
 
+  const canReturnTripsToDraft = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.TRIPS_RETURN_TO_DRAFT,
+  );
+
   const canUpdateTrips = hasFrontendPermission(
     permissions,
     FRONTEND_PERMISSIONS.TRIPS_UPDATE,
+  );
+
+  const canManageRiders = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.TRIPS_MANAGE_RIDERS,
+  );
+
+  const canReadStudents = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.STUDENTS_READ,
   );
 
   const canBoardTrips = hasFrontendPermission(
@@ -598,6 +615,55 @@ export function TripsPage() {
       setMutationError(null);
 
       setSuccessMessage("Trip updated successfully.");
+    },
+
+    onError: (error) => {
+      setMutationError(errorMessage(error));
+    },
+  });
+
+  // ============================================================
+  // RETURN SCHEDULED TRIP TO DRAFT
+  //
+  // Structural corrections only.
+  //
+  // Backend permission + lifecycle validation remain
+  // authoritative.
+  // ============================================================
+
+  const returnToDraftMutation = useMutation({
+    mutationFn: async ({
+      tripId,
+      reason,
+    }: {
+      tripId: string;
+
+      reason: string;
+    }) => {
+      if (!tenantId || !schoolId) {
+        throw new Error("School context is unavailable");
+      }
+
+      return returnTripToDraft(tenantId, tripId, reason);
+    },
+
+    onSuccess: async (updatedTrip) => {
+      await refreshTrips();
+
+      /*
+       * Keep the edit dialog open.
+       *
+       * Its Trip prop now becomes draft immediately,
+       * which unlocks the Route selector without making
+       * the user close and reopen the workflow.
+       */
+      setEditingTrip(updatedTrip);
+
+      setMutationError(null);
+
+      setSuccessMessage(
+        "Trip returned to draft. Route editing is now available.",
+      );
     },
 
     onError: (error) => {
@@ -1232,7 +1298,8 @@ export function TripsPage() {
                 lg: "grid",
               },
 
-              gridTemplateColumns: "1.05fr 1.3fr .95fr .95fr .8fr 330px",
+              gridTemplateColumns:
+                "1fr 1.15fr .8fr .85fr .85fr .55fr .7fr 330px",
 
               gap: 2,
 
@@ -1248,6 +1315,8 @@ export function TripsPage() {
               "Route",
               "Vehicle",
               "Driver",
+              "Chaperone",
+              "Students",
               "Status",
               "Actions",
             ].map((heading) => (
@@ -1305,7 +1374,7 @@ export function TripsPage() {
                   gridTemplateColumns: {
                     xs: "1fr",
 
-                    lg: "1.05fr 1.3fr .95fr .95fr .8fr 330px",
+                    lg: "1fr 1.15fr .8fr .85fr .85fr .55fr .7fr 330px",
                   },
 
                   gap: {
@@ -1428,6 +1497,28 @@ export function TripsPage() {
                   </Typography>
                 </Box>
 
+                <Typography
+                  sx={{
+                    fontSize: 12,
+
+                    color: trip.chaperoneName ? "text.primary" : "warning.main",
+
+                    fontWeight: trip.chaperoneName ? 600 : 750,
+                  }}
+                >
+                  {trip.chaperoneName ?? "Not assigned"}
+                </Typography>
+
+                <Typography
+                  sx={{
+                    fontSize: 12,
+
+                    fontWeight: 750,
+                  }}
+                >
+                  {trip.activeRiderCount ?? 0}
+                </Typography>
+
                 <Box>
                   <Chip
                     size="small"
@@ -1467,17 +1558,17 @@ export function TripsPage() {
                     gap: 0.4,
                   }}
                 >
-                  {showEdit ? (
-                    <Tooltip title="Edit trip">
-                      <IconButton
-                        size="small"
-                        aria-label="Edit trip"
-                        onClick={() => openEditor(trip)}
-                      >
-                        <EditRounded fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  ) : null}
+                  <Button
+                    size="small"
+                    variant={showEdit ? "contained" : "outlined"}
+                    startIcon={<SettingsRounded />}
+                    onClick={() => openEditor(trip)}
+                    sx={{
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {showEdit ? "Configure trip" : "Inspect trip"}
+                  </Button>
 
                   {showSchedule ? (
                     <Button
@@ -1689,11 +1780,32 @@ export function TripsPage() {
         key={editingTrip?.id ?? "trip-edit"}
         open={editingTrip !== null}
         trip={editingTrip}
+        tenantId={tenantId ?? editingTrip?.tenantId ?? ""}
         routes={routes}
         vehicles={vehicles}
         drivers={drivers}
-        saving={updateMutation.isPending}
+        saving={updateMutation.isPending || returnToDraftMutation.isPending}
+        canEditTrip={canUpdateTrips}
+        canManageRiders={canManageRiders}
+        canReadStudents={canReadStudents}
+        canReturnToDraft={canReturnTripsToDraft}
+        returningToDraft={returnToDraftMutation.isPending}
         error={editingTrip ? mutationError : null}
+        onRidersChanged={() => {
+          void refreshTrips();
+        }}
+        onReturnToDraft={async (reason) => {
+          if (!editingTrip) {
+            return;
+          }
+
+          setMutationError(null);
+
+          await returnToDraftMutation.mutateAsync({
+            tripId: editingTrip.id,
+            reason,
+          });
+        }}
         onClose={() => {
           if (!updateMutation.isPending) {
             setEditingTrip(null);
