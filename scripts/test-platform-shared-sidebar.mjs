@@ -14,6 +14,11 @@ function check(condition, message) {
 
 const sidebar = fs.readFileSync("src/super-admin/PlatformSidebar.tsx", "utf8");
 
+const mobileNavigation = fs.readFileSync(
+  "src/super-admin/PlatformMobileNavigation.tsx",
+  "utf8",
+);
+
 const superAdmin = fs.readFileSync(
   "src/super-admin/SuperAdminPage.tsx",
   "utf8",
@@ -27,8 +32,8 @@ const limitedRole = fs.readFileSync(
 const permissions = fs.readFileSync("src/auth/platform-permissions.ts", "utf8");
 
 console.log("");
-console.log("Platform shared sidebar checkpoint");
-console.log("----------------------------------");
+console.log("Platform shared navigation checkpoint");
+console.log("-------------------------------------");
 
 check(
   sidebar.includes("export function PlatformSidebar"),
@@ -56,54 +61,66 @@ check(
 );
 
 check(
-  superAdmin.includes('from "./PlatformSidebar"'),
-  "Super Admin imports the shared sidebar",
+  sidebar.includes("mobile?: boolean"),
+  "shared sidebar supports mobile rendering",
 );
 
 check(
-  superAdmin.includes("<PlatformSidebar"),
-  "Super Admin renders the shared sidebar",
+  mobileNavigation.includes("export function PlatformMobileNavigation"),
+  "shared Platform mobile navigation component exists",
 );
 
 check(
-  limitedRole.includes('from "./PlatformSidebar"'),
-  "limited platform roles import the shared sidebar",
+  mobileNavigation.includes("<Drawer") &&
+    mobileNavigation.includes("<PlatformSidebar") &&
+    mobileNavigation.includes("<MenuRounded"),
+  "mobile navigation reuses the canonical Platform sidebar",
 );
 
 check(
-  limitedRole.includes("<PlatformSidebar"),
-  "Executive Sales / Assistant Platform Admin render the shared sidebar",
+  mobileNavigation.includes('"55vw"') &&
+    mobileNavigation.includes('"60dvh"') &&
+    mobileNavigation.includes("rgba(45, 212, 191"),
+  "mobile navigation uses compact translucent teal-glass card",
 );
 
 check(
-  limitedRole.includes("platformPermissions"),
-  "limited platform navigation is derived from live platform permissions",
+  superAdmin.includes('from "./PlatformMobileNavigation"') &&
+    superAdmin.includes("<PlatformMobileNavigation"),
+  "Super Admin renders shared mobile navigation",
 );
 
 check(
-  limitedRole.includes("hasFrontendPlatformPermission"),
-  "limited platform workspace visibility uses permission checks",
+  limitedRole.includes('from "./PlatformMobileNavigation"') &&
+    limitedRole.includes("<PlatformMobileNavigation"),
+  "limited Platform roles render shared mobile navigation",
+);
+
+check(
+  limitedRole.includes("platformPermissions") &&
+    limitedRole.includes("hasFrontendPlatformPermission"),
+  "limited Platform navigation remains permission-derived",
 );
 
 check(
   permissions.includes("ONBOARDING_READ_ALL") &&
     permissions.includes("SCHOOL_READ_ALL") &&
     permissions.includes("FINANCE_READ"),
-  "frontend platform permission catalogue covers platform navigation domains",
+  "frontend Platform permission catalogue covers control-plane domains",
 );
 
 check(
   !sidebar.includes("isSuperAdmin") &&
     !sidebar.includes("executive_sales") &&
     !sidebar.includes("assistant_platform_admin"),
-  "shared sidebar contains no hard-coded platform role authorization",
+  "shared navigation contains no hard-coded Platform role authorization",
 );
 
 if (failed) {
   console.error("");
-  console.error("PLATFORM SHARED SIDEBAR CHECKPOINT FAILED");
+  console.error("PLATFORM SHARED NAVIGATION CHECKPOINT FAILED");
   process.exit(1);
 }
 
 console.log("");
-console.log("PLATFORM SHARED SIDEBAR CHECKPOINT PASSED");
+console.log("PLATFORM SHARED NAVIGATION CHECKPOINT PASSED");

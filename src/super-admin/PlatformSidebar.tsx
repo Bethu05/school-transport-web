@@ -16,6 +16,7 @@ interface PlatformSidebarProps {
   userEmail?: string | null;
   onSelect: (item: PlatformSidebarItem) => void;
   onLogout: () => void;
+  mobile?: boolean;
 }
 
 export function PlatformSidebar({
@@ -24,24 +25,25 @@ export function PlatformSidebar({
   userEmail,
   onSelect,
   onLogout,
+  mobile = false,
 }: PlatformSidebarProps) {
   return (
     <Box
       component="aside"
       data-platform-floating-sidebar
       sx={{
-        display: { xs: "none", lg: "flex" },
+        display: mobile ? "flex" : { xs: "none", lg: "flex" },
 
         flexDirection: "column",
 
-        alignSelf: "center",
+        alignSelf: mobile ? "stretch" : "center",
 
-        width: "calc(100% - 18px)",
-        height: "95dvh",
+        width: mobile ? "100%" : "calc(100% - 18px)",
+        height: mobile ? "100%" : "95dvh",
         minHeight: 0,
 
-        ml: 1.5,
-        mr: 0.75,
+        ml: mobile ? 0 : 1.5,
+        mr: mobile ? 0 : 0.75,
 
         overflowY: "auto",
         overflowX: "hidden",
@@ -49,22 +51,23 @@ export function PlatformSidebar({
         position: "relative",
         zIndex: 3,
 
-        border: "1px solid",
-        borderColor: "rgba(255, 255, 255, 0.10)",
+        border: mobile ? "none" : "1px solid",
+        borderColor: mobile ? "transparent" : "rgba(255, 255, 255, 0.10)",
 
-        borderRadius: 2,
+        borderRadius: mobile ? 0 : 2,
 
-        bgcolor: "rgba(43, 49, 57, 0.86)",
+        bgcolor: mobile ? "transparent" : "rgba(43, 49, 57, 0.86)",
 
-        backdropFilter: "blur(24px) saturate(125%)",
-        WebkitBackdropFilter: "blur(24px) saturate(125%)",
+        backdropFilter: mobile ? "none" : "blur(24px) saturate(125%)",
+        WebkitBackdropFilter: mobile ? "none" : "blur(24px) saturate(125%)",
 
-        boxShadow:
-          "0 0 0 1px rgba(255, 255, 255, 0.035), 0 26px 58px rgba(0, 0, 0, 0.36), 0 0 34px rgba(255, 255, 255, 0.045)",
+        boxShadow: mobile
+          ? "none"
+          : "0 0 0 1px rgba(255, 255, 255, 0.035), 0 26px 58px rgba(0, 0, 0, 0.36), 0 0 34px rgba(255, 255, 255, 0.045)",
 
         color: "text.primary",
 
-        p: 1.5,
+        p: mobile ? 1 : 1.5,
       }}
     >
       <Box
@@ -81,8 +84,8 @@ export function PlatformSidebar({
       >
         <Box
           sx={{
-            width: 30,
-            height: 30,
+            width: mobile ? 23 : 30,
+            height: mobile ? 23 : 30,
 
             display: "grid",
             placeItems: "center",

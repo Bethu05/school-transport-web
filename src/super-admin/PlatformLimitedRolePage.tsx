@@ -21,6 +21,8 @@ import { ExecutiveSalesWorkspace } from "./ExecutiveSalesWorkspace";
 
 import { PlatformOnboardingRoleWorkspace } from "./PlatformOnboardingRoleWorkspace";
 
+import { PlatformMobileNavigation } from "./PlatformMobileNavigation";
+
 import { PlatformSidebar, type PlatformSidebarItem } from "./PlatformSidebar";
 
 import { SchoolSetupReviewPanel } from "./SchoolSetupReviewPanel";
@@ -203,6 +205,21 @@ export function PlatformLimitedRolePage() {
             if (item.path) {
               navigate(item.path);
 
+              return;
+            }
+
+            setActiveLabel(item.label);
+          }}
+          onLogout={handleLogout}
+        />
+
+        <PlatformMobileNavigation
+          items={sidebarItems}
+          activeLabel={validActiveLabel || null}
+          userEmail={user?.email}
+          onSelect={(item) => {
+            if (item.path) {
+              navigate(item.path);
               return;
             }
 
