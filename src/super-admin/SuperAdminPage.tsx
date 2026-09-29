@@ -33,6 +33,8 @@ import { SuperAdminOverview } from "./SuperAdminOverview";
 
 import { PlatformLimitedRolePage } from "./PlatformLimitedRolePage";
 
+import { PlatformMobileNavigation } from "./PlatformMobileNavigation";
+
 import { PlatformSidebar, type PlatformSidebarItem } from "./PlatformSidebar";
 
 import { TenantManagementPage } from "./TenantManagementPage";
@@ -254,6 +256,22 @@ export function SuperAdminPage() {
         />
 
         <PlatformSidebar
+          items={navigationItems}
+          activeLabel={activeSection}
+          userEmail={user?.email}
+          onSelect={(item) => {
+            if (item.path) {
+              navigate(item.path);
+              return;
+            }
+
+            setActiveSection(item.label);
+            setManagingTenant(null);
+          }}
+          onLogout={handleLogout}
+        />
+
+        <PlatformMobileNavigation
           items={navigationItems}
           activeLabel={activeSection}
           userEmail={user?.email}
