@@ -84,6 +84,10 @@ export interface Trip {
 
   driverName: string | null;
 
+  chaperoneName?: string | null;
+
+  activeRiderCount?: number;
+
   stopCount: number;
 
   createdAt: string;
@@ -474,6 +478,28 @@ export function scheduleTrip(tenantId: string, tripId: string): Promise<Trip> {
 }
 
 /**
+ * Scheduled -> Draft.
+ *
+ * Used only for structural corrections such as changing
+ * the route after a trip has already been scheduled.
+ */
+export function returnTripToDraft(
+  tenantId: string,
+  tripId: string,
+  reason: string,
+): Promise<Trip> {
+  return apiRequest<Trip>(`/trips/${tripId}/return-to-draft`, {
+    method: "POST",
+
+    tenantId,
+
+    body: JSON.stringify({
+      reason,
+    }),
+  });
+}
+
+/**
  * Scheduled -> Boarding
  */
 export function boardTrip(tenantId: string, tripId: string): Promise<Trip> {
@@ -516,4 +542,173 @@ export function cancelTrip(tenantId: string, tripId: string): Promise<Trip> {
 
     tenantId,
   });
+}
+
+// ============================================================
+// DATED TRIP STUDENT MANIFEST
+// ============================================================
+
+export type TripRiderAssignmentType = "pickup" | "dropoff";
+
+export type TripRiderStatus = "assigned" | "cancelled";
+
+export interface TripRider {
+  id: string;
+
+  tenantId: string;
+  schoolId: string;
+  tripId: string;
+
+  studentId: string;
+
+  assignedTripStopId: string;
+
+  assignmentType: TripRiderAssignmentType;
+
+  studentExternalRef: string | null;
+
+  studentFirstName: string;
+  studentLastName: string;
+
+  status: TripRiderStatus;
+
+  stopId: string;
+  stopOrder: number;
+  stopName: string;
+  stopCode: string | null;
+
+  scheduledArrivalAt: string | null;
+
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function listTripRiders(
+  tenantId: string,
+  tripId: string,
+): Promise<TripRider[]> {
+  return apiRequest<TripRider[]>(`/trips/${tripId}/riders`, {
+    tenantId,
+  });
+}
+
+export function addTripRider(
+  tenantId: string,
+  tripId: string,
+  studentId: string,
+): Promise<TripRider> {
+  return apiRequest<TripRider>(`/trips/${tripId}/riders`, {
+    method: "POST",
+
+    tenantId,
+
+    body: JSON.stringify({
+      studentId,
+    }),
+  });
+}
+
+export function removeTripRider(
+  tenantId: string,
+  tripId: string,
+  riderId: string,
+): Promise<void> {
+  return apiRequest<void>(`/trips/${tripId}/riders/${riderId}`, {
+    method: "DELETE",
+
+    tenantId,
+  });
+}
+
+// ============================================================
+// TRIP ONBOARD STAFF
+// ============================================================
+
+export type TripStaffRole = "teacher" | "chaperone";
+
+export type TripStaffAssignmentStatus = "assigned" | "removed";
+
+export interface TripStaffAssignment {
+  id: string;
+
+  tenantId: string;
+  schoolId: string;
+  tripId: string;
+
+  userId: string;
+
+  staffRole: TripStaffRole;
+
+  status: TripStaffAssignmentStatus;
+
+  assignedAt: string;
+  removedAt: string | null;
+
+  createdAt: string;
+  updatedAt: string;
+
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+export interface AssignTripStaffInput {
+  userId: string;
+
+  staffRole: TripStaffRole;
+}
+
+/**
+ * List all onboard staff assignment history for one dated trip.
+ *
+ * Active assignments have status === "assigned".
+ */
+export function listTripStaff(
+  tenantId: string,
+  tripId: string,
+): Promise<TripStaffAssignment[]> {
+  return apiRequest<TripStaffAssignment[]>(`/trips/${tripId}/staff`, {
+    tenantId,
+  });
+}
+
+/**
+ * Assign an onboard adult to one dated trip.
+ *
+ * Backend remains authoritative for:
+ * - tenant relationship
+ * - active membership
+ * - duplicate assignment protection
+ * - RBAC
+ */
+export function assignTripStaff(
+  tenantId: string,
+  tripId: string,
+  input: AssignTripStaffInput,
+): Promise<TripStaffAssignment> {
+  return apiRequest<TripStaffAssignment>(`/trips/${tripId}/staff`, {
+    method: "POST",
+
+    tenantId,
+
+    body: JSON.stringify(input),
+  });
+}
+
+/**
+ * Remove one active onboard staff assignment.
+ */
+export function removeTripStaffAssignment(
+  tenantId: string,
+  tripId: string,
+  assignmentId: string,
+): Promise<TripStaffAssignment> {
+  return apiRequest<TripStaffAssignment>(
+    `/trips/${tripId}/staff/${assignmentId}/remove`,
+    {
+      method: "PATCH",
+
+      tenantId,
+    },
+  );
 }

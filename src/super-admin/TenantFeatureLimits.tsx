@@ -26,64 +26,31 @@ interface TenantFeatureLimitsProps {
   tenant: PlatformTenantListItem;
 }
 
-/**
- * Commercial sources suitable for manually managed quota changes.
- *
- * Trial-specific and add-on-specific workflows have additional
- * commercial rules, so they are not mixed into this simple quota
- * adjustment control.
- */
 const editableSources: Array<{
   value: PlatformTenantFeatureSource;
   label: string;
 }> = [
-  {
-    value: "billing",
-    label: "Billing / purchased capacity",
-  },
-  {
-    value: "contract",
-    label: "Contract",
-  },
-  {
-    value: "promotion",
-    label: "Promotion",
-  },
-  {
-    value: "manual",
-    label: "Manual adjustment",
-  },
+  { value: "billing", label: "Billing / purchased capacity" },
+  { value: "contract", label: "Contract" },
+  { value: "promotion", label: "Promotion" },
+  { value: "manual", label: "Manual adjustment" },
 ];
 
 function allowanceLabel(state: PlatformTenantFeatureState): string {
-  if (state.planMode !== "included") {
-    return "Not included";
-  }
-
-  if (state.planLimitValue === null) {
-    return "No numeric limit";
-  }
-
+  if (state.planMode !== "included") return "Not included";
+  if (state.planLimitValue === null) return "No numeric limit";
   return String(state.planLimitValue);
 }
 
 function effectiveAllowanceLabel(state: PlatformTenantFeatureState): string {
-  if (!state.effectiveEnabled) {
-    return "Disabled";
-  }
-
-  if (state.effectiveLimitValue === null) {
-    return "No numeric limit";
-  }
-
+  if (!state.effectiveEnabled) return "Disabled";
+  if (state.effectiveLimitValue === null) return "No numeric limit";
   return String(state.effectiveLimitValue);
 }
 
 interface FeatureLimitEditorProps {
   tenantId: string;
-
   state: PlatformTenantFeatureState;
-
   queryKey: readonly unknown[];
 }
 
@@ -108,11 +75,9 @@ function FeatureLimitEditor({
   );
 
   const [notes, setNotes] = useState(state.override?.notes ?? "");
-
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const parsedLimit = limitValue.trim() === "" ? null : Number(limitValue);
-
   const validLimit =
     parsedLimit !== null && Number.isInteger(parsedLimit) && parsedLimit >= 0;
 
@@ -123,30 +88,23 @@ function FeatureLimitEditor({
       }
 
       const commercialReason = notes.trim();
-
       if (commercialReason.length < 3) {
         throw new Error(
-          "Enter the commercial reason for this customer-specific exception.",
+          "Enter a valid commercial reason for this feature override.",
         );
       }
 
       return setPlatformTenantFeatureEntitlement(tenantId, state.featureId, {
         enabled: true,
-
         source,
-
         limitValue: parsedLimit,
-
         notes: commercialReason,
       });
     },
 
     onSuccess: async () => {
       setSuccessMessage("Feature allowance saved.");
-
-      await queryClient.invalidateQueries({
-        queryKey,
-      });
+      await queryClient.invalidateQueries({ queryKey });
     },
   });
 
@@ -158,42 +116,29 @@ function FeatureLimitEditor({
       setLimitValue(
         state.planLimitValue !== null ? String(state.planLimitValue) : "",
       );
-
       setSource("billing");
-
       setNotes("");
-
       setSuccessMessage(
-        "Customer override removed. Package allowance now applies.",
+        "Override removed. Standard package allowance re-applied.",
       );
-
-      await queryClient.invalidateQueries({
-        queryKey,
-      });
+      await queryClient.invalidateQueries({ queryKey });
     },
   });
 
   const busy = saveMutation.isPending || removeMutation.isPending;
-
   const error = saveMutation.error ?? removeMutation.error;
 
   return (
     <Stack spacing={1.5}>
       <Box>
-        <Typography
-          sx={{
-            fontSize: 12,
-            fontWeight: 800,
-          }}
-        >
+        <Typography sx={{ fontSize: 13, fontWeight: 700 }}>
           {state.name}
         </Typography>
-
         <Typography
           sx={{
             mt: 0.25,
             color: "text.secondary",
-            fontSize: 9,
+            fontSize: 10,
             wordBreak: "break-word",
           }}
         >
@@ -206,27 +151,24 @@ function FeatureLimitEditor({
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
           gap: 1,
+          p: 1.25,
+          borderRadius: 1,
+          bgcolor: "rgba(15, 23, 42, 0.2)",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
         }}
       >
         <Box>
           <Typography
             sx={{
               color: "text.secondary",
-              fontSize: 9,
+              fontSize: 9.5,
               textTransform: "uppercase",
               letterSpacing: "0.05em",
             }}
           >
             Package
           </Typography>
-
-          <Typography
-            sx={{
-              mt: 0.25,
-              fontSize: 12,
-              fontWeight: 800,
-            }}
-          >
+          <Typography sx={{ mt: 0.25, fontSize: 12, fontWeight: 700 }}>
             {allowanceLabel(state)}
           </Typography>
         </Box>
@@ -235,42 +177,28 @@ function FeatureLimitEditor({
           <Typography
             sx={{
               color: "text.secondary",
-              fontSize: 9,
+              fontSize: 9.5,
               textTransform: "uppercase",
               letterSpacing: "0.05em",
             }}
           >
             Effective
           </Typography>
-
-          <Typography
-            sx={{
-              mt: 0.25,
-              fontSize: 12,
-              fontWeight: 800,
-            }}
-          >
+          <Typography sx={{ mt: 0.25, fontSize: 12, fontWeight: 700 }}>
             {effectiveAllowanceLabel(state)}
           </Typography>
         </Box>
       </Box>
 
       {state.override ? (
-        <Alert severity="info">
-          Customer override:{" "}
-          <strong>{state.override.limitValue ?? "No numeric limit"}</strong> (
+        <Alert severity="info" sx={{ py: 0.5, fontSize: 11 }}>
+          Override active:{" "}
+          <strong>{state.override.limitValue ?? "No limit"}</strong> (
           {state.override.source})
         </Alert>
       ) : (
-        <Typography
-          sx={{
-            color: "text.secondary",
-            fontSize: 10,
-            lineHeight: 1.5,
-          }}
-        >
-          No customer-specific override. The package allowance currently
-          applies.
+        <Typography sx={{ color: "text.secondary", fontSize: 10.5 }}>
+          No customer override active. Package standard allowance applies.
         </Typography>
       )}
 
@@ -281,16 +209,10 @@ function FeatureLimitEditor({
         value={limitValue}
         onChange={(event) => {
           setLimitValue(event.target.value);
-
           setSuccessMessage(null);
         }}
-        slotProps={{
-          htmlInput: {
-            min: 0,
-            step: 1,
-          },
-        }}
-        helperText="Enter the total allowance, not the number being added."
+        slotProps={{ htmlInput: { min: 0, step: 1 } }}
+        helperText="Enter total target allowance."
         disabled={busy}
         fullWidth
       />
@@ -302,7 +224,6 @@ function FeatureLimitEditor({
         value={source}
         onChange={(event) => {
           setSource(event.target.value as PlatformTenantFeatureSource);
-
           setSuccessMessage(null);
         }}
         disabled={busy}
@@ -321,11 +242,10 @@ function FeatureLimitEditor({
         value={notes}
         onChange={(event) => {
           setNotes(event.target.value);
-
           setSuccessMessage(null);
         }}
-        placeholder="e.g. Professional package + additional allowance agreed as per contract"
-        helperText="Required for every customer-specific feature exception"
+        placeholder="e.g. Contractual expansion agreement"
+        helperText="Required justification for custom exceptions"
         required
         multiline
         minRows={2}
@@ -335,53 +255,47 @@ function FeatureLimitEditor({
 
       <Button
         variant="contained"
-        disabled={
-          !validLimit ||
-          notes.trim().length < 3 ||
-          busy
-        }
+        disabled={!validLimit || notes.trim().length < 3 || busy}
         onClick={() => {
           setSuccessMessage(null);
-
           saveMutation.mutate();
         }}
+        sx={{ textTransform: "none", fontWeight: 700 }}
         fullWidth
       >
         {saveMutation.isPending ? (
-          <CircularProgress size={18} color="inherit" />
+          <CircularProgress size={16} color="inherit" />
         ) : (
           "Save customer allowance"
         )}
       </Button>
 
-      {state.override ? (
+      {state.override && (
         <Button
           variant="outlined"
           disabled={busy}
           onClick={() => {
             setSuccessMessage(null);
-
             removeMutation.mutate();
           }}
+          sx={{ textTransform: "none", fontWeight: 700 }}
           fullWidth
         >
           {removeMutation.isPending
             ? "Removing..."
-            : "Return to package allowance"}
+            : "Reset to package allowance"}
         </Button>
-      ) : null}
+      )}
 
-      {error ? (
+      {error && (
         <Alert severity="error">
           {error instanceof Error
             ? error.message
-            : "Unable to update feature allowance"}
+            : "Unable to update allowance"}
         </Alert>
-      ) : null}
+      )}
 
-      {successMessage ? (
-        <Alert severity="success">{successMessage}</Alert>
-      ) : null}
+      {successMessage && <Alert severity="success">{successMessage}</Alert>}
     </Stack>
   );
 }
@@ -395,20 +309,9 @@ export function TenantFeatureLimits({ tenant }: TenantFeatureLimitsProps) {
 
   const statesQuery = useQuery({
     queryKey,
-
     queryFn: () => listPlatformTenantFeatureStates(tenant.id),
   });
 
-  /**
-   * At present Student Custom Fields is our first quota-bearing
-   * feature.
-   *
-   * The suffix rule also makes future driver/vehicle/guardian
-   * custom-field quota features appear automatically.
-   *
-   * Any other feature with an explicit numeric plan or tenant
-   * limit is also surfaced without requiring a UI rewrite.
-   */
   const quotaFeatures =
     statesQuery.data?.filter(
       (state) =>
@@ -424,12 +327,7 @@ export function TenantFeatureLimits({ tenant }: TenantFeatureLimitsProps) {
 
   return (
     <Box>
-      <Typography
-        sx={{
-          fontSize: 12,
-          fontWeight: 800,
-        }}
-      >
+      <Typography sx={{ fontSize: 13, fontWeight: 800 }}>
         Feature limits
       </Typography>
 
@@ -437,54 +335,37 @@ export function TenantFeatureLimits({ tenant }: TenantFeatureLimitsProps) {
         sx={{
           mt: 0.5,
           color: "text.secondary",
-          fontSize: 10,
+          fontSize: 10.5,
           lineHeight: 1.5,
         }}
       >
-        View package allowances and apply customer-specific capacity purchased
-        or agreed outside the base package.
+        Manage feature quota caps and commercial add-on entitlements.
       </Typography>
 
-      <Stack
-        spacing={1.5}
-        sx={{
-          mt: 2,
-        }}
-      >
-        {statesQuery.isLoading ? (
-          <Box
-            sx={{
-              display: "grid",
-              placeItems: "center",
-              py: 2,
-            }}
-          >
+      <Stack spacing={1.5} sx={{ mt: 2 }}>
+        {statesQuery.isLoading && (
+          <Box sx={{ display: "grid", placeItems: "center", py: 2 }}>
             <CircularProgress size={22} />
           </Box>
-        ) : null}
+        )}
 
-        {statesQuery.isError ? (
+        {statesQuery.isError && (
           <Alert severity="error">
             {statesQuery.error instanceof Error
               ? statesQuery.error.message
-              : "Unable to load tenant feature limits"}
+              : "Unable to load feature limits"}
           </Alert>
-        ) : null}
+        )}
 
         {!statesQuery.isLoading &&
-        !statesQuery.isError &&
-        quotaFeatures.length === 0 ? (
-          <Typography
-            sx={{
-              color: "text.secondary",
-              fontSize: 10,
-            }}
-          >
-            No quota-managed features are currently configured.
-          </Typography>
-        ) : null}
+          !statesQuery.isError &&
+          quotaFeatures.length === 0 && (
+            <Typography sx={{ color: "text.secondary", fontSize: 11 }}>
+              No quota-managed features currently configured.
+            </Typography>
+          )}
 
-        {quotaFeatures.length > 1 ? (
+        {quotaFeatures.length > 1 && (
           <TextField
             select
             size="small"
@@ -499,9 +380,9 @@ export function TenantFeatureLimits({ tenant }: TenantFeatureLimitsProps) {
               </MenuItem>
             ))}
           </TextField>
-        ) : null}
+        )}
 
-        {selectedState ? (
+        {selectedState && (
           <FeatureLimitEditor
             key={[
               tenant.id,
@@ -512,7 +393,7 @@ export function TenantFeatureLimits({ tenant }: TenantFeatureLimitsProps) {
             state={selectedState}
             queryKey={queryKey}
           />
-        ) : null}
+        )}
       </Stack>
     </Box>
   );
