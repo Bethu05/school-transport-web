@@ -35,7 +35,10 @@ export const FRONTEND_PERMISSIONS = {
   TRIPS_CREATE: "trips.create",
   TRIPS_UPDATE: "trips.update",
   TRIPS_MANAGE_RIDERS: "trips.manage_riders",
+
+  TRIPS_MANAGE_STAFF: "trips.manage_staff",
   TRIPS_SCHEDULE: "trips.schedule",
+  TRIPS_RETURN_TO_DRAFT: "trips.return_to_draft",
   TRIPS_BOARD: "trips.board",
   TRIPS_START: "trips.start",
   TRIPS_AUTHORIZE_START: "trips.authorize_start",

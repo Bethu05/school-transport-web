@@ -409,6 +409,9 @@ export function DriverJourneyProgressCard({
       ? liveVehicleLocation
       : null;
 
+  const displayedProgressPercent =
+    activeLiveLocation?.routeProgressPercent ?? progress?.progressPercent ?? 0;
+
   const liveMapMarkers = activeLiveLocation
     ? [
         {
@@ -563,7 +566,7 @@ export function DriverJourneyProgressCard({
           />
 
           <Chip
-            label={`${progress.progressPercent}% complete`}
+            label={`${displayedProgressPercent}% complete`}
 
             variant="outlined"
           />
@@ -588,7 +591,7 @@ export function DriverJourneyProgressCard({
       <LinearProgress
         variant="determinate"
 
-        value={progress.progressPercent}
+        value={displayedProgressPercent}
 
         sx={{
           mt: 2.5,

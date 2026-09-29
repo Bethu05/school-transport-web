@@ -24,8 +24,6 @@ import {
   hasFrontendPermission,
 } from "../auth/frontend-permissions";
 
-import { listRouteStops } from "../routes/routes.api";
-
 import { listTripsPage } from "../trips/trips.api";
 
 import { listVehicles, type Vehicle } from "../vehicles/vehicles.api";
@@ -34,15 +32,16 @@ import { GuardianTrackingPanel } from "./GuardianTrackingPanel";
 
 import { LiveTrackingMap } from "./LiveTrackingMap";
 
-import { getLatestTrackingLocations } from "./tracking-snapshot.api";
+import {
+  getLatestTrackingLocations,
+  getTrackingTripMap,
+} from "./tracking-snapshot.api";
 
 import {
   mergeVehicleLocation,
   mergeVehicleLocations,
   type VehicleLiveState,
 } from "./tracking-state";
-
-import { getRouteGeometry } from "./route-geometry.api";
 
 import { sliceRouteBetweenPoints } from "./route-segment";
 
@@ -247,17 +246,6 @@ export function TrackingPage() {
   const canReadFleet = hasFrontendPermission(
     permissions,
     FRONTEND_PERMISSIONS.VEHICLES_READ,
-  );
-
-  /**
-   * Canonical planned-route geometry is protected by the
-   * backend ROUTES_READ permission.
-   *
-   * The realtime vehicle map still works without it.
-   */
-  const canReadRoutes = hasFrontendPermission(
-    permissions,
-    FRONTEND_PERMISSIONS.ROUTES_READ,
   );
 
   const canReadTrips = hasFrontendPermission(
@@ -618,17 +606,6 @@ export function TrackingPage() {
     : null;
 
   /**
-   * Trips are the authoritative source for the active operational
-   * route. GPS route identity is retained only as a resilience
-   * fallback when trip access is unavailable.
-   */
-  const selectedRouteId =
-    selectedOperationalTrip?.routeId ??
-    (!canReadTrips || activeTripsQuery.isError
-      ? (selectedTrackedVehicleCandidate?.location.routeId ?? null)
-      : null);
-
-  /**
    * Keep historical fleet snapshots available for signal-health
    * reporting, but never plot an old trip position as though it
    * belongs to a newly active dated trip using the same vehicle.
@@ -649,56 +626,40 @@ export function TrackingPage() {
   });
 
   /**
-   * Geometry changes rarely compared with GPS.
+   * Operational mapping is Trip-scoped.
    *
-   * It is therefore fetched independently instead of being
-   * repeated inside every high-frequency realtime packet.
+   * Route templates are planning data. Once scheduled, the
+   * frozen Trip road geometry and road-anchored stop positions
+   * remain authoritative for the live journey.
    */
-  const routeGeometryQuery = useQuery({
-    queryKey: ["route-geometry", tenantId, selectedRouteId],
+  const tripMapQuery = useQuery({
+    queryKey: ["tracking-trip-map", tenantId, selectedOperationalTrip?.id],
 
-    enabled: Boolean(tenantId && selectedRouteId && canReadRoutes),
+    enabled: Boolean(
+      tenantId &&
+      selectedOperationalTrip?.id &&
+      canUseControlRoom &&
+      liveFleetMapEnabled,
+    ),
 
     staleTime: 60_000,
 
     queryFn: async () => {
-      if (!tenantId || !selectedRouteId) {
-        throw new Error("No selected route");
+      if (!tenantId || !selectedOperationalTrip?.id) {
+        throw new Error("No selected operational trip");
       }
 
-      return getRouteGeometry(tenantId, selectedRouteId);
+      return getTrackingTripMap(tenantId, selectedOperationalTrip.id);
     },
   });
 
-  /**
-   * Route-stop coordinates are stable planning data, so fetch them
-   * independently from high-frequency GPS updates.
-   */
-  const routeStopsQuery = useQuery({
-    queryKey: ["route-stops", tenantId, selectedRouteId, "tracking"],
+  const canonicalPlannedRoute = tripMapQuery.data?.geometry
+    ? {
+        key: tripMapQuery.data.tripId,
 
-    enabled: Boolean(tenantId && selectedRouteId && canReadRoutes),
-
-    staleTime: 60_000,
-
-    queryFn: async () => {
-      if (!tenantId || !selectedRouteId) {
-        throw new Error("No selected route");
+        coordinates: tripMapQuery.data.geometry.coordinates,
       }
-
-      return listRouteStops(tenantId, selectedRouteId);
-    },
-  });
-
-  const canonicalPlannedRoute =
-    routeGeometryQuery.data?.status === "ready" &&
-    routeGeometryQuery.data.geometry
-      ? {
-          key: routeGeometryQuery.data.routeId,
-
-          coordinates: routeGeometryQuery.data.geometry.coordinates,
-        }
-      : null;
+    : null;
 
   /**
    * Build the remaining journey highlight entirely from the
@@ -785,7 +746,7 @@ export function TrackingPage() {
     ];
   });
 
-  const selectedRouteStops = routeStopsQuery.data ?? [];
+  const selectedRouteStops = tripMapQuery.data?.stops ?? [];
 
   const selectedNextStopId =
     selectedTrackedVehicle?.location.nextStop?.stopId ?? null;

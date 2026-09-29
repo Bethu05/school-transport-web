@@ -21,6 +21,10 @@ import type { Vehicle } from "../vehicles/vehicles.api";
 
 import type { Trip, UpdateTripInput } from "./trips.api";
 
+import { TripChaperoneField } from "./TripChaperoneField";
+
+import { TripStudentsPanel } from "./TripStudentsPanel";
+
 const BUSINESS_TIME_ZONE = "Africa/Nairobi";
 
 const BUSINESS_UTC_OFFSET = "+03:00";
@@ -30,6 +34,8 @@ interface TripEditDialogProps {
 
   trip: Trip | null;
 
+  tenantId: string;
+
   routes: readonly Route[];
 
   vehicles: readonly Vehicle[];
@@ -38,11 +44,25 @@ interface TripEditDialogProps {
 
   saving: boolean;
 
+  canEditTrip: boolean;
+
+  canManageRiders: boolean;
+
+  canReadStudents: boolean;
+
+  canReturnToDraft: boolean;
+
+  returningToDraft: boolean;
+
   error: string | null;
 
   onClose: () => void;
 
   onSave: (input: UpdateTripInput) => Promise<void>;
+
+  onRidersChanged: () => void;
+
+  onReturnToDraft: (reason: string) => Promise<void>;
 }
 
 interface TripEditFormState {
@@ -172,19 +192,29 @@ function createFormState(trip: Trip | null): TripEditFormState {
 export function TripEditDialog({
   open,
   trip,
+  tenantId,
   routes,
   vehicles,
   drivers,
   saving,
+  canEditTrip,
+  canManageRiders,
+  canReadStudents,
+  canReturnToDraft,
+  returningToDraft,
   error,
   onClose,
   onSave,
+  onRidersChanged,
+  onReturnToDraft,
 }: TripEditDialogProps) {
   const [form, setForm] = useState<TripEditFormState>(() =>
     createFormState(trip),
   );
 
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  const [returnReason, setReturnReason] = useState("");
 
   if (!trip) {
     return null;
@@ -199,7 +229,12 @@ export function TripEditDialog({
    */
   const currentTrip = trip;
 
-  const routeEditable = currentTrip.status === "draft";
+  const planningStatus =
+    currentTrip.status === "draft" || currentTrip.status === "scheduled";
+
+  const detailsEditable = canEditTrip && planningStatus;
+
+  const routeEditable = detailsEditable && currentTrip.status === "draft";
 
   const routeOptions = routes.filter(
     (route) =>
@@ -229,10 +264,37 @@ export function TripEditDialog({
     }));
   }
 
+  async function handleReturnToDraft(): Promise<void> {
+    const reason = returnReason.trim();
+
+    setValidationError(null);
+
+    if (!reason) {
+      setValidationError(
+        "Please provide a reason for returning this trip to draft.",
+      );
+
+      return;
+    }
+
+    try {
+      await onReturnToDraft(reason);
+    } catch {
+      /*
+       * Parent mutation renders the server error through
+       * the existing error prop.
+       */
+    }
+  }
+
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>,
   ): Promise<void> {
     event.preventDefault();
+
+    if (!detailsEditable) {
+      return;
+    }
 
     setValidationError(null);
 
@@ -306,7 +368,7 @@ export function TripEditDialog({
             fontWeight: 850,
           }}
         >
-          Edit trip
+          {planningStatus ? "Configure trip" : "Inspect trip"}
         </DialogTitle>
 
         <DialogContent>
@@ -358,10 +420,77 @@ export function TripEditDialog({
               ))}
             </TextField>
 
+            {currentTrip.status === "scheduled" && canReturnToDraft ? (
+              <Box
+                sx={{
+                  gridColumn: "1 / -1",
+
+                  display: "grid",
+
+                  gap: 1.25,
+
+                  p: 1.5,
+
+                  borderRadius: 2,
+
+                  border: "1px solid",
+
+                  borderColor: "warning.light",
+                }}
+              >
+                <Typography
+                  sx={{
+                    color: "text.secondary",
+
+                    fontSize: 12,
+
+                    lineHeight: 1.6,
+                  }}
+                >
+                  Need to change the route? Return this scheduled trip to draft
+                  first. Driver, Vehicle, Chaperone, Students and other
+                  assignments will be preserved.
+                </Typography>
+
+                <TextField
+                  label="Reason for returning to draft"
+                  value={returnReason}
+                  onChange={(event) => setReturnReason(event.target.value)}
+                  multiline
+                  minRows={2}
+                  disabled={saving}
+                  slotProps={{
+                    htmlInput: {
+                      maxLength: 500,
+                    },
+                  }}
+                />
+
+                <Box>
+                  <Button
+                    type="button"
+                    variant="outlined"
+                    color="warning"
+                    disabled={
+                      saving || returningToDraft || !returnReason.trim()
+                    }
+                    onClick={() => {
+                      void handleReturnToDraft();
+                    }}
+                  >
+                    {returningToDraft
+                      ? "Returning to draft..."
+                      : "Return to draft"}
+                  </Button>
+                </Box>
+              </Box>
+            ) : null}
+
             <TextField
               type="date"
               label="Service date"
               value={form.serviceDate}
+              disabled={!detailsEditable || saving}
               onChange={(event) =>
                 updateField("serviceDate", event.target.value)
               }
@@ -380,6 +509,7 @@ export function TripEditDialog({
               type="time"
               label="Departure"
               value={form.startTime}
+              disabled={!detailsEditable || saving}
               onChange={(event) => updateField("startTime", event.target.value)}
               slotProps={{
                 inputLabel: {
@@ -392,6 +522,7 @@ export function TripEditDialog({
               type="time"
               label="Finish"
               value={form.endTime}
+              disabled={!detailsEditable || saving}
               onChange={(event) => updateField("endTime", event.target.value)}
               helperText={
                 currentTrip.status === "draft"
@@ -409,6 +540,7 @@ export function TripEditDialog({
               select
               label="Vehicle"
               value={form.vehicleId}
+              disabled={!detailsEditable || saving}
               onChange={(event) => updateField("vehicleId", event.target.value)}
             >
               <MenuItem value="">Unassigned</MenuItem>
@@ -424,6 +556,7 @@ export function TripEditDialog({
               select
               label="Driver"
               value={form.driverId}
+              disabled={!detailsEditable || saving}
               onChange={(event) => updateField("driverId", event.target.value)}
             >
               <MenuItem value="">Unassigned</MenuItem>
@@ -435,9 +568,24 @@ export function TripEditDialog({
               ))}
             </TextField>
 
+            <TripChaperoneField
+              trip={currentTrip}
+              disabled={saving || !planningStatus}
+            />
+
+            <TripStudentsPanel
+              tenantId={tenantId}
+              trip={currentTrip}
+              canManage={canManageRiders}
+              canReadStudents={canReadStudents}
+              disabled={saving}
+              onChanged={onRidersChanged}
+            />
+
             <TextField
               label="Notes"
               value={form.notes}
+              disabled={!detailsEditable || saving}
               onChange={(event) => updateField("notes", event.target.value)}
               multiline
               minRows={3}
@@ -456,8 +604,10 @@ export function TripEditDialog({
               }}
             >
               {currentTrip.status === "draft"
-                ? "Draft trips can be amended and scheduled again after resolving route, vehicle, driver or timing conflicts."
-                : "This trip is already scheduled, so its route is locked."}
+                ? "Draft Trip configuration is editable, including Route."
+                : currentTrip.status === "scheduled"
+                  ? "This Trip is scheduled. Planning assignments may still be adjusted, but Route remains locked until Return to Draft."
+                  : "Operational and historical Trip configuration is read-only."}
             </Typography>
           </Box>
         </DialogContent>
@@ -470,12 +620,14 @@ export function TripEditDialog({
           }}
         >
           <Button onClick={onClose} disabled={saving}>
-            Cancel
+            {detailsEditable ? "Cancel" : "Close"}
           </Button>
 
-          <Button type="submit" variant="contained" disabled={saving}>
-            {saving ? "Saving..." : "Save changes"}
-          </Button>
+          {detailsEditable ? (
+            <Button type="submit" variant="contained" disabled={saving}>
+              {saving ? "Saving..." : "Save changes"}
+            </Button>
+          ) : null}
         </DialogActions>
       </Box>
     </Dialog>

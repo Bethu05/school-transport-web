@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { SaveRounded } from "@mui/icons-material";
+
 import {
   Alert,
   Box,
@@ -10,8 +12,6 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-
-import { SaveRounded } from "@mui/icons-material";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -29,23 +29,16 @@ interface TenantCapacityActionsProps {
 
 interface CapacityEditorProps {
   tenant: PlatformTenantListItem;
-
   capacity: PlatformTenantCapacityState;
-
   queryKey: readonly unknown[];
 }
 
 interface CapacityMetricProps {
   label: string;
-
   helper: string;
-
   used: number;
-
   limit: string;
-
   overLimit: boolean;
-
   onChange: (value: string) => void;
 }
 
@@ -61,47 +54,32 @@ function CapacityMetric({
     <Box
       sx={{
         p: 2,
-
         border: "1px solid",
-
-        borderColor: overLimit ? "warning.main" : "divider",
-
-        borderRadius: 2,
-
-        bgcolor: "background.paper",
+        borderColor: overLimit ? "warning.main" : "rgba(255, 255, 255, 0.12)",
+        borderRadius: 1.5,
+        bgcolor: overLimit ? "rgba(245, 158, 11, 0.05)" : "rgba(15, 23, 42, 0.25)",
+        backdropFilter: "blur(8px)",
       }}
     >
       <Box
         sx={{
           display: "flex",
-
           alignItems: "flex-start",
-
           justifyContent: "space-between",
-
           gap: 2,
         }}
       >
         <Box>
-          <Typography
-            sx={{
-              fontSize: 13,
-
-              fontWeight: 800,
-            }}
-          >
+          <Typography sx={{ fontSize: 13, fontWeight: 700 }}>
             {label}
           </Typography>
 
           <Typography
             sx={{
               mt: 0.35,
-
               color: "text.secondary",
-
-              fontSize: 10,
-
-              lineHeight: 1.5,
+              fontSize: 10.5,
+              lineHeight: 1.4,
             }}
           >
             {helper}
@@ -111,11 +89,8 @@ function CapacityMetric({
         <Typography
           sx={{
             whiteSpace: "nowrap",
-
             fontSize: 13,
-
             fontWeight: 800,
-
             color: overLimit ? "warning.main" : "text.primary",
           }}
         >
@@ -124,16 +99,12 @@ function CapacityMetric({
       </Box>
 
       <TextField
-        sx={{
-          mt: 2,
-        }}
+        sx={{ mt: 1.75 }}
         size="small"
         type="number"
         label="Tenant allowance"
         value={limit}
-        onChange={(event) => {
-          onChange(event.target.value);
-        }}
+        onChange={(event) => onChange(event.target.value)}
         slotProps={{
           htmlInput: {
             min: 0,
@@ -143,21 +114,18 @@ function CapacityMetric({
         fullWidth
       />
 
-      {overLimit ? (
+      {overLimit && (
         <Typography
           sx={{
-            mt: 1,
-
+            mt: 0.75,
             color: "warning.main",
-
             fontSize: 10,
-
             fontWeight: 700,
           }}
         >
-          Current usage is above the contracted allowance.
+          Current usage exceeds contracted allowance.
         </Typography>
-      ) : null}
+      )}
     </Box>
   );
 }
@@ -166,11 +134,8 @@ function CapacityEditor({ tenant, capacity, queryKey }: CapacityEditorProps) {
   const queryClient = useQueryClient();
 
   const [schools, setSchools] = useState(String(capacity.schools.limit));
-
   const [students, setStudents] = useState(String(capacity.students.limit));
-
   const [vehicles, setVehicles] = useState(String(capacity.vehicles.limit));
-
   const [drivers, setDrivers] = useState(String(capacity.drivers.limit));
 
   const [source, setSource] = useState<SetPlatformTenantCapacitySource>(
@@ -178,29 +143,18 @@ function CapacityEditor({ tenant, capacity, queryKey }: CapacityEditorProps) {
   );
 
   const [notes, setNotes] = useState(capacity.notes ?? "");
-
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   function parseAllowance(value: string): number | null {
-    if (value.trim() === "") {
-      return null;
-    }
-
+    if (value.trim() === "") return null;
     const parsed = Number(value);
-
-    if (!Number.isInteger(parsed) || parsed < 0) {
-      return null;
-    }
-
+    if (!Number.isInteger(parsed) || parsed < 0) return null;
     return parsed;
   }
 
   const schoolLimit = parseAllowance(schools);
-
   const studentLimit = parseAllowance(students);
-
   const vehicleLimit = parseAllowance(vehicles);
-
   const driverLimit = parseAllowance(drivers);
 
   const valid =
@@ -217,29 +171,21 @@ function CapacityEditor({ tenant, capacity, queryKey }: CapacityEditorProps) {
         vehicleLimit === null ||
         driverLimit === null
       ) {
-        throw new Error(
-          "Every capacity allowance must be a whole number of zero or more.",
-        );
+        throw new Error("Capacity allowances must be non-negative integers.");
       }
 
       return setPlatformTenantCapacity(tenant.id, {
         schools: schoolLimit,
-
         students: studentLimit,
-
         vehicles: vehicleLimit,
-
         drivers: driverLimit,
-
         source,
-
         notes: notes.trim() || undefined,
       });
     },
 
     onSuccess: (result) => {
       queryClient.setQueryData(queryKey, result);
-
       setSuccessMessage("Tenant operating capacity updated successfully.");
     },
   });
@@ -247,68 +193,55 @@ function CapacityEditor({ tenant, capacity, queryKey }: CapacityEditorProps) {
   return (
     <Stack spacing={2}>
       <Box>
-        <Typography
-          sx={{
-            fontSize: 15,
-
-            fontWeight: 850,
-          }}
-        >
+        <Typography sx={{ fontSize: 14, fontWeight: 800 }}>
           Operating capacity
         </Typography>
 
         <Typography
           sx={{
             mt: 0.5,
-
             color: "text.secondary",
-
             fontSize: 11,
-
-            lineHeight: 1.6,
+            lineHeight: 1.5,
           }}
         >
-          These are tenant-wide commercial limits. Schools share one total
-          allowance for Students, buses and Drivers.
+          Tenant-wide commercial limits shared across all associated schools for
+          Students, buses, and Drivers.
         </Typography>
       </Box>
 
-      {capacity.source === "bootstrap" ? (
+      {capacity.source === "bootstrap" && (
         <Alert severity="info">
-          This tenant currently uses migration bootstrap allowances. Save
-          contracted limits here before treating them as a live subscription.
+          Tenant uses migration bootstrap allowances. Configure contracted
+          limits here before live activation.
         </Alert>
-      ) : null}
+      )}
 
       {[
         capacity.schools,
         capacity.students,
         capacity.vehicles,
         capacity.drivers,
-      ].some((item) => item.overLimit) ? (
+      ].some((item) => item.overLimit) && (
         <Alert severity="warning">
-          This tenant is above at least one allowance. Existing operational data
-          remains available, but new capacity consumption is blocked until usage
-          falls below the limit or you increase the allowance.
+          Tenant is over capacity limits. New additions will be restricted until
+          usage is reduced or allowances are increased.
         </Alert>
-      ) : null}
+      )}
 
       <Box
         sx={{
           display: "grid",
-
           gridTemplateColumns: {
             xs: "1fr",
-
             md: "repeat(2, minmax(0, 1fr))",
           },
-
           gap: 1.5,
         }}
       >
         <CapacityMetric
           label="Schools"
-          helper="Total active schools controlled by this tenant."
+          helper="Active schools controlled by this tenant."
           used={capacity.schools.used}
           limit={schools}
           overLimit={capacity.schools.overLimit}
@@ -317,7 +250,7 @@ function CapacityEditor({ tenant, capacity, queryKey }: CapacityEditorProps) {
 
         <CapacityMetric
           label="Students"
-          helper="Total active Students across every school in the tenant."
+          helper="Active students across all tenant schools."
           used={capacity.students.used}
           limit={students}
           overLimit={capacity.students.overLimit}
@@ -325,8 +258,8 @@ function CapacityEditor({ tenant, capacity, queryKey }: CapacityEditorProps) {
         />
 
         <CapacityMetric
-          label="Buses / vehicles"
-          helper="Active and maintenance vehicles count against this tenant-wide allowance."
+          label="Buses / Vehicles"
+          helper="Active and maintenance fleet vehicles."
           used={capacity.vehicles.used}
           limit={vehicles}
           overLimit={capacity.vehicles.overLimit}
@@ -335,7 +268,7 @@ function CapacityEditor({ tenant, capacity, queryKey }: CapacityEditorProps) {
 
         <CapacityMetric
           label="Drivers"
-          helper="Active and suspended Drivers count against the contracted allowance."
+          helper="Active and suspended drivers."
           used={capacity.drivers.used}
           limit={drivers}
           overLimit={capacity.drivers.overLimit}
@@ -350,19 +283,14 @@ function CapacityEditor({ tenant, capacity, queryKey }: CapacityEditorProps) {
         value={source}
         onChange={(event) => {
           setSource(event.target.value as SetPlatformTenantCapacitySource);
-
           setSuccessMessage(null);
         }}
         fullWidth
       >
         <MenuItem value="billing">Billing</MenuItem>
-
         <MenuItem value="contract">Contract</MenuItem>
-
         <MenuItem value="promotion">Promotion</MenuItem>
-
         <MenuItem value="manual">Manual</MenuItem>
-
         <MenuItem value="demo">Demo</MenuItem>
       </TextField>
 
@@ -372,7 +300,6 @@ function CapacityEditor({ tenant, capacity, queryKey }: CapacityEditorProps) {
         value={notes}
         onChange={(event) => {
           setNotes(event.target.value);
-
           setSuccessMessage(null);
         }}
         multiline
@@ -380,26 +307,34 @@ function CapacityEditor({ tenant, capacity, queryKey }: CapacityEditorProps) {
         fullWidth
       />
 
-      {mutation.isError ? (
+      {mutation.isError && (
         <Alert severity="error">
           {mutation.error instanceof Error
             ? mutation.error.message
             : "Unable to update tenant capacity"}
         </Alert>
-      ) : null}
+      )}
 
-      {successMessage ? (
-        <Alert severity="success">{successMessage}</Alert>
-      ) : null}
+      {successMessage && <Alert severity="success">{successMessage}</Alert>}
 
       <Button
         variant="contained"
-        startIcon={<SaveRounded />}
+        startIcon={
+          mutation.isPending ? (
+            <CircularProgress size={16} color="inherit" />
+          ) : (
+            <SaveRounded />
+          )
+        }
         disabled={!valid || mutation.isPending}
         onClick={() => {
           setSuccessMessage(null);
-
           mutation.mutate();
+        }}
+        sx={{
+          minHeight: 38,
+          textTransform: "none",
+          fontWeight: 700,
         }}
       >
         {mutation.isPending ? "Saving capacity..." : "Save capacity"}
@@ -413,22 +348,13 @@ export function TenantCapacityActions({ tenant }: TenantCapacityActionsProps) {
 
   const capacityQuery = useQuery({
     queryKey,
-
     queryFn: () => getPlatformTenantCapacity(tenant.id),
   });
 
   if (capacityQuery.isLoading) {
     return (
-      <Box
-        sx={{
-          py: 5,
-
-          display: "grid",
-
-          placeItems: "center",
-        }}
-      >
-        <CircularProgress size={26} />
+      <Box sx={{ py: 4, display: "grid", placeItems: "center" }}>
+        <CircularProgress size={24} />
       </Box>
     );
   }

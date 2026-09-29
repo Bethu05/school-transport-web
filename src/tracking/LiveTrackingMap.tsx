@@ -1306,60 +1306,17 @@ export function LiveTrackingMap({
     );
   }
 
-  if (markers.length === 0 && !plannedRoute) {
-    return (
-      <Paper
-        data-tracking-map-waiting
-        elevation={0}
-        sx={{
-          height: "100%",
-          minHeight: 0,
-          width: "100%",
-          p: 4,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          textAlign: "center",
-          border: "1px solid",
-          borderColor: "divider",
-          borderRadius: 0,
-          boxSizing: "border-box",
-        }}
-      >
-        <Box>
-          <MapRounded
-            sx={{
-              fontSize: 40,
-              color: "text.secondary",
-            }}
-          />
-
-          <Typography
-            sx={{
-              mt: 1,
-              color: "text.secondary",
-              fontSize: 12.5,
-              fontWeight: 700,
-            }}
-          >
-            Waiting for active route or GPS signal.
-          </Typography>
-
-          <Typography
-            sx={{
-              mt: 0.5,
-              color: "text.secondary",
-              fontSize: 10.5,
-            }}
-          >
-            The map will open automatically when operational tracking data is
-            available.
-          </Typography>
-        </Box>
-      </Paper>
-    );
-  }
-
+  /**
+   * Keep the Mapbox container mounted even before the first GPS
+   * packet or Trip geometry arrives.
+   *
+   * Mapbox initialisation runs once. If we return a separate
+   * waiting surface before rendering containerRef, the initial
+   * effect sees a null container and can never initialise later.
+   *
+   * The existing in-map empty-state overlay handles the
+   * pre-GPS / no-active-journey state without unmounting Mapbox.
+   */
   return (
     <Paper
       elevation={0}
