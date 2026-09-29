@@ -61,6 +61,8 @@ export interface VehicleLocationUpdate {
 
   routeId: string | null;
 
+  routeProgressPercent: number | null;
+
   arrivedStop: unknown | null;
 
   departedStop: unknown | null;
