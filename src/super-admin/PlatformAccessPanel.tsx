@@ -222,6 +222,8 @@ export function PlatformAccessPanel() {
 
   const [resetPassword, setResetPassword] = useState("");
 
+  const [resetConfirmPassword, setResetConfirmPassword] = useState("");
+
   const normalizedSearch = deferredSearchTerm.trim();
 
   const usersQuery = useQuery({
@@ -494,19 +496,40 @@ export function PlatformAccessPanel() {
   });
 
   const resetMutation = useMutation({
-    mutationFn: () =>
-      resetPlatformAccessUserPassword(selectedUserId, resetPassword),
+    mutationFn: async () => {
+      if (!selectedUserId) {
+        throw new Error("No platform user selected.");
+      }
+
+      if (resetPassword.length < 12) {
+        throw new Error(
+          "Temporary password must contain at least 12 characters.",
+        );
+      }
+
+      if (resetPassword !== resetConfirmPassword) {
+        throw new Error("Temporary password and confirmation do not match.");
+      }
+
+      return resetPlatformAccessUserPassword(selectedUserId, resetPassword);
+    },
 
     onSuccess: (nextAccess) => {
       updateAccessCache(nextAccess);
 
       setResetPassword("");
 
+      setResetConfirmPassword("");
+
       setResetOpen(false);
 
       setSavedMessage(
-        "Temporary password set. User must change it on next sign-in.",
+        `Temporary password set for ${nextAccess.user.firstName} ${nextAccess.user.lastName}. They must change it at next sign-in.`,
       );
+
+      void queryClient.invalidateQueries({
+        queryKey: ["platform", "access", "users"],
+      });
     },
   });
 
@@ -1183,7 +1206,13 @@ export function PlatformAccessPanel() {
                           variant="outlined"
                           startIcon={<LockResetRounded />}
                           disabled={anyMutationPending}
-                          onClick={() => setResetOpen(true)}
+                          onClick={() => {
+                            setResetPassword("");
+                            setResetConfirmPassword("");
+                            resetMutation.reset();
+                            setSavedMessage(null);
+                            setResetOpen(true);
+                          }}
                         >
                           Reset password
                         </Button>
@@ -1845,55 +1874,95 @@ export function PlatformAccessPanel() {
         onClose={() => {
           if (!resetMutation.isPending) {
             setResetOpen(false);
+            setResetPassword("");
+            setResetConfirmPassword("");
+            resetMutation.reset();
           }
         }}
         fullWidth
         maxWidth="xs"
       >
-        <DialogTitle>Reset Password</DialogTitle>
+        <DialogTitle>Reset Platform User Password</DialogTitle>
 
         <DialogContent>
-          <Typography
-            sx={{
-              mb: 1.5,
+          <Stack spacing={1.5}>
+            <Alert severity="info">
+              Set a temporary password for {selectedName}. The user will use
+              this password to sign in and will then be required to choose their
+              own new password before continuing.
+            </Alert>
 
-              color: "text.secondary",
+            <TextField
+              autoFocus
+              label="Temporary password"
+              type="password"
+              value={resetPassword}
+              onChange={(event) => {
+                setResetPassword(event.target.value);
+                resetMutation.reset();
+              }}
+              helperText="Minimum 12 characters."
+              autoComplete="new-password"
+              fullWidth
+            />
 
-              fontSize: 10,
+            <TextField
+              label="Confirm temporary password"
+              type="password"
+              value={resetConfirmPassword}
+              onChange={(event) => {
+                setResetConfirmPassword(event.target.value);
+                resetMutation.reset();
+              }}
+              error={
+                resetConfirmPassword.length > 0 &&
+                resetPassword !== resetConfirmPassword
+              }
+              helperText={
+                resetConfirmPassword.length > 0 &&
+                resetPassword !== resetConfirmPassword
+                  ? "Passwords do not match."
+                  : "Enter the same temporary password again."
+              }
+              autoComplete="new-password"
+              fullWidth
+            />
 
-              lineHeight: 1.5,
-            }}
-          >
-            Set a temporary password for {selectedName}. Existing refresh
-            sessions will be revoked and the user must change this password
-            after signing in.
-          </Typography>
-
-          <TextField
-            autoFocus
-            label="Temporary password"
-            type="password"
-            value={resetPassword}
-            onChange={(event) => setResetPassword(event.target.value)}
-            helperText="Minimum 12 characters."
-            fullWidth
-          />
+            {resetMutation.isError ? (
+              <Alert severity="error">
+                {resetMutation.error instanceof Error
+                  ? resetMutation.error.message
+                  : "Password could not be reset."}
+              </Alert>
+            ) : null}
+          </Stack>
         </DialogContent>
 
         <DialogActions>
           <Button
             disabled={resetMutation.isPending}
-            onClick={() => setResetOpen(false)}
+            onClick={() => {
+              setResetOpen(false);
+              setResetPassword("");
+              setResetConfirmPassword("");
+              resetMutation.reset();
+            }}
           >
             Cancel
           </Button>
 
           <Button
             variant="contained"
-            disabled={resetMutation.isPending || resetPassword.length < 12}
+            disabled={
+              resetMutation.isPending ||
+              resetPassword.length < 12 ||
+              resetPassword !== resetConfirmPassword
+            }
             onClick={() => resetMutation.mutate()}
           >
-            {resetMutation.isPending ? "Resetting..." : "Reset Password"}
+            {resetMutation.isPending
+              ? "Setting Password..."
+              : "Set Temporary Password"}
           </Button>
         </DialogActions>
       </Dialog>
