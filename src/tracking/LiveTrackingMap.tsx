@@ -474,7 +474,7 @@ function animateMarkerPosition(
 
   const startedAt = performance.now();
 
-  const durationMs = 620;
+  const durationMs = 1100;
 
   function frame(now: number): void {
     const elapsed = now - startedAt;
@@ -486,16 +486,11 @@ function animateMarkerPosition(
     );
 
     /**
-     * Ease-out cubic gives the bus a smoother GPS-like motion
-     * instead of snapping point-to-point.
+     * Interpolate continuously between GPS packets. The animation
+     * slightly overlaps the expected one-second packet cadence so
+     * the vehicle never visibly brakes between normal updates.
      */
-    const progress =
-      1 -
-      Math.pow(
-        1 - rawProgress,
-
-        3,
-      );
+    const progress = rawProgress;
 
     marker.setLngLat([
       start.lng + longitudeDelta * progress,
@@ -1148,7 +1143,7 @@ export function LiveTrackingMap({
       const mapMarker = new Marker({
         element,
 
-        anchor: "center",
+        anchor: marker.kind === "stop" ? "bottom" : "center",
       })
         .setLngLat([marker.longitude, marker.latitude])
         .setPopup(popup)

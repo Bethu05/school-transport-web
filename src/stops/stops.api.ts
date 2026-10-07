@@ -90,6 +90,8 @@ export interface UpdateStopInput {
   longitude?: number;
 
   geofenceRadiusMeters?: number;
+
+  correctionReason?: string;
 }
 
 function buildQueryString(query: ListStopsQuery): string {

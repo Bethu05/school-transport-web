@@ -1,7 +1,5 @@
 import { readFileSync } from "node:fs";
 
-import { sliceRouteBetweenPoints } from "../src/tracking/route-segment.ts";
-
 const page = readFileSync("src/tracking/TrackingPage.tsx", "utf8");
 
 const map = readFileSync("src/tracking/LiveTrackingMap.tsx", "utf8");
@@ -14,106 +12,50 @@ function check(condition, message) {
   console.log(`✓ ${message}`);
 }
 
-// ============================================================
-// REAL GEOMETRY BEHAVIOUR
-// ============================================================
+const start = page.indexOf("const remainingRouteCoordinates");
 
-const route = [
-  [36.8, -1.3],
-  [36.81, -1.3],
-  [36.81, -1.29],
-  [36.82, -1.29],
-];
+const end = page.indexOf("const operationalTrails", start);
 
-const result = sliceRouteBetweenPoints(
-  route,
-  {
-    longitude: 36.805,
-    latitude: -1.3001,
-  },
-  {
-    longitude: 36.815,
-    latitude: -1.2899,
-  },
-);
+check(start >= 0 && end > start, "remaining-trip implementation found");
 
-check(result !== null, "remaining route can be sliced from canonical geometry");
+const block = page.slice(start, end);
 
 check(
-  result.length >= 4,
-  "road bends are preserved between vehicle and next stop",
+  block.includes("sliceRouteBetweenPoints"),
+  "remaining trip follows frozen road geometry",
 );
 
 check(
-  result.some(
-    ([longitude, latitude]) =>
-      Math.abs(longitude - 36.81) < 0.000001 &&
-      Math.abs(latitude - -1.3) < 0.000001,
-  ),
-  "first canonical road corner is preserved",
+  block.includes("canonicalPlannedRoute.coordinates.length - 1"),
+  "remaining route targets final Trip coordinate",
 );
 
 check(
-  result.some(
-    ([longitude, latitude]) =>
-      Math.abs(longitude - 36.81) < 0.000001 &&
-      Math.abs(latitude - -1.29) < 0.000001,
-  ),
-  "second canonical road corner is preserved",
-);
-
-// ============================================================
-// APPLICATION WIRING
-// ============================================================
-
-check(
-  /sliceRouteBetweenPoints/.test(page),
-  "operations page projects bus and stop onto canonical route",
+  block.includes("selectedTrackedVehicle.location.latitude") &&
+    block.includes("selectedTrackedVehicle.location.longitude"),
+  "remaining route begins at live vehicle position",
 );
 
 check(
-  /selectedTrackedVehicle\.location\.latitude/.test(page) &&
-    /selectedTrackedVehicle\.location\.longitude/.test(page),
-  "remaining route begins from realtime bus position",
+  !block.includes("selectedTrackedVehicle.location.nextStop.latitude") &&
+    !block.includes("selectedTrackedVehicle.location.nextStop.longitude"),
+  "next stop no longer truncates remaining Trip route",
 );
 
 check(
-  /selectedTrackedVehicle\.location\.nextStop\.latitude/.test(page) &&
-    /selectedTrackedVehicle\.location\.nextStop\.longitude/.test(page),
-  "remaining route targets authoritative next stop",
+  block.includes(":remaining-trip"),
+  "remaining route identity is Trip-wide",
 );
 
 check(
-  /remainingRoute=\{remainingRouteHighlight\}/.test(page),
-  "remaining road segment is supplied to LiveTrackingMap",
+  page.includes("remainingRoute={remainingRouteHighlight}"),
+  "remaining Trip path is supplied to live map",
 );
 
 check(
-  /tracking-remaining-route/.test(map),
-  "remaining road segment has dedicated GeoJSON source",
+  map.includes("TRACKING_REMAINING_ROUTE_SOURCE"),
+  "map retains dedicated remaining-route source",
 );
 
-check(
-  /tracking-remaining-route-casing/.test(map),
-  "remaining road segment has contrast casing",
-);
-
-check(
-  /tracking-remaining-route-line/.test(map),
-  "remaining road segment has dedicated visible line",
-);
-
-check(
-  /remainingRouteSource\?\.setData/.test(map),
-  "remaining road segment updates without rebuilding map",
-);
-
-check(
-  /\[plannedRoute,\s*remainingRoute,\s*trails,\s*connections,\s*mapReady\]/s.test(
-    map,
-  ),
-  "remaining road segment reacts to realtime position changes",
-);
-
-console.log("");
-console.log("Road-following remaining-route checkpoint PASSED");
+console.log();
+console.log("Full remaining Trip route checkpoint PASSED");

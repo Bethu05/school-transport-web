@@ -24,13 +24,15 @@ import {
   hasFrontendPermission,
 } from "../auth/frontend-permissions";
 
-import { listTripsPage } from "../trips/trips.api";
+import { listTrackingTripRiders, listTripsPage } from "../trips/trips.api";
 
 import { listVehicles, type Vehicle } from "../vehicles/vehicles.api";
 
 import { GuardianTrackingPanel } from "./GuardianTrackingPanel";
 
 import { LiveTrackingMap } from "./LiveTrackingMap";
+
+import { TripStopsOverlay } from "./TripStopsOverlay";
 
 import {
   getLatestTrackingLocations,
@@ -338,8 +340,8 @@ export function TrackingPage() {
    * Trip state is intentionally low-frequency operational data.
    *
    * GPS remains WebSocket-driven. This poll only discovers when
-   * dated trips enter or leave in_progress while the Control Room
-   * is already open.
+   * dated trips enter, change or leave operational states while
+   * the Control Room is already open.
    */
   const activeTripsQuery = useQuery({
     queryKey: ["trips", tenantId, "tracking-active"],
@@ -361,9 +363,25 @@ export function TrackingPage() {
     },
   });
 
-  const activeTrips = (activeTripsQuery.data?.items ?? []).filter(
-    (trip) => trip.status === "in_progress",
-  );
+  /**
+   * Operational mapping begins before vehicle movement.
+   *
+   * Backend Trip-map authorization deliberately supports:
+   *
+   *   in_progress -> boarding -> scheduled
+   *
+   * Keep that same priority here so an active journey wins over
+   * boarding, while boarding wins over a future scheduled run.
+   * This also allows frozen route geometry and stop anchors to be
+   * displayed before the first GPS packet arrives.
+   */
+  const currentTrips = activeTripsQuery.data?.items ?? [];
+
+  const activeTrips = [
+    ...currentTrips.filter((trip) => trip.status === "in_progress"),
+    ...currentTrips.filter((trip) => trip.status === "boarding"),
+    ...currentTrips.filter((trip) => trip.status === "scheduled"),
+  ];
 
   const vehicleById = useMemo(
     () =>
@@ -653,6 +671,22 @@ export function TrackingPage() {
     },
   });
 
+  const trackingTripRidersQuery = useQuery({
+    queryKey: ["tracking-trip-riders", tenantId, selectedOperationalTrip?.id],
+
+    enabled: Boolean(tenantId && selectedOperationalTrip?.id && canReadTrips),
+
+    refetchInterval: 5_000,
+
+    queryFn: async () => {
+      if (!tenantId || !selectedOperationalTrip?.id) {
+        return [];
+      }
+
+      return listTrackingTripRiders(tenantId, selectedOperationalTrip.id);
+    },
+  });
+
   const canonicalPlannedRoute = tripMapQuery.data?.geometry
     ? {
         key: tripMapQuery.data.tripId,
@@ -662,34 +696,42 @@ export function TrackingPage() {
     : null;
 
   /**
-   * Build the remaining journey highlight entirely from the
-   * canonical route geometry.
+   * The remaining journey is the complete frozen Trip path from
+   * the live vehicle position to the end of the Trip.
    *
-   * The live bus and next stop are projected onto the LineString
-   * and only the road coordinates between those points are shown.
+   * nextStop remains authoritative for ETA / stop progression,
+   * but it must not truncate the remaining-trip map highlight.
    */
   const remainingRouteCoordinates =
-    canonicalPlannedRoute && selectedTrackedVehicle?.location.nextStop
-      ? sliceRouteBetweenPoints(
-          canonicalPlannedRoute.coordinates,
-          {
-            latitude: selectedTrackedVehicle.location.latitude,
+    canonicalPlannedRoute && selectedTrackedVehicle
+      ? (() => {
+          const finalCoordinate =
+            canonicalPlannedRoute.coordinates[
+              canonicalPlannedRoute.coordinates.length - 1
+            ];
 
-            longitude: selectedTrackedVehicle.location.longitude,
-          },
-          {
-            latitude: selectedTrackedVehicle.location.nextStop.latitude,
+          if (!finalCoordinate) {
+            return null;
+          }
 
-            longitude: selectedTrackedVehicle.location.nextStop.longitude,
-          },
-        )
+          return sliceRouteBetweenPoints(
+            canonicalPlannedRoute.coordinates,
+            {
+              latitude: selectedTrackedVehicle.location.latitude,
+              longitude: selectedTrackedVehicle.location.longitude,
+            },
+            {
+              latitude: finalCoordinate[1],
+              longitude: finalCoordinate[0],
+            },
+          );
+        })()
       : null;
 
   const remainingRouteHighlight =
-    remainingRouteCoordinates && selectedTrackedVehicle?.location.nextStop
+    remainingRouteCoordinates && selectedTrackedVehicle
       ? {
-          key: `${selectedTrackedVehicle.location.vehicleId}:remaining:${selectedTrackedVehicle.location.nextStop.tripStopId}`,
-
+          key: `${selectedTrackedVehicle.location.vehicleId}:remaining-trip`,
           coordinates: remainingRouteCoordinates,
         }
       : null;
@@ -751,87 +793,59 @@ export function TrackingPage() {
   const selectedNextStopId =
     selectedTrackedVehicle?.location.nextStop?.stopId ?? null;
 
-  const selectedRouteStopIds = new Set(
-    selectedRouteStops.map((routeStop) => routeStop.stopId),
-  );
+  const childrenByTripStopId = useMemo(() => {
+    const grouped: Record<string, string[]> = {};
 
-  const selectedNextStopOrder =
-    selectedNextStopId === null
-      ? null
-      : (selectedRouteStops.find(
-          (routeStop) => routeStop.stopId === selectedNextStopId,
-        )?.stopOrder ?? null);
+    for (const rider of trackingTripRidersQuery.data ?? []) {
+      if (rider.status !== "assigned") {
+        continue;
+      }
 
-  const selectedRouteStopMapMarkers = selectedRouteStops.map((routeStop) => {
-    const isNextStop = routeStop.stopId === selectedNextStopId;
+      const firstName = rider.studentFirstName.trim();
 
-    const emphasis = isNextStop
-      ? ("next-stop" as const)
-      : selectedNextStopOrder !== null &&
-          routeStop.stopOrder < selectedNextStopOrder
-        ? ("completed-stop" as const)
-        : ("upcoming-stop" as const);
+      if (!firstName) {
+        continue;
+      }
 
-    return {
-      key: `selected-route-stop:${routeStop.id}`,
+      const names =
+        grouped[rider.assignedTripStopId] ??
+        (grouped[rider.assignedTripStopId] = []);
 
-      kind: "stop" as const,
+      if (!names.includes(firstName)) {
+        names.push(firstName);
+      }
+    }
 
-      emphasis,
+    return grouped;
+  }, [trackingTripRidersQuery.data]);
 
-      label: `${routeStop.stopOrder}. ${routeStop.stopName}`,
+  const selectedNextStopMapMarkers = selectedRouteStops.flatMap((routeStop) => {
+    if (routeStop.stopId !== selectedNextStopId) {
+      return [];
+    }
 
-      subtitle: isNextStop
-        ? "Next stop on selected route"
-        : emphasis === "completed-stop"
-          ? `Completed stop ${routeStop.stopOrder}`
-          : `Upcoming stop ${routeStop.stopOrder}`,
+    return [
+      {
+        key: `next-trip-stop:${routeStop.id}`,
 
-      latitude: routeStop.latitude,
+        kind: "stop" as const,
 
-      longitude: routeStop.longitude,
-    };
+        emphasis: "next-stop" as const,
+
+        label: `${routeStop.stopOrder}. ${routeStop.stopName}`,
+
+        subtitle: "Next stop",
+
+        latitude: routeStop.latitude,
+
+        longitude: routeStop.longitude,
+      },
+    ];
   });
 
-  const operationalStopMapMarkers = operationalTrackedVehicles.flatMap(
-    (item) => {
-      const nextStop = item.location.nextStop;
-
-      const vehicle = vehicleById.get(item.location.vehicleId);
-
-      if (!nextStop || !vehicle) {
-        return [];
-      }
-
-      if (
-        item.location.vehicleId === effectiveSelectedVehicleId &&
-        selectedRouteStopIds.has(nextStop.stopId)
-      ) {
-        return [];
-      }
-
-      return [
-        {
-          key: `${vehicle.id}:next-stop:${nextStop.tripStopId}`,
-
-          kind: "stop" as const,
-
-          label: nextStop.stopName,
-
-          subtitle: `Next stop for ${vehicleLabel(vehicle)}`,
-
-          latitude: nextStop.latitude,
-
-          longitude: nextStop.longitude,
-        },
-      ];
-    },
-  );
-
-  const allOperationalMapMarkers = [
+  const operationalMapWithNextStop = [
     ...operationalMapMarkers,
-    ...selectedRouteStopMapMarkers,
-    ...operationalStopMapMarkers,
+    ...selectedNextStopMapMarkers,
   ];
 
   const activeTripSummaries = activeTrips.map((trip) => {
@@ -1469,21 +1483,29 @@ export function TrackingPage() {
         }}
       >
         {liveFleetMapEnabled ? (
-          <LiveTrackingMap
-            height="100%"
-            markers={allOperationalMapMarkers}
-            plannedRoute={canonicalPlannedRoute}
-            remainingRoute={remainingRouteHighlight}
-            trails={operationalTrails}
-            selectedMarkerKey={effectiveSelectedVehicleId}
-            focusMarkerKey={selectedVehicleId}
-            followMarkerKey={followVehicleId}
-            onMarkerClick={(markerKey) => {
-              if (vehicleById.has(markerKey)) {
-                selectTrackedVehicle(markerKey);
-              }
-            }}
-          />
+          <>
+            <LiveTrackingMap
+              height="100%"
+              markers={operationalMapWithNextStop}
+              plannedRoute={canonicalPlannedRoute}
+              remainingRoute={remainingRouteHighlight}
+              trails={operationalTrails}
+              selectedMarkerKey={effectiveSelectedVehicleId}
+              focusMarkerKey={selectedVehicleId}
+              followMarkerKey={followVehicleId}
+              onMarkerClick={(markerKey) => {
+                if (vehicleById.has(markerKey)) {
+                  selectTrackedVehicle(markerKey);
+                }
+              }}
+            />
+
+            <TripStopsOverlay
+              stops={selectedRouteStops}
+              nextStopId={selectedNextStopId}
+              childrenByStopId={childrenByTripStopId}
+            />
+          </>
         ) : (
           <Paper
             data-control-room-live-map-locked

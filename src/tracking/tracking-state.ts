@@ -36,7 +36,16 @@ export function mergeVehicleLocation(
     return current;
   }
 
-  const previousTrail = existing?.trail ?? [];
+  /**
+   * A vehicle may finish one Trip and later begin another.
+   *
+   * Never join the last GPS point of the previous Trip to the
+   * first GPS point of the new Trip. That would render a false
+   * straight breadcrumb across the map during startup.
+   */
+  const sameTrip = existing?.location.tripId === location.tripId;
+
+  const previousTrail = sameTrip ? (existing?.trail ?? []) : [];
 
   const lastPoint = previousTrail[previousTrail.length - 1];
 
@@ -65,7 +74,7 @@ export function mergeVehicleLocation(
     [location.vehicleId]: {
       location,
 
-      lastStopEvent: existing?.lastStopEvent ?? null,
+      lastStopEvent: sameTrip ? (existing?.lastStopEvent ?? null) : null,
 
       trail: nextTrail,
     },
