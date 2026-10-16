@@ -36,6 +36,15 @@ export const FRONTEND_PLATFORM_PERMISSIONS = {
   DEVICES_DIAGNOSTICS: "platform.devices.diagnostics",
   DEVICES_CONFIGURE: "platform.devices.configure",
   DEVICES_ROTATE_CREDENTIALS: "platform.devices.rotate_credentials",
+
+  /**
+   * Vehicle tracker / IMEI change-control permissions.
+   * Required for SuperAdmin identity change review and approval.
+   */
+  DEVICES_IDENTITY_CHANGES_READ: "platform.devices.identity_changes.read",
+  DEVICES_IDENTITY_CHANGES_APPROVE: "platform.devices.identity_changes.approve",
+  DEVICES_IDENTITY_CHANGES_EMERGENCY_OVERRIDE:
+    "platform.devices.identity_changes.emergency_override",
 } as const;
 
 export type FrontendPlatformPermission =

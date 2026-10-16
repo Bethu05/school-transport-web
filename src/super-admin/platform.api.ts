@@ -1754,3 +1754,100 @@ export function setPlatformAccessUserStatus(
     },
   );
 }
+
+// ============================================================
+// VEHICLES & TRACKER HARDWARE MANAGEMENT
+// ============================================================
+
+export interface PlatformVehicleTracker {
+  id: string;
+  tenantId: string;
+  tenantName?: string;
+  schoolId?: string | null;
+  registrationNumber: string;
+  fleetNumber: string | null;
+  make: string | null;
+  model: string | null;
+  gpsProtocol: string | null;
+  gpsDeviceId: string | null;
+  trackerType: string | null;
+  listenerPort: number | null;
+  status: string;
+  lastTelemetryAt?: string | null;
+  hasPendingChangeRequest?: boolean;
+}
+
+export interface PlatformTrackerChangeRequest {
+  id: string;
+  tenantId: string;
+  tenantName?: string;
+  vehicleId: string;
+  registrationNumber?: string;
+  currentGpsProtocol: string | null;
+  currentGpsDeviceId: string | null;
+  proposedGpsProtocol: string | null;
+  proposedGpsDeviceId: string;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  requestedByUserId: string;
+  requestedAt: string;
+  notBefore: string;
+  emergencyOverride: boolean;
+  emergencyReason: string | null;
+}
+
+export interface ReviewPlatformTrackerChangeInput {
+  reviewNotes?: string;
+}
+
+/**
+ * Fetch all vehicles across all school tenants (Cross-tenant platform view).
+ */
+export async function listPlatformVehicles(): Promise<
+  PlatformVehicleTracker[]
+> {
+  return apiRequest<PlatformVehicleTracker[]>("/platform/vehicles");
+}
+
+/**
+ * Fetch all pending tracker change requests across all school tenants.
+ */
+export async function listPlatformTrackerChangeRequests(): Promise<
+  PlatformTrackerChangeRequest[]
+> {
+  return apiRequest<PlatformTrackerChangeRequest[]>(
+    "/platform/tracker-change-requests",
+  );
+}
+
+/**
+ * Approve a pending tracker identity swap request and rebind the vehicle IMEI.
+ */
+export function approvePlatformTrackerChangeRequest(
+  requestId: string,
+  input: ReviewPlatformTrackerChangeInput = {},
+): Promise<PlatformVehicleTracker> {
+  return apiRequest<PlatformVehicleTracker>(
+    `/platform/tracker-change-requests/${requestId}/approve`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+/**
+ * Reject a pending tracker identity swap request.
+ */
+export function rejectPlatformTrackerChangeRequest(
+  requestId: string,
+  input: ReviewPlatformTrackerChangeInput = {},
+): Promise<PlatformTrackerChangeRequest> {
+  return apiRequest<PlatformTrackerChangeRequest>(
+    `/platform/tracker-change-requests/${requestId}/reject`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}

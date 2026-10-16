@@ -30,6 +30,7 @@ import {
   EditRounded,
   GpsFixedRounded,
   SearchRounded,
+  SpeedRounded,
 } from "@mui/icons-material";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -56,6 +57,7 @@ import {
 
 import { VehicleFormDialog } from "./VehicleFormDialog";
 import { VehicleImportDialog } from "./VehicleImportDialog";
+import { VehicleTrackingReadinessDialog } from "./VehicleTrackingReadinessDialog";
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -132,6 +134,11 @@ export function VehiclesPage() {
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
 
   const [retireTarget, setRetireTarget] = useState<Vehicle | null>(null);
+
+  /* Step G State: Tracking Readiness Inspector target vehicle */
+  const [readinessVehicle, setReadinessVehicle] = useState<Vehicle | null>(
+    null,
+  );
 
   const [mutationError, setMutationError] = useState<string | null>(null);
 
@@ -399,8 +406,8 @@ export function VehiclesPage() {
               fontSize: 13,
             }}
           >
-            Manage {activeSchool.name} vehicles, shared fleet resources and GPS
-            assignments.
+            Manage {activeSchool.name} vehicles, shared fleet resources, and
+            tracking readiness.
           </Typography>
         </Box>
 
@@ -699,6 +706,7 @@ export function VehiclesPage() {
         </Box>
       </Paper>
 
+      {}
       {vehiclesQuery.isLoading ? (
         <Paper
           elevation={0}
@@ -782,7 +790,7 @@ export function VehiclesPage() {
                 lg: "grid",
               },
 
-              gridTemplateColumns: "1.2fr .75fr 1fr .55fr .9fr .7fr 90px",
+              gridTemplateColumns: "1.2fr .75fr 1fr .55fr 1.1fr .7fr 120px",
 
               gap: 2,
 
@@ -798,7 +806,7 @@ export function VehiclesPage() {
               "Fleet No.",
               "Registration",
               "Seats",
-              "GPS",
+              "GPS / Readiness",
               "Status",
               "Actions",
             ].map((heading) => (
@@ -835,7 +843,7 @@ export function VehiclesPage() {
                 gridTemplateColumns: {
                   xs: "1fr",
 
-                  lg: "1.2fr .75fr 1fr .55fr .9fr .7fr 90px",
+                  lg: "1.2fr .75fr 1fr .55fr 1.1fr .7fr 120px",
                 },
 
                 alignItems: "center",
@@ -932,32 +940,48 @@ export function VehiclesPage() {
                 {vehicle.seatCapacity}
               </Typography>
 
-              <Box
-                sx={{
-                  display: "flex",
-
-                  alignItems: "center",
-
-                  gap: 0.5,
-                }}
-              >
-                <GpsFixedRounded
+              {/* GPS / Tracking Readiness Inspector Trigger */}
+              <Tooltip title="Click to open Tracking Readiness Inspector">
+                <Box
+                  onClick={() => setReadinessVehicle(vehicle)}
                   sx={{
-                    fontSize: 15,
+                    display: "inline-flex",
 
-                    color: vehicle.gpsDeviceId ? "#5F9471" : "text.secondary",
-                  }}
-                />
+                    alignItems: "center",
 
-                <Typography
-                  noWrap
-                  sx={{
-                    fontSize: 11,
+                    gap: 0.8,
+
+                    cursor: "pointer",
+
+                    p: 0.5,
+
+                    borderRadius: 1,
+
+                    "&:hover": {
+                      bgcolor: "action.selected",
+                    },
                   }}
                 >
-                  {vehicle.gpsDeviceId ?? "Not assigned"}
-                </Typography>
-              </Box>
+                  <GpsFixedRounded
+                    sx={{
+                      fontSize: 15,
+
+                      color: vehicle.gpsDeviceId ? "#5F9471" : "text.secondary",
+                    }}
+                  />
+
+                  <Typography
+                    noWrap
+                    sx={{
+                      fontSize: 11,
+                      fontFamily: "monospace",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {vehicle.gpsDeviceId ?? "Not assigned"}
+                  </Typography>
+                </Box>
+              </Tooltip>
 
               <Chip
                 size="small"
@@ -978,8 +1002,18 @@ export function VehiclesPage() {
               <Box
                 sx={{
                   display: "flex",
+                  alignItems: "center",
                 }}
               >
+                <Tooltip title="Inspect tracking readiness">
+                  <IconButton
+                    size="small"
+                    onClick={() => setReadinessVehicle(vehicle)}
+                  >
+                    <SpeedRounded fontSize="small" color="primary" />
+                  </IconButton>
+                </Tooltip>
+
                 <Tooltip title="Edit vehicle">
                   <IconButton
                     size="small"
@@ -1033,7 +1067,7 @@ export function VehiclesPage() {
         </Paper>
       ) : null}
 
-      {/* CREATE / EDIT */}
+      {/* CREATE / EDIT / IMPORT DIALOGS */}
 
       <VehicleImportDialog
         open={vehicleImportOpen}
@@ -1061,6 +1095,13 @@ export function VehiclesPage() {
         onClose={closeForm}
 
         onSubmit={submitVehicle}
+      />
+
+      {/* STEP G: VEHICLE TRACKING READINESS INSPECTOR DIALOG */}
+      <VehicleTrackingReadinessDialog
+        open={readinessVehicle !== null}
+        vehicle={readinessVehicle}
+        onClose={() => setReadinessVehicle(null)}
       />
 
       {/* RETIRE CONFIRMATION */}
