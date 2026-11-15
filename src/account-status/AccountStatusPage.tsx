@@ -160,8 +160,12 @@ export function AccountStatusPage() {
     FRONTEND_PERMISSIONS.USERS_READ,
   );
 
-  function handleLogout(): void {
-    logout();
+  async function handleLogout(): Promise<void> {
+    try {
+      await logout();
+    } catch {
+      return;
+    }
 
     navigate("/login", {
       replace: true,

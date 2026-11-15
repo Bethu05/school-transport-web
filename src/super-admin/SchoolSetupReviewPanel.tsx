@@ -18,6 +18,7 @@ import {
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { ApiRequestError } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
 
 import {
@@ -91,13 +92,27 @@ export function SchoolSetupReviewPanel() {
     ]);
   }
 
+  function clearReview(): void {
+    setSelected(null);
+    setDecisionNotes("");
+  }
+
   function closeReview(): void {
     if (approveMutation.isPending || rejectMutation.isPending) {
       return;
     }
 
-    setSelected(null);
-    setDecisionNotes("");
+    clearReview();
+  }
+
+  function isAlreadyProcessedConflict(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+
+    return (
+      (error instanceof ApiRequestError && error.status === 409) ||
+      message.includes("conflicts with its current state") ||
+      message.includes("409")
+    );
   }
 
   const approveMutation = useMutation({
@@ -120,8 +135,15 @@ export function SchoolSetupReviewPanel() {
     },
 
     onSuccess: async () => {
+      clearReview();
       await refreshPlatformLifecycle();
-      closeReview();
+    },
+
+    onError: async (error) => {
+      if (isAlreadyProcessedConflict(error)) {
+        clearReview();
+        await refreshPlatformLifecycle();
+      }
     },
   });
 
@@ -141,8 +163,15 @@ export function SchoolSetupReviewPanel() {
     },
 
     onSuccess: async () => {
+      clearReview();
       await refreshPlatformLifecycle();
-      closeReview();
+    },
+
+    onError: async (error) => {
+      if (isAlreadyProcessedConflict(error)) {
+        clearReview();
+        await refreshPlatformLifecycle();
+      }
     },
   });
 
@@ -174,6 +203,7 @@ export function SchoolSetupReviewPanel() {
   }
 
   const requests = reviewQuery.data ?? [];
+  const isSubmitted = selected?.status === "submitted";
 
   return (
     <>
@@ -232,8 +262,7 @@ export function SchoolSetupReviewPanel() {
                       fontSize: 10,
                     }}
                   >
-                    {request.tenantName} • {request.schoolCode} •{" "}
-                    {request.timezone}
+                    {request.schoolCode} • {request.timezone}
                   </Typography>
                 </Box>
 
@@ -287,11 +316,23 @@ export function SchoolSetupReviewPanel() {
         <DialogContent>
           {selected ? (
             <Stack spacing={2}>
-              <Alert severity="info">
-                This is a pre-tenant application. Approval provisions the tenant
-                and first school, then places the school into the canonical
-                onboarding workflow. It does not activate the school.
-              </Alert>
+              {isSubmitted ? (
+                <Alert severity="info">
+                  This is a pre-tenant application. Approval provisions the
+                  tenant and first school, then places the school into the
+                  canonical onboarding workflow. It does not activate the
+                  school.
+                </Alert>
+              ) : (
+                <Alert
+                  severity={
+                    selected.status === "approved" ? "success" : "warning"
+                  }
+                >
+                  This application status is currently{" "}
+                  <strong>{humanize(selected.status)}</strong>.
+                </Alert>
+              )}
 
               <Box>
                 <Typography sx={{ fontSize: 14, fontWeight: 850 }}>
@@ -301,7 +342,7 @@ export function SchoolSetupReviewPanel() {
                 <Typography
                   sx={{ mt: 0.35, color: "text.secondary", fontSize: 11 }}
                 >
-                  {selected.tenantName} • {selected.tenantSlug}
+                  {selected.tenantSlug}
                 </Typography>
 
                 {selected.schoolAddress ? (
@@ -322,7 +363,7 @@ export function SchoolSetupReviewPanel() {
                 </Alert>
               )}
 
-              {canDecide ? (
+              {canDecide && isSubmitted ? (
                 <TextField
                   label="Review notes / rejection reason"
                   value={decisionNotes}
@@ -339,7 +380,7 @@ export function SchoolSetupReviewPanel() {
                   }
                   fullWidth
                 />
-              ) : (
+              ) : !isSubmitted ? null : (
                 <Alert severity="info">
                   You may review this application, but your platform permissions
                   do not allow an approval or rejection decision.
@@ -354,10 +395,10 @@ export function SchoolSetupReviewPanel() {
             onClick={closeReview}
             disabled={approveMutation.isPending || rejectMutation.isPending}
           >
-            Cancel
+            {isSubmitted ? "Cancel" : "Close"}
           </Button>
 
-          {canReject ? (
+          {canReject && isSubmitted ? (
             <Button
               color="error"
               variant="outlined"
@@ -372,7 +413,7 @@ export function SchoolSetupReviewPanel() {
             </Button>
           ) : null}
 
-          {canApprove ? (
+          {canApprove && isSubmitted ? (
             <Button
               variant="contained"
               disabled={approveMutation.isPending || rejectMutation.isPending}

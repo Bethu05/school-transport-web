@@ -279,9 +279,13 @@ export function createTrackingSocket(tenantId: string): Socket {
 
     transports: ["websocket"],
 
-    auth: {
-      token,
-      tenantId,
+    auth: (callback) => {
+      const currentToken = getAccessToken();
+
+      callback({
+        ...(currentToken ? { token: currentToken } : {}),
+        tenantId,
+      });
     },
   });
 }

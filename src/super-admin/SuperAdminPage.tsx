@@ -134,8 +134,12 @@ export function SuperAdminPage() {
     return <PlatformLimitedRolePage />;
   }
 
-  function handleLogout(): void {
-    logout();
+  async function handleLogout(): Promise<void> {
+    try {
+      await logout();
+    } catch {
+      return;
+    }
 
     navigate("/login", {
       replace: true,

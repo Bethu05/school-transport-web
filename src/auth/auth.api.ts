@@ -1,4 +1,8 @@
-import { apiRequest, setAccessToken } from "../api/client";
+import {
+  apiRequest,
+  getWebCsrfToken,
+  setAccessToken,
+} from "../api/client";
 
 import type { School } from "../schools/schools.api";
 
@@ -9,6 +13,7 @@ export interface LoginRequest {
 
 interface LoginResponse {
   accessToken: string;
+  accessTokenExpiresInSeconds: number;
   tokenType?: string;
 }
 
@@ -135,17 +140,33 @@ export interface ChangePasswordInput {
  * Authenticate the user and store the JWT.
  */
 export async function login(credentials: LoginRequest): Promise<LoginResponse> {
-  const response = await apiRequest<LoginResponse>("/auth/login", {
+  const response = await apiRequest<LoginResponse>("/auth/web/login", {
     method: "POST",
 
     auth: false,
 
+    credentials: "include",
+
     body: JSON.stringify(credentials),
   });
 
-  setAccessToken(response.accessToken);
+  setAccessToken(
+    response.accessToken,
+    response.accessTokenExpiresInSeconds,
+  );
 
   return response;
+}
+
+export async function logout(): Promise<void> {
+  const csrfToken = await getWebCsrfToken();
+
+  await apiRequest<void>("/auth/web/logout", {
+    method: "POST",
+    auth: false,
+    credentials: "include",
+    headers: csrfToken ? { "X-CSRF-Token": csrfToken } : undefined,
+  });
 }
 
 /**

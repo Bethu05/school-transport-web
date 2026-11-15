@@ -28,6 +28,12 @@ export const FRONTEND_PLATFORM_PERMISSIONS = {
 
   AUDIT_READ: "platform.audit.read",
 
+  /**
+   * Sensitive live vehicle-location authority.
+   */
+  FLEET_LOCATIONS_READ_ASSIGNED: "platform.fleet_locations.read_assigned",
+  FLEET_LOCATIONS_READ_ALL: "platform.fleet_locations.read_all",
+
   USERS_MANAGE: "platform.users.manage",
   ROLES_MANAGE: "platform.roles.manage",
 
