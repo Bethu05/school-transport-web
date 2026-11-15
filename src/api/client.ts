@@ -1,6 +1,11 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
-const ACCESS_TOKEN_KEY = "school_transport_access_token";
+const LEGACY_ACCESS_TOKEN_KEY = "school_transport_access_token";
+
+let accessToken: string | null = null;
+let legacyTokenRemoved = false;
+let webRefreshPromise: Promise<string | null> | null = null;
+let accessTokenRefreshTimer: number | null = null;
 
 /**
  * Raised when the backend tells an already-authenticated browser
@@ -22,16 +27,155 @@ export const TENANT_ACCESS_INACTIVE_EVENT =
 export const PASSWORD_CHANGE_REQUIRED_EVENT =
   "school-transport:password-change-required";
 
-export function getAccessToken(): string | null {
-  return localStorage.getItem(ACCESS_TOKEN_KEY);
+export const AUTH_SESSION_EXPIRED_EVENT = "school-transport:session-expired";
+
+export class ApiRequestError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = status;
+  }
 }
 
-export function setAccessToken(token: string): void {
-  localStorage.setItem(ACCESS_TOKEN_KEY, token);
+function removeLegacyAccessToken(): void {
+  if (!legacyTokenRemoved && typeof window !== "undefined") {
+    window.localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
+    legacyTokenRemoved = true;
+  }
+}
+
+export function getAccessToken(): string | null {
+  removeLegacyAccessToken();
+  return accessToken;
+}
+
+export function setAccessToken(token: string, expiresInSeconds = 900): void {
+  removeLegacyAccessToken();
+  accessToken = token;
+
+  if (typeof window !== "undefined") {
+    if (accessTokenRefreshTimer !== null) {
+      window.clearTimeout(accessTokenRefreshTimer);
+    }
+
+    const refreshDelayMs = Math.max(
+      1_000,
+      (expiresInSeconds - 60) * 1_000,
+    );
+
+    accessTokenRefreshTimer = window.setTimeout(() => {
+      void refreshWebAccessToken().catch((error: unknown) => {
+        console.error("Could not refresh the web auth session.", error);
+      });
+    }, refreshDelayMs);
+  }
 }
 
 export function clearAccessToken(): void {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  removeLegacyAccessToken();
+  accessToken = null;
+
+  if (typeof window !== "undefined" && accessTokenRefreshTimer !== null) {
+    window.clearTimeout(accessTokenRefreshTimer);
+    accessTokenRefreshTimer = null;
+  }
+}
+
+function notifySessionExpired(): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED_EVENT));
+  }
+}
+
+export async function getWebCsrfToken(): Promise<string | null> {
+  const response = await apiRequest<{ csrfToken: string | null }>(
+    "/auth/web/csrf",
+    {
+      auth: false,
+      credentials: "include",
+    },
+  );
+
+  return response.csrfToken;
+}
+
+async function refreshWebAccessTokenUnlocked(): Promise<string | null> {
+  const csrfToken = await getWebCsrfToken();
+
+  if (!csrfToken) {
+    return null;
+  }
+
+  const response = await apiRequest<{
+    accessToken: string;
+    accessTokenExpiresInSeconds: number;
+  }>(
+    "/auth/web/refresh",
+    {
+      method: "POST",
+      auth: false,
+      credentials: "include",
+      headers: {
+        "X-CSRF-Token": csrfToken,
+      },
+    },
+  );
+
+  setAccessToken(
+    response.accessToken,
+    response.accessTokenExpiresInSeconds,
+  );
+
+  return response.accessToken;
+}
+
+export function refreshWebAccessToken(): Promise<string | null> {
+  removeLegacyAccessToken();
+
+  if (!webRefreshPromise) {
+    const refresh = async (): Promise<string | null> => {
+      if (typeof navigator !== "undefined" && navigator.locks) {
+        return navigator.locks.request(
+          "school-transport-web-auth-refresh",
+          refreshWebAccessTokenUnlocked,
+        );
+      }
+
+      return refreshWebAccessTokenUnlocked();
+    };
+
+    webRefreshPromise = refresh()
+      .then((token) => {
+        if (!token && accessToken) {
+          clearAccessToken();
+          notifySessionExpired();
+        }
+
+        return token;
+      })
+      .catch((error: unknown) => {
+        if (
+          error instanceof ApiRequestError &&
+          (error.status === 401 || error.status === 403)
+        ) {
+          const wasAuthenticated = accessToken !== null;
+          clearAccessToken();
+
+          if (wasAuthenticated) {
+            notifySessionExpired();
+          }
+        }
+
+        throw error;
+      })
+      .finally(() => {
+        webRefreshPromise = null;
+      });
+  }
+
+  return webRefreshPromise;
 }
 
 interface ApiRequestOptions extends Omit<RequestInit, "headers"> {
@@ -43,6 +187,8 @@ interface ApiRequestOptions extends Omit<RequestInit, "headers"> {
    * Login explicitly sets auth: false.
    */
   auth?: boolean;
+
+  retryAuth?: boolean;
 
   headers?: HeadersInit;
 }
@@ -92,6 +238,7 @@ export async function apiRequest<T>(
   const {
     tenantId,
     auth = true,
+    retryAuth = true,
     headers: suppliedHeaders,
     ...requestOptions
   } = options;
@@ -140,6 +287,17 @@ export async function apiRequest<T>(
 
     headers,
   });
+
+  if (response.status === 401 && auth && retryAuth) {
+    const token = await refreshWebAccessToken();
+
+    if (token) {
+      return apiRequest<T>(path, {
+        ...options,
+        retryAuth: false,
+      });
+    }
+  }
 
   /**
    * Some REST actions legitimately return no body.
@@ -213,7 +371,7 @@ export async function apiRequest<T>(
         ? body
         : `${response.status} ${response.statusText}`;
 
-    throw new Error(apiErrorMessage(body, fallback));
+    throw new ApiRequestError(apiErrorMessage(body, fallback), response.status);
   }
 
   return body as T;

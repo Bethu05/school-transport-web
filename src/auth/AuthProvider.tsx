@@ -19,10 +19,13 @@ import {
   type ReactNode,
 } from "react";
 
+import { Alert, Snackbar } from "@mui/material";
+
 import {
+  AUTH_SESSION_EXPIRED_EVENT,
   clearAccessToken,
-  getAccessToken,
   PASSWORD_CHANGE_REQUIRED_EVENT,
+  refreshWebAccessToken,
   TENANT_ACCESS_INACTIVE_EVENT,
 } from "../api/client";
 
@@ -32,6 +35,7 @@ import {
   getAuthTenants,
   getCurrentUser,
   login as loginRequest,
+  logout as logoutRequest,
   type ActiveTenant,
   type AuthTenantMembership,
   type AuthenticatedUser,
@@ -126,7 +130,7 @@ interface AuthContextValue {
 
   refreshPlatformAuthorization: () => Promise<void>;
 
-  logout: () => void;
+  logout: (options?: { serverSessionAlreadyRevoked?: boolean }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -277,6 +281,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const [loading, setLoading] = useState(true);
 
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+
   /**
    * Remove tenant-operational state without destroying the global
    * identity JWT.
@@ -302,15 +308,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   useEffect(() => {
     async function restoreSession(): Promise<void> {
-      const token = getAccessToken();
-
-      if (!token) {
-        setLoading(false);
-
-        return;
-      }
-
       try {
+        const token = await refreshWebAccessToken();
+
+        if (!token) {
+          return;
+        }
+
         const response = await getCurrentUser();
 
         setUser(response.user);
@@ -407,6 +411,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     void restoreSession();
+  }, []);
+
+  useEffect(() => {
+    function handleSessionExpired(): void {
+      clearAccessToken();
+      clearTenantSelection();
+      clearSchoolSelection();
+      setUser(null);
+      clearTenantRuntimeState();
+      setPasswordChangeRequired(false);
+      setIsSuperAdmin(false);
+      setPlatformRoles([]);
+      setPlatformPermissions([]);
+      setLoading(false);
+    }
+
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, handleSessionExpired);
+
+    return () => {
+      window.removeEventListener(
+        AUTH_SESSION_EXPIRED_EVENT,
+        handleSessionExpired,
+      );
+    };
   }, []);
 
   /**
@@ -548,7 +576,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   /**
    * Clear local authenticated application state.
    */
-  function logout(): void {
+  function clearLocalSession(): void {
     clearAccessToken();
 
     clearTenantSelection();
@@ -566,6 +594,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setPlatformRoles([]);
 
     setPlatformPermissions([]);
+
+    setLogoutError(null);
+  }
+
+  async function logout(
+    options: { serverSessionAlreadyRevoked?: boolean } = {},
+  ): Promise<void> {
+    setLogoutError(null);
+
+    if (!options.serverSessionAlreadyRevoked) {
+      try {
+        await logoutRequest();
+      } catch (error) {
+        setLogoutError(
+          "Could not revoke the web session. Check your connection and try signing out again.",
+        );
+        throw error;
+      }
+    }
+
+    clearLocalSession();
   }
 
   /**
@@ -728,7 +777,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
     ],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      <Snackbar
+        open={logoutError !== null}
+        autoHideDuration={8000}
+        onClose={() => setLogoutError(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          severity="error"
+          onClose={() => setLogoutError(null)}
+          sx={{ width: "100%" }}
+        >
+          {logoutError}
+        </Alert>
+      </Snackbar>
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth(): AuthContextValue {

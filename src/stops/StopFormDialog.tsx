@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import {
   Alert,
@@ -15,6 +15,10 @@ import {
 
 import type { School } from "../schools/schools.api";
 
+import type { RouteGeometryLineString } from "../tracking/route-geometry.api";
+
+import { StopLocationMap } from "./StopLocationMap";
+
 import type { CreateStopInput, Stop, UpdateStopInput } from "./stops.api";
 
 interface StopFormDialogProps {
@@ -25,6 +29,8 @@ interface StopFormDialogProps {
   stopSchoolName: string;
 
   schools: School[];
+
+  routeGeometry?: RouteGeometryLineString | null;
 
   saving: boolean;
 
@@ -49,6 +55,8 @@ interface StopFormState {
   longitude: string;
 
   geofenceRadiusMeters: string;
+
+  correctionReason: string;
 }
 
 function createFormState(stop: Stop | null): StopFormState {
@@ -61,6 +69,7 @@ function createFormState(stop: Stop | null): StopFormState {
       latitude: "",
       longitude: "",
       geofenceRadiusMeters: "75",
+      correctionReason: "",
     };
   }
 
@@ -78,6 +87,7 @@ function createFormState(stop: Stop | null): StopFormState {
     longitude: String(stop.longitude),
 
     geofenceRadiusMeters: String(stop.geofenceRadiusMeters),
+    correctionReason: "",
   };
 }
 
@@ -110,6 +120,7 @@ export function StopFormDialog({
   stop,
   stopSchoolName,
   schools,
+  routeGeometry = null,
   saving,
   error,
   onClose,
@@ -119,7 +130,17 @@ export function StopFormDialog({
 
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!open) return;
+
+    setForm(createFormState(stop));
+    setValidationError(null);
+  }, [open, stop]);
+
   const editing = stop !== null;
+
+  const mapLatitude = parseCoordinate(form.latitude, -90, 90);
+  const mapLongitude = parseCoordinate(form.longitude, -180, 180);
 
   function updateField<K extends keyof StopFormState>(
     key: K,
@@ -165,15 +186,27 @@ export function StopFormDialog({
 
     const geofenceRadius = Number(form.geofenceRadiusMeters);
 
-    if (!Number.isInteger(geofenceRadius) || geofenceRadius < 1) {
+    if (!Number.isInteger(geofenceRadius) || geofenceRadius < 10) {
       setValidationError(
-        "Geofence radius must be a whole number of at least 1 metre.",
+        "Geofence radius must be a whole number of at least 10 metres.",
       );
 
       return;
     }
 
     if (editing) {
+      const locationChanged =
+        Math.abs(latitude - stop.latitude) > 1e-10 ||
+        Math.abs(longitude - stop.longitude) > 1e-10;
+
+      if (locationChanged && !form.correctionReason.trim()) {
+        setValidationError(
+          "Please explain why the stop location is being corrected.",
+        );
+
+        return;
+      }
+
       const input: UpdateStopInput = {
         name,
 
@@ -186,6 +219,10 @@ export function StopFormDialog({
         longitude,
 
         geofenceRadiusMeters: geofenceRadius,
+
+        correctionReason: locationChanged
+          ? form.correctionReason.trim()
+          : undefined,
       };
 
       await onSubmit(input);
@@ -372,6 +409,17 @@ export function StopFormDialog({
               placeholder="Street, estate or landmark"
             />
 
+            <StopLocationMap
+              latitude={mapLatitude}
+              longitude={mapLongitude}
+              routeGeometry={routeGeometry}
+              disabled={saving}
+              onChange={(nextLatitude, nextLongitude) => {
+                updateField("latitude", nextLatitude.toFixed(6));
+                updateField("longitude", nextLongitude.toFixed(6));
+              }}
+            />
+
             <TextField
               label="Latitude"
 
@@ -412,6 +460,26 @@ export function StopFormDialog({
               }}
             />
 
+            {editing ? (
+              <TextField
+                label="Location correction reason"
+                value={form.correctionReason}
+                onChange={(event) =>
+                  updateField("correctionReason", event.target.value)
+                }
+                placeholder="e.g. Move pickup point to the school main gate"
+                helperText="Required only when the latitude or longitude changes."
+                multiline
+                minRows={2}
+                sx={{ gridColumn: "1 / -1" }}
+                slotProps={{
+                  htmlInput: {
+                    maxLength: 500,
+                  },
+                }}
+              />
+            ) : null}
+
             <TextField
               label="Geofence radius (metres)"
 
@@ -427,7 +495,7 @@ export function StopFormDialog({
 
               slotProps={{
                 htmlInput: {
-                  min: 1,
+                  min: 10,
                   step: 1,
                 },
               }}

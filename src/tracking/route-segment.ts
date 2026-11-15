@@ -4,7 +4,7 @@ export interface RouteProjectionPoint {
   longitude: number;
 }
 
-interface ProjectedRoutePoint {
+export interface ProjectedRoutePoint {
   coordinate: [number, number];
 
   segmentIndex: number;
@@ -48,7 +48,7 @@ function segmentLengthMeters(
  * route so we can later slice the LineString without drawing a
  * crow-flies connection.
  */
-function projectPointOntoRoute(
+export function projectPointOntoRoute(
   routeCoordinates: readonly (readonly [number, number])[],
 
   point: RouteProjectionPoint,

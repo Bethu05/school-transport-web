@@ -27,7 +27,20 @@ import {
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { listStops, type Stop } from "../stops/stops.api";
+import {
+  FRONTEND_PERMISSIONS,
+  hasFrontendPermission,
+} from "../auth/frontend-permissions";
+import { useAuth } from "../auth/AuthProvider";
+import { StopFormDialog } from "../stops/StopFormDialog";
+import { getRouteGeometry } from "../tracking/route-geometry.api";
+
+import {
+  listStops,
+  updateStop,
+  type Stop,
+  type UpdateStopInput,
+} from "../stops/stops.api";
 
 import {
   addRouteStop,
@@ -103,8 +116,18 @@ export function RouteStopsDialog({
 }: RouteStopsDialogProps) {
   const queryClient = useQueryClient();
 
+  const { permissions } = useAuth();
+
+  const canUpdateStopLocation = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.STOPS_UPDATE,
+  );
+
   const [addOpen, setAddOpen] = useState(false);
   const [editingStop, setEditingStop] = useState<RouteStop | null>(null);
+  const [locationEditingStop, setLocationEditingStop] = useState<Stop | null>(
+    null,
+  );
   const [removeTarget, setRemoveTarget] = useState<RouteStop | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -133,6 +156,17 @@ export function RouteStopsDialog({
       }
 
       return listRouteStops(tenantId, routeId);
+    },
+  });
+
+  const routeGeometryQuery = useQuery({
+    queryKey: ["route-geometry", tenantId, routeId],
+    enabled: Boolean(open && tenantId && routeId),
+    queryFn: async () => {
+      if (!tenantId || !routeId) {
+        throw new Error("Route context is unavailable");
+      }
+      return getRouteGeometry(tenantId, routeId);
     },
   });
 
@@ -192,6 +226,7 @@ export function RouteStopsDialog({
   function handleClose(): void {
     setAddOpen(false);
     setEditingStop(null);
+    setLocationEditingStop(null);
     setRemoveTarget(null);
     setFormError(null);
     setSuccessMessage(null);
@@ -208,6 +243,18 @@ export function RouteStopsDialog({
     });
 
     setAddOpen(true);
+  }
+
+  function openLocationEditor(routeStop: RouteStop): void {
+    const stop = stops.find((candidate) => candidate.id === routeStop.stopId);
+
+    if (!stop) {
+      setFormError("The master stop could not be loaded.");
+      return;
+    }
+
+    setFormError(null);
+    setLocationEditingStop(stop);
   }
 
   function openEditStop(routeStop: RouteStop): void {
@@ -265,6 +312,39 @@ export function RouteStopsDialog({
       setEditingStop(null);
       setFormError(null);
       setSuccessMessage("Route stop updated.");
+    },
+
+    onError: (error) => {
+      setFormError(errorMessage(error));
+    },
+  });
+
+  const locationMutation = useMutation({
+    mutationFn: async (input: UpdateStopInput) => {
+      if (!tenantId || !locationEditingStop) {
+        throw new Error("Stop context is unavailable");
+      }
+
+      return updateStop(tenantId, locationEditingStop.id, input);
+    },
+
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["route-stops", tenantId, routeId],
+        }),
+        queryClient.invalidateQueries({ queryKey: ["stops"] }),
+        queryClient.invalidateQueries({ queryKey: ["routes"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["route-geometry", tenantId, routeId],
+        }),
+      ]);
+
+      setLocationEditingStop(null);
+      setFormError(null);
+      setSuccessMessage(
+        "Stop location updated. Route geometry will rebuild automatically.",
+      );
     },
 
     onError: (error) => {
@@ -359,6 +439,7 @@ export function RouteStopsDialog({
   const busy =
     addMutation.isPending ||
     updateMutation.isPending ||
+    locationMutation.isPending ||
     removeMutation.isPending;
 
   return (
@@ -507,7 +588,7 @@ export function RouteStopsDialog({
                     display: "grid",
                     gridTemplateColumns: {
                       xs: "auto 1fr auto",
-                      md: "52px 1fr 140px 150px 84px",
+                      md: "52px 1fr 140px 150px 210px",
                     },
                     gap: 1.5,
                     alignItems: "center",
@@ -611,6 +692,27 @@ export function RouteStopsDialog({
                         >
                           <EditLocationAltRounded fontSize="small" />
                         </IconButton>
+                      </span>
+                    </Tooltip>
+
+                    <Tooltip
+                      title={
+                        canUpdateStopLocation
+                          ? "Correct actual stop and geofence location"
+                          : "You need Stop Update permission to correct this location"
+                      }
+                    >
+                      <span>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<PlaceRounded fontSize="small" />}
+                          disabled={busy || !canUpdateStopLocation}
+                          onClick={() => openLocationEditor(routeStop)}
+                          sx={{ whiteSpace: "nowrap" }}
+                        >
+                          Map location
+                        </Button>
                       </span>
                     </Tooltip>
 
@@ -916,6 +1018,24 @@ export function RouteStopsDialog({
           </Button>
         </DialogActions>
       </Dialog>
+      <StopFormDialog
+        open={locationEditingStop !== null}
+        stop={locationEditingStop}
+        stopSchoolName={
+          locationEditingStop?.schoolId ? "Route school" : "Shared stop"
+        }
+        schools={[]}
+        routeGeometry={routeGeometryQuery.data?.geometry ?? null}
+        saving={locationMutation.isPending}
+        error={formError}
+        onClose={() => {
+          setLocationEditingStop(null);
+          setFormError(null);
+        }}
+        onSubmit={async (input) => {
+          await locationMutation.mutateAsync(input as UpdateStopInput);
+        }}
+      />
     </>
   );
 }

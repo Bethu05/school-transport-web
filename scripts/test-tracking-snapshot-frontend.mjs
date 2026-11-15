@@ -108,3 +108,33 @@ check(
 
 console.log("");
 console.log("Initial tracking snapshot frontend checkpoint PASSED");
+
+// ============================================================
+// TRIP BOUNDARY
+// ============================================================
+
+const previousTripLocation = {
+  ...location("vehicle-trip-boundary", 3_000, -1.21),
+  tripId: "trip-old",
+  routeId: "route-old",
+};
+
+const previousTripState = mergeVehicleLocation({}, previousTripLocation);
+
+const newTripLocation = {
+  ...location("vehicle-trip-boundary", 4_000, -1.22),
+  tripId: "trip-new",
+  routeId: "route-new",
+};
+
+const newTripState = mergeVehicleLocation(previousTripState, newTripLocation);
+
+check(
+  newTripState["vehicle-trip-boundary"].trail.length === 1,
+  "new Trip starts a fresh GPS breadcrumb",
+);
+
+check(
+  newTripState["vehicle-trip-boundary"].trail[0].latitude === -1.22,
+  "new Trip breadcrumb begins at its own first GPS position",
+);

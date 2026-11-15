@@ -131,8 +131,12 @@ export function ChangePasswordPage() {
     return "/dashboard";
   }
 
-  function handleLogout(): void {
-    logout();
+  async function handleLogout(): Promise<void> {
+    try {
+      await logout();
+    } catch {
+      return;
+    }
 
     navigate("/login", {
       replace: true,
@@ -211,7 +215,7 @@ export function ChangePasswordPage() {
        * Clear this browser's access JWT as well and require a clean
        * login using the new credential.
        */
-      logout();
+      await logout({ serverSessionAlreadyRevoked: true });
 
       navigate("/login?passwordChanged=1", {
         replace: true,

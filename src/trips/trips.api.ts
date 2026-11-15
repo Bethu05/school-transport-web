@@ -712,3 +712,24 @@ export function removeTripStaffAssignment(
     },
   );
 }
+
+// ============================================================
+// CONTROL ROOM TRIP RIDER SUMMARY
+// ============================================================
+
+export interface TrackingTripRider {
+  id: string;
+  assignedTripStopId: string;
+  studentFirstName: string;
+  assignmentType: "pickup" | "dropoff";
+  status: "assigned" | "cancelled";
+}
+
+export function listTrackingTripRiders(
+  tenantId: string,
+  tripId: string,
+): Promise<TrackingTripRider[]> {
+  return apiRequest<TrackingTripRider[]>(`/trips/${tripId}/riders`, {
+    tenantId,
+  });
+}
