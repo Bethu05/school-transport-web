@@ -23,6 +23,7 @@ interface StopLocationMapProps {
   longitude: number | null;
   routeGeometry?: RouteGeometryLineString | null;
   disabled?: boolean;
+  searchEnabled?: boolean;
   onChange: (latitude: number, longitude: number) => void;
 }
 
@@ -31,6 +32,7 @@ export function StopLocationMap({
   longitude,
   routeGeometry = null,
   disabled = false,
+  searchEnabled = true,
   onChange,
 }: StopLocationMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -243,30 +245,32 @@ export function StopLocationMap({
         geofence point. The orange marker shows the road anchor when route
         geometry is available.
       </Typography>
-      <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
-        <TextField
-          fullWidth
-          size="small"
-          label="Find address or landmark"
-          value={search}
-          disabled={disabled || searching}
-          onChange={(event) => setSearch(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              void findAddress();
-            }
-          }}
-        />
-        <Button
-          type="button"
-          variant="outlined"
-          disabled={disabled || searching || !search.trim()}
-          onClick={() => void findAddress()}
-        >
-          {searching ? "Searching..." : "Find"}
-        </Button>
-      </Box>
+      {searchEnabled ? (
+        <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
+          <TextField
+            fullWidth
+            size="small"
+            label="Find address or landmark"
+            value={search}
+            disabled={disabled || searching}
+            onChange={(event) => setSearch(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                void findAddress();
+              }
+            }}
+          />
+          <Button
+            type="button"
+            variant="outlined"
+            disabled={disabled || searching || !search.trim()}
+            onClick={() => void findAddress()}
+          >
+            {searching ? "Searching..." : "Find"}
+          </Button>
+        </Box>
+      ) : null}
 
       {searchError ? (
         <Alert severity="error" sx={{ mb: 1 }}>

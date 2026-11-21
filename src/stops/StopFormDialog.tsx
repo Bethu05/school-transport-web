@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
 import {
   Alert,
@@ -33,6 +33,10 @@ interface StopFormDialogProps {
   routeGeometry?: RouteGeometryLineString | null;
 
   saving: boolean;
+
+  proposalMode?: boolean;
+
+  recoveryAction?: ReactNode;
 
   error: string | null;
 
@@ -122,6 +126,8 @@ export function StopFormDialog({
   schools,
   routeGeometry = null,
   saving,
+  proposalMode = false,
+  recoveryAction,
   error,
   onClose,
   onSubmit,
@@ -129,6 +135,8 @@ export function StopFormDialog({
   const [form, setForm] = useState<StopFormState>(() => createFormState(stop));
 
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  const [capturingLocation, setCapturingLocation] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -151,6 +159,33 @@ export function StopFormDialog({
 
       [key]: value,
     }));
+  }
+
+  function captureCurrentLocation(): void {
+    if (!navigator.geolocation) {
+      setValidationError("Current location is unavailable in this browser.");
+      return;
+    }
+
+    setValidationError(null);
+    setCapturingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setForm((current) => ({
+          ...current,
+          latitude: coords.latitude.toFixed(6),
+          longitude: coords.longitude.toFixed(6),
+        }));
+        setCapturingLocation(false);
+      },
+      () => {
+        setValidationError(
+          "Unable to obtain your location. Check browser permissions or select a point on the map.",
+        );
+        setCapturingLocation(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000 },
+    );
   }
 
   async function handleSubmit(
@@ -186,9 +221,13 @@ export function StopFormDialog({
 
     const geofenceRadius = Number(form.geofenceRadiusMeters);
 
-    if (!Number.isInteger(geofenceRadius) || geofenceRadius < 10) {
+    if (
+      !Number.isInteger(geofenceRadius) ||
+      geofenceRadius < 10 ||
+      geofenceRadius > 1000
+    ) {
       setValidationError(
-        "Geofence radius must be a whole number of at least 10 metres.",
+        "Geofence radius must be a whole number between 10 and 1000 metres.",
       );
 
       return;
@@ -271,7 +310,7 @@ export function StopFormDialog({
             fontWeight: 850,
           }}
         >
-          {editing ? "Edit stop" : "Add stop"}
+          {editing ? "Edit stop" : proposalMode ? "Propose stop" : "Add stop"}
         </DialogTitle>
 
         <DialogContent>
@@ -288,7 +327,9 @@ export function StopFormDialog({
           >
             {editing
               ? "Update the stop details, map coordinates and geofence radius."
-              : "Create a shared or school-specific transport stop."}
+              : proposalMode
+                ? "Propose a shared or school-specific stop. Another administrator or transport manager must approve it before it can be used."
+                : "Create a shared or school-specific transport stop."}
           </Typography>
 
           {validationError ? (
@@ -314,6 +355,7 @@ export function StopFormDialog({
               {error}
             </Alert>
           ) : null}
+          {recoveryAction}
 
           <Box
             sx={{
@@ -409,11 +451,25 @@ export function StopFormDialog({
               placeholder="Street, estate or landmark"
             />
 
+            {proposalMode && !editing ? (
+              <Button
+                type="button"
+                variant="outlined"
+                disabled={saving || capturingLocation}
+                onClick={captureCurrentLocation}
+                sx={{ gridColumn: "1 / -1", justifySelf: "start" }}
+              >
+                {capturingLocation
+                  ? "Finding location..."
+                  : "Use current location"}
+              </Button>
+            ) : null}
             <StopLocationMap
               latitude={mapLatitude}
               longitude={mapLongitude}
               routeGeometry={routeGeometry}
               disabled={saving}
+              searchEnabled={!proposalMode}
               onChange={(nextLatitude, nextLongitude) => {
                 updateField("latitude", nextLatitude.toFixed(6));
                 updateField("longitude", nextLongitude.toFixed(6));
@@ -496,6 +552,7 @@ export function StopFormDialog({
               slotProps={{
                 htmlInput: {
                   min: 10,
+                  max: 1000,
                   step: 1,
                 },
               }}
@@ -525,7 +582,13 @@ export function StopFormDialog({
 
             disabled={saving}
           >
-            {saving ? "Saving..." : editing ? "Save changes" : "Add stop"}
+            {saving
+              ? "Saving..."
+              : editing
+                ? "Save changes"
+                : proposalMode
+                  ? "Submit proposal"
+                  : "Add stop"}
           </Button>
         </DialogActions>
       </Box>

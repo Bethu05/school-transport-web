@@ -46,7 +46,6 @@ import { PaginationControls } from "../components/PaginationControls";
 import type { School } from "../schools/schools.api";
 
 import {
-  createStop,
   deactivateStop,
   listStopsPage,
   updateStop,
@@ -57,6 +56,8 @@ import {
 } from "./stops.api";
 
 import { StopFormDialog } from "./StopFormDialog";
+import { StopProposalDialog } from "./StopProposalDialog";
+import { StopProposalsPanel } from "./StopProposalsPanel";
 
 const EMPTY_STOPS: Stop[] = [];
 
@@ -89,7 +90,7 @@ function errorMessage(error: unknown): string {
 }
 
 export function StopsPage() {
-  const { permissions, tenant, activeSchool } = useAuth();
+  const { permissions, tenant, activeSchool, user } = useAuth();
 
   const queryClient = useQueryClient();
 
@@ -102,6 +103,7 @@ export function StopsPage() {
   const [limit, setLimit] = useState(10);
 
   const [formOpen, setFormOpen] = useState(false);
+  const [proposalOpen, setProposalOpen] = useState(false);
 
   const [editingStop, setEditingStop] = useState<Stop | null>(null);
 
@@ -117,7 +119,12 @@ export function StopsPage() {
 
   const canCreate = hasFrontendPermission(
     permissions,
-    FRONTEND_PERMISSIONS.STOPS_CREATE,
+    FRONTEND_PERMISSIONS.STOPS_UPDATE,
+  );
+
+  const canReview = hasFrontendPermission(
+    permissions,
+    FRONTEND_PERMISSIONS.STOPS_REVIEW_PROPOSALS,
   );
 
   const canUpdate = hasFrontendPermission(
@@ -222,45 +229,6 @@ export function StopsPage() {
     ]);
   }
 
-  const createMutation = useMutation({
-    mutationFn: async (input: CreateStopInput) => {
-      if (!tenantId || !schoolId) {
-        throw new Error("School context is unavailable");
-      }
-
-      /**
-       * A school-scoped Stops screen may create:
-       *
-       * - a Stop for the current school; or
-       * - a tenant-wide Shared stop.
-       *
-       * It cannot create a Stop owned by another school.
-       */
-      return createStop(tenantId, {
-        ...input,
-        schoolId: input.schoolId ? schoolId : undefined,
-      });
-    },
-
-    onSuccess: async () => {
-      await refreshStops();
-
-      setPage(1);
-
-      setFormOpen(false);
-
-      setEditingStop(null);
-
-      setMutationError(null);
-
-      setSuccessMessage("Stop added successfully.");
-    },
-
-    onError: (error) => {
-      setMutationError(errorMessage(error));
-    },
-  });
-
   const updateMutation = useMutation({
     mutationFn: async ({
       stopId: mutationStopId,
@@ -343,11 +311,7 @@ export function StopsPage() {
   };
 
   function openCreate(): void {
-    setMutationError(null);
-
-    setEditingStop(null);
-
-    setFormOpen(true);
+    setProposalOpen(true);
   }
 
   function openEdit(stop: Stop): void {
@@ -359,7 +323,7 @@ export function StopsPage() {
   }
 
   function closeForm(): void {
-    if (createMutation.isPending || updateMutation.isPending) {
+    if (updateMutation.isPending) {
       return;
     }
 
@@ -384,11 +348,10 @@ export function StopsPage() {
 
       return;
     }
-
-    await createMutation.mutateAsync(input as CreateStopInput);
+    throw new Error("No stop selected for editing");
   }
 
-  const formSaving = createMutation.isPending || updateMutation.isPending;
+  const formSaving = updateMutation.isPending;
 
   if (!activeSchool) {
     return <Alert severity="info">Select a school to view Stops.</Alert>;
@@ -452,10 +415,20 @@ export function StopsPage() {
 
             onClick={openCreate}
           >
-            Add stop
+            Propose stop
           </Button>
         ) : null}
       </Box>
+
+      {canUpdate && tenantId && user ? (
+        <StopProposalsPanel
+          key={`${tenantId}:${schoolId}:${user.userId}`}
+          tenantId={tenantId}
+          schoolId={activeSchool.id}
+          userId={user.userId}
+          canReview={canReview}
+        />
+      ) : null}
 
       <Box
         sx={{
@@ -1040,6 +1013,17 @@ export function StopsPage() {
 
         onSubmit={submitStop}
       />
+
+      {tenantId && user ? (
+        <StopProposalDialog
+          key={`${tenantId}:${user.userId}:${activeSchool.id}`}
+          open={proposalOpen}
+          tenantId={tenantId}
+          userId={user.userId}
+          school={activeSchool}
+          onClose={() => setProposalOpen(false)}
+        />
+      ) : null}
 
       <Dialog
         open={deactivateTarget !== null}

@@ -56,6 +56,7 @@ export const FRONTEND_PERMISSIONS = {
   STOPS_CREATE: "stops.create",
 
   STOPS_UPDATE: "stops.update",
+  STOPS_REVIEW_PROPOSALS: "stops.review_proposals",
 
   STOPS_DEACTIVATE: "stops.deactivate",
 
