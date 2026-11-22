@@ -42,7 +42,7 @@ import {
   type RouteStop,
 } from "../../routes/routes.api";
 
-import { listStudentsPage, type Student } from "../../students/students.api";
+import { listRouteStudentCandidates, type RouteStudentCandidate } from "../../students/students.api";
 
 import { scheduleTrip } from "../trips.api";
 
@@ -90,7 +90,7 @@ function timeLabel(value: string | null): string {
 }
 
 export function TripSeriesPage() {
-  const { permissions, tenant, activeSchool } = useAuth();
+  const { permissions, tenant, activeSchool, user } = useAuth();
 
   const navigate = useNavigate();
 
@@ -227,23 +227,15 @@ export function TripSeriesPage() {
   });
 
   const studentsQuery = useQuery({
-    queryKey: ["trip-series-students-options", tenantId, schoolId],
+    queryKey: ["trip-series-students-options", tenantId, user?.userId, studentsSeries?.routeId],
 
     enabled: Boolean(tenantId && schoolId && studentsSeries),
 
     queryFn: async () => {
-      if (!tenantId || !schoolId) {
-        throw new Error("School context is unavailable");
+      if (!tenantId || !studentsSeries) {
+        throw new Error("Recurring trip context is unavailable");
       }
-
-      const response = await listStudentsPage(tenantId, {
-        page: 1,
-        limit: 100,
-        schoolId,
-        status: "active",
-      });
-
-      return response.items;
+      return listRouteStudentCandidates(tenantId, studentsSeries.routeId);
     },
   });
 
@@ -281,7 +273,16 @@ export function TripSeriesPage() {
 
   const vehicles: Vehicle[] = vehiclesQuery.data ?? [];
 
-  const students: Student[] = studentsQuery.data ?? [];
+  const students: RouteStudentCandidate[] = [...(studentsQuery.data ?? [])];
+  for (const subscription of subscriptionsQuery.data ?? []) {
+    if (!students.some((student) => student.id === subscription.studentId)) {
+      students.push({
+        id: subscription.studentId, firstName: subscription.studentFirstName,
+        lastName: subscription.studentLastName, externalRef: subscription.studentExternalRef,
+        grade: "", eligible: false,
+      });
+    }
+  }
 
   const subscriptions: TripSeriesStudent[] = subscriptionsQuery.data ?? [];
 
@@ -971,7 +972,9 @@ export function TripSeriesPage() {
             routeStopsQuery.isLoading
           }
           saving={studentMutation.isPending || removeStudentMutation.isPending}
-          error={mutationError}
+          error={mutationError ?? (studentsQuery.isError || subscriptionsQuery.isError || routeStopsQuery.isError
+            ? "Unable to load recurring trip students or route stops. Close and reopen to retry."
+            : null)}
           onClose={() => {
             setStudentsSeries(null);
 
