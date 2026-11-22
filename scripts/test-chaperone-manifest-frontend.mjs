@@ -19,6 +19,7 @@ console.log("--------------------------------------");
 const api = read("src/dashboard/staff/staff-passengers.api.ts");
 
 const page = read("src/dashboard/staff/StaffDashboard.tsx");
+const actions = read("src/dashboard/staff/passenger-actions.ts");
 
 const dashboard = read("src/dashboard/DashboardPage.tsx");
 
@@ -34,6 +35,8 @@ assert(
 
 assert(api.includes('"no-show"'), "no-show API wired");
 
+assert(api.includes('"drop-off"'), "drop-off API wired");
+
 assert(
   api.includes('"Idempotency-Key"'),
   "passenger mutations use idempotency keys",
@@ -48,8 +51,27 @@ assert(page.includes("Boarded"), "Boarded action rendered");
 
 assert(page.includes("Missed"), "Missed action rendered");
 
+assert(page.includes("Dropped off"), "Drop-off action rendered");
+
+assert(page.includes("manifest.stops.map"), "trip stop selection rendered");
+
 assert(
-  page.includes('passenger.assignmentType === "pickup"'),
+  page.includes('setBoardingConfirmation({') &&
+    page.includes('aria-labelledby="confirm-boarding-title"') &&
+    page.includes("Confirm boarding") &&
+    page.includes("boardingConfirmation.studentReference"),
+  "boarding requires a confirmation showing the student and stop",
+);
+
+assert(
+  page.includes("!canConfirmBoarding || eventMutation.isPending") &&
+    page.includes("user?.userId === boardingConfirmation.userId") &&
+    page.includes("manifest?.tripId === boardingConfirmation.tripId"),
+  "boarding confirmation checks current user, trip and passenger state",
+);
+
+assert(
+  actions.includes('passenger.assignmentType === "pickup"'),
   "pickup register actions are direction-aware",
 );
 

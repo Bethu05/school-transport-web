@@ -6,9 +6,15 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
+  MenuItem,
   Paper,
   Snackbar,
+  TextField,
   Typography,
 } from "@mui/material";
 
@@ -26,8 +32,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../../auth/AuthProvider";
 
+import { passengerActions } from "./passenger-actions";
+import { matchesPassengerSearch } from "./passenger-search";
+
 import {
   boardStaffPassenger,
+  dropOffStaffPassenger,
   getMyStaffTripManifest,
   markStaffPassengerNoShow,
   type StaffPassengerStatus,
@@ -40,7 +50,7 @@ import {
   rejectMyStaffStartAuthorization,
 } from "./staff-start-authorization.api";
 
-type PassengerAction = "board" | "no-show";
+type PassengerAction = "board" | "no-show" | "drop-off";
 
 interface PassengerActionInput {
   riderId: string;
@@ -104,15 +114,6 @@ function statusColor(
   }
 }
 
-function idempotencyKey(action: PassengerAction, riderId: string): string {
-  const suffix =
-    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-  return `staff-${action}-${riderId}-${suffix}`;
-}
-
 interface StopGroup {
   stopId: string;
 
@@ -133,6 +134,24 @@ export function StaffDashboard() {
   const [mutationError, setMutationError] = useState<string | null>(null);
 
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const [passengerSearch, setPassengerSearch] = useState("");
+
+  const [boardingConfirmation, setBoardingConfirmation] = useState<{
+    tenantId: string;
+    userId: string;
+    tripId: string;
+    riderId: string;
+    tripStopId: string;
+    studentName: string;
+    studentReference: string | null;
+    stopName: string;
+  } | null>(null);
+
+  const [selectedStop, setSelectedStop] = useState<{
+    tripId: string;
+    stopId: string;
+  } | null>(null);
 
   const manifestQuery = useQuery({
     queryKey: ["staff-trip-manifest", tenantId],
@@ -160,10 +179,18 @@ export function StaffDashboard() {
         throw new Error("No active tenant");
       }
 
-      const key = idempotencyKey(action, riderId);
+      if (!manifestQuery.data) {
+        throw new Error("No assigned trip is available.");
+      }
+
+      const key = `staff:${manifestQuery.data.tripId}:${riderId}:${action}:${tripStopId}`;
 
       if (action === "board") {
         return boardStaffPassenger(tenantId, riderId, tripStopId, key);
+      }
+
+      if (action === "drop-off") {
+        return dropOffStaffPassenger(tenantId, riderId, tripStopId, key);
       }
 
       return markStaffPassengerNoShow(tenantId, riderId, tripStopId, key);
@@ -175,7 +202,9 @@ export function StaffDashboard() {
       setSuccessMessage(
         event.eventType === "boarded"
           ? "Student marked as boarded."
-          : "Student marked as missed.",
+          : event.eventType === "dropped_off"
+            ? "Student marked as dropped off."
+            : "Student marked as missed.",
       );
 
       await queryClient.invalidateQueries({
@@ -189,6 +218,37 @@ export function StaffDashboard() {
   });
 
   const manifest = manifestQuery.data;
+  const currentStopId =
+    manifest &&
+    selectedStop &&
+    selectedStop.tripId === manifest.tripId &&
+    manifest.stops.some((stop) => stop.id === selectedStop.stopId)
+      ? selectedStop.stopId
+      : "";
+  const confirmationPassenger = manifest?.passengers.find(
+    (passenger) => passenger.riderId === boardingConfirmation?.riderId,
+  );
+  const confirmationStop = manifest?.stops.find(
+    (stop) => stop.id === boardingConfirmation?.tripStopId,
+  );
+  const canConfirmBoarding = Boolean(
+    boardingConfirmation &&
+      tenantId === boardingConfirmation.tenantId &&
+      user?.userId === boardingConfirmation.userId &&
+      manifest?.tripId === boardingConfirmation.tripId &&
+      !manifestQuery.isError &&
+      confirmationPassenger &&
+      confirmationStop &&
+      `${confirmationPassenger.studentFirstName} ${confirmationPassenger.studentLastName}` ===
+        boardingConfirmation.studentName &&
+      confirmationPassenger.studentExternalRef === boardingConfirmation.studentReference &&
+      confirmationStop.stopName === boardingConfirmation.stopName &&
+      passengerActions(
+        confirmationPassenger,
+        manifest.tripStatus,
+        boardingConfirmation.tripStopId,
+      ).boardEnabled,
+  );
 
   const canAuthorizeStart =
     manifest?.staffRole === "chaperone" && manifest.tripStatus === "boarding";
@@ -251,6 +311,10 @@ export function StaffDashboard() {
     const grouped = new Map<string, StopGroup>();
 
     for (const passenger of manifest.passengers) {
+      if (!matchesPassengerSearch(passenger, passengerSearch)) {
+        continue;
+      }
+
       const existing = grouped.get(passenger.assignedTripStopId);
 
       if (existing) {
@@ -273,7 +337,7 @@ export function StaffDashboard() {
     return [...grouped.values()].sort(
       (first, second) => first.stopOrder - second.stopOrder,
     );
-  }, [manifest]);
+  }, [manifest, passengerSearch]);
 
   const summary = useMemo(() => {
     const passengers = manifest?.passengers ?? [];
@@ -727,9 +791,39 @@ export function StaffDashboard() {
         controls the passenger register.
       </Alert>
 
-      {groups.length === 0 ? (
+      <TextField
+        fullWidth
+        label="Search students by name or student reference"
+        value={passengerSearch}
+        onChange={(event) => setPassengerSearch(event.target.value)}
+        sx={{ mb: 2 }}
+      />
+
+      <TextField
+        select
+        fullWidth
+        label="Stop where the student is boarding or leaving"
+        value={currentStopId}
+        onChange={(event) =>
+          setSelectedStop({ tripId: manifest.tripId, stopId: event.target.value })
+        }
+        helperText="Select the actual trip stop before recording boarding or drop-off."
+        sx={{ mb: 2 }}
+      >
+        {manifest.stops.map((stop) => (
+          <MenuItem key={stop.id} value={stop.id}>
+            {stop.stopOrder}. {stop.stopName}
+          </MenuItem>
+        ))}
+      </TextField>
+
+      {manifest.passengers.length === 0 ? (
         <Alert severity="warning">
           No students are currently assigned to this trip.
+        </Alert>
+      ) : groups.length === 0 ? (
+        <Alert severity="info">
+          No students match this search in the assigned trip register.
         </Alert>
       ) : (
         <Box
@@ -811,9 +905,11 @@ export function StaffDashboard() {
                   eventMutation.isPending &&
                   eventMutation.variables?.riderId === passenger.riderId;
 
-                const canRecordPickup =
-                  passenger.assignmentType === "pickup" &&
-                  passenger.status === "waiting";
+                const actions = passengerActions(
+                  passenger,
+                  manifest.tripStatus,
+                  currentStopId,
+                );
 
                 return (
                   <Box
@@ -920,7 +1016,7 @@ export function StaffDashboard() {
                       </Box>
                     </Box>
 
-                    {canRecordPickup ? (
+                    {actions.canBoard || actions.canDropOff ? (
                       <Box
                         sx={{
                           display: "flex",
@@ -930,11 +1026,11 @@ export function StaffDashboard() {
                           flexShrink: 0,
                         }}
                       >
-                        <Button
+                        {actions.canBoard ? <Button
                           size="small"
                           variant="contained"
                           color="success"
-                          disabled={pending}
+                          disabled={pending || !actions.boardEnabled}
                           startIcon={
                             pending ? (
                               <CircularProgress size={14} color="inherit" />
@@ -942,20 +1038,42 @@ export function StaffDashboard() {
                               <CheckCircleRounded />
                             )
                           }
+                          onClick={() => {
+                            const stop = manifest.stops.find(
+                              (item) => item.id === currentStopId,
+                            );
+                            if (!tenantId || !user || !stop) return;
+                            setBoardingConfirmation({
+                              tenantId,
+                              userId: user.userId,
+                              tripId: manifest.tripId,
+                              riderId: passenger.riderId,
+                              tripStopId: stop.id,
+                              studentName: `${passenger.studentFirstName} ${passenger.studentLastName}`,
+                              studentReference: passenger.studentExternalRef,
+                              stopName: stop.stopName,
+                            });
+                          }}
+                        >
+                          Boarded
+                        </Button> : null}
+
+                        {actions.canDropOff ? <Button
+                          size="small"
+                          variant="contained"
+                          disabled={pending || !actions.dropOffEnabled}
                           onClick={() =>
                             eventMutation.mutate({
                               riderId: passenger.riderId,
-
-                              tripStopId: passenger.assignedTripStopId,
-
-                              action: "board",
+                              tripStopId: currentStopId,
+                              action: "drop-off",
                             })
                           }
                         >
-                          Boarded
-                        </Button>
+                          Dropped off
+                        </Button> : null}
 
-                        <Button
+                        {actions.canMarkNoShow ? <Button
                           size="small"
                           variant="outlined"
                           color="warning"
@@ -972,20 +1090,8 @@ export function StaffDashboard() {
                           }
                         >
                           Missed
-                        </Button>
+                        </Button> : null}
                       </Box>
-                    ) : passenger.assignmentType === "dropoff" &&
-                      passenger.status === "waiting" ? (
-                      <Typography
-                        sx={{
-                          color: "text.secondary",
-
-                          fontSize: 11,
-                        }}
-                      >
-                        Afternoon boarding workflow follows after the pickup
-                        demo gate.
-                      </Typography>
                     ) : null}
                   </Box>
                 );
@@ -1042,6 +1148,47 @@ export function StaffDashboard() {
           assignment.
         </Typography>
       </Paper>
+
+      <Dialog
+        open={boardingConfirmation !== null}
+        onClose={() => setBoardingConfirmation(null)}
+        aria-labelledby="confirm-boarding-title"
+      >
+        <DialogTitle id="confirm-boarding-title">Confirm boarding</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Confirm that {boardingConfirmation?.studentName} is boarding at{" "}
+            {boardingConfirmation?.stopName}.
+          </Typography>
+          <Typography>
+            Student reference: {boardingConfirmation?.studentReference ?? "Not provided"}
+          </Typography>
+          {!canConfirmBoarding ? (
+            <Alert severity="warning">
+              The register has changed or is unavailable. Cancel and check the
+              passenger and stop again.
+            </Alert>
+          ) : null}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBoardingConfirmation(null)}>Cancel</Button>
+          <Button
+            variant="contained"
+            disabled={!canConfirmBoarding || eventMutation.isPending}
+            onClick={() => {
+              if (!boardingConfirmation || !canConfirmBoarding || eventMutation.isPending) return;
+              eventMutation.mutate({
+                riderId: boardingConfirmation.riderId,
+                tripStopId: boardingConfirmation.tripStopId,
+                action: "board",
+              });
+              setBoardingConfirmation(null);
+            }}
+          >
+            Confirm boarding
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={Boolean(successMessage)}

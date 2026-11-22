@@ -52,7 +52,19 @@ export interface StaffTripManifest {
 
   driverName: string | null;
 
+  stops: StaffTripStop[];
+
   passengers: StaffTripPassenger[];
+}
+
+export interface StaffTripStop {
+  id: string;
+
+  stopName: string;
+
+  stopOrder: number;
+
+  status: string;
 }
 
 export interface StaffPassengerEvent {
