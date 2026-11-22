@@ -6,6 +6,7 @@ import {
   BusinessRounded,
   DashboardRounded,
   FactCheckRounded,
+  GpsFixedRounded,
   ManageAccountsRounded,
   PaymentsRounded,
   SettingsRounded,
@@ -30,6 +31,8 @@ import { PlanEditor } from "./PlanEditor";
 import { SchoolsWorkspace } from "./SchoolsWorkspace";
 
 import { SuperAdminOverview } from "./SuperAdminOverview";
+
+import { SuperAdminTrackersPage } from "./SuperAdminTrackersPage";
 
 import { PlatformLimitedRolePage } from "./PlatformLimitedRolePage";
 
@@ -97,6 +100,10 @@ const navigationItems: PlatformSidebarItem[] = [
     icon: <BusinessRounded fontSize="small" />,
   },
   {
+    label: "Global Trackers",
+    icon: <GpsFixedRounded fontSize="small" />,
+  },
+  {
     label: "Plans",
     icon: <PaymentsRounded fontSize="small" />,
   },
@@ -127,8 +134,12 @@ export function SuperAdminPage() {
     return <PlatformLimitedRolePage />;
   }
 
-  function handleLogout(): void {
-    logout();
+  async function handleLogout(): Promise<void> {
+    try {
+      await logout();
+    } catch {
+      return;
+    }
 
     navigate("/login", {
       replace: true,
@@ -377,13 +388,16 @@ export function SuperAdminPage() {
                     ? "Review applications and move verified schools through the controlled five-phase launch workflow."
                     : activeSection === "Schools"
                       ? "Manage live schools, trials, paused subscriptions and deactivated accounts."
-                      : activeSection === "Platform Access"
-                        ? "Review platform users, inherited role permissions and additional user-level access."
-                        : "Manage plans and platform administration."}
+                      : activeSection === "Global Trackers"
+                        ? "Audit connected GPS hardware, monitor listener ports, and review governed identity swaps across tenants."
+                        : activeSection === "Platform Access"
+                          ? "Review platform users, inherited role permissions and additional user-level access."
+                          : "Manage plans and platform administration."}
             </Typography>
           </Box>
 
-          {activeSection !== "Platform Access" ? (
+          {activeSection !== "Platform Access" &&
+          activeSection !== "Global Trackers" ? (
             <Stack
               data-super-admin-quick-actions
               direction="row"
@@ -550,6 +564,8 @@ export function SuperAdminPage() {
                     onManageTenant={setManagingTenant}
                   />
                 )
+              ) : activeSection === "Global Trackers" ? (
+                <SuperAdminTrackersPage />
               ) : activeSection === "Plans" ? (
                 <PlanEditor />
               ) : activeSection === "Platform Access" ? (
@@ -624,7 +640,9 @@ export function SuperAdminPage() {
           >
             {activeSection === "Schools"
               ? "School overview"
-              : "Platform status"}
+              : activeSection === "Global Trackers"
+                ? "Tracker hardware audit"
+                : "Platform status"}
           </Typography>
 
           <Typography
@@ -640,7 +658,9 @@ export function SuperAdminPage() {
               ? selectedTenant
                 ? selectedTenant.name
                 : "Select a school from the list"
-              : "Administration control panel"}
+              : activeSection === "Global Trackers"
+                ? "Cross-tenant GPS telemetry & change queue"
+                : "Administration control panel"}
           </Typography>
 
           <Divider

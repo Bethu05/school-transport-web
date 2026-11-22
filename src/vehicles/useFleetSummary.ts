@@ -1,15 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { listVehicles } from "./vehicles.api";
+import {
+  getFleetReadinessSummary,
+  type FleetReadinessSummary,
+} from "./vehicles.api";
 
-export interface FleetSummary {
-  total: number;
-  active: number;
-  maintenance: number;
-  inactive: number;
-  retired: number;
-  availabilityPercent: number;
-}
+export type FleetSummary = FleetReadinessSummary;
 
 /**
  * Fetch the minimum data required by the dashboard.
@@ -28,60 +24,7 @@ export function useFleetSummary(tenantId: string | undefined) {
       if (!tenantId) {
         throw new Error("No active tenant");
       }
-
-      const [total, active, maintenance, inactive, retired] = await Promise.all(
-        [
-          listVehicles(tenantId, {
-            page: 1,
-            limit: 1,
-          }),
-
-          listVehicles(tenantId, {
-            page: 1,
-            limit: 1,
-            status: "active",
-          }),
-
-          listVehicles(tenantId, {
-            page: 1,
-            limit: 1,
-            status: "maintenance",
-          }),
-
-          listVehicles(tenantId, {
-            page: 1,
-            limit: 1,
-            status: "inactive",
-          }),
-
-          listVehicles(tenantId, {
-            page: 1,
-            limit: 1,
-            status: "retired",
-          }),
-        ],
-      );
-
-      const operationalTotal = total.total;
-
-      const availabilityPercent =
-        operationalTotal === 0
-          ? 0
-          : Math.round((active.total / operationalTotal) * 100);
-
-      return {
-        total: total.total,
-
-        active: active.total,
-
-        maintenance: maintenance.total,
-
-        inactive: inactive.total,
-
-        retired: retired.total,
-
-        availabilityPercent,
-      };
+      return getFleetReadinessSummary(tenantId);
     },
   });
 }

@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 
 const page = readFileSync("src/tracking/TrackingPage.tsx", "utf8");
-const map = readFileSync("src/tracking/LiveTrackingMap.tsx", "utf8");
-const css = readFileSync("src/tracking/live-tracking-map.css", "utf8");
+
+const overlay = readFileSync("src/tracking/TripStopsOverlay.tsx", "utf8");
 
 function check(condition, message) {
   if (!condition) {
@@ -13,65 +13,100 @@ function check(condition, message) {
 }
 
 console.log();
-console.log("Selected route stops map checkpoint");
-console.log("-----------------------------------");
+console.log("Trip stops overlay checkpoint");
+console.log("-----------------------------");
 
 check(
-  page.includes("listRouteStops"),
-  "tracking page reuses the existing ordered route-stops API",
+  page.includes("tripMapQuery.data?.stops"),
+  "stop itinerary comes from frozen Trip map",
 );
 
 check(
-  /queryKey\s*:\s*\[[\s\S]*?["']route-stops["']/.test(page),
-  "selected route stops have their own query cache",
+  page.includes("<TripStopsOverlay"),
+  "Control Room renders floating Trip stops card",
 );
 
 check(
-  page.includes("selectedRouteStopMapMarkers"),
-  "selected route renders all ordered stop markers",
+  page.includes("stops={selectedRouteStops}"),
+  "selected frozen Trip stops feed floating card",
 );
 
 check(
-  page.includes("routeStop.stopOrder") && page.includes("routeStop.stopName"),
-  "route stop order and human-readable name are shown",
+  page.includes("nextStopId={selectedNextStopId}"),
+  "realtime next stop drives itinerary highlight",
 );
 
 check(
-  /routeStop\.stopId\s*===\s*selectedNextStopId/.test(page),
-  "realtime next stop is matched to the selected route by stop identity",
+  page.includes("markers={operationalMapWithNextStop}"),
+  "operational map renders vehicles plus only the next stop",
 );
 
 check(
-  /const\s+emphasis\s*=[\s\S]{0,180}isNextStop[\s\S]{0,100}["']next-stop["']/.test(
-    page,
-  ) && /emphasis\s*,/.test(page),
-  "next stop receives explicit map emphasis",
+  !page.includes("selectedRouteStopMapMarkers"),
+  "ordered Trip stops no longer clutter map",
 );
 
 check(
-  page.includes("selectedRouteStopIds.has(nextStop.stopId)"),
-  "selected next stop is not duplicated by realtime fallback markers",
+  !page.includes("operationalStopMapMarkers"),
+  "realtime next-stop markers no longer clutter map",
 );
 
 check(
-  page.includes("operationalStopMapMarkers"),
-  "realtime next-stop fallback remains available",
+  overlay.includes("Next ·") && overlay.includes('label="NEXT"'),
+  "floating card visibly identifies next stop",
 );
 
 check(
-  map.includes('emphasis?: "next-stop"'),
-  "map marker contract supports next-stop emphasis",
+  overlay.includes("Completed"),
+  "completed stops remain visible in itinerary",
 );
 
 check(
-  map.includes('"tracking-map-stop--next"'),
-  "Mapbox marker updates next-stop emphasis without rebuilding the map",
+  overlay.includes("Upcoming"),
+  "upcoming stops remain visible in itinerary",
 );
 
-check(
-  css.includes(".tracking-map-stop--next .tracking-map-stop__pin"),
-  "next stop has distinct visual styling",
-);
+check(overlay.includes("setExpanded"), "stop itinerary can be collapsed");
 
 console.log();
-console.log("Selected route stops map checkpoint PASSED");
+console.log("Trip stops overlay checkpoint PASSED");
+
+check(
+  overlay.includes("data-trip-stops-drag-handle"),
+  "Trip stops card exposes draggable header",
+);
+
+check(overlay.includes("onPointerMove"), "Trip stops card can move around map");
+
+check(
+  overlay.includes("translate3d"),
+  "Trip stops card position follows drag offset",
+);
+
+check(
+  overlay.includes("rgba(255, 255, 255, 0.72)"),
+  "Trip stops card uses transparent glass presentation",
+);
+
+check(overlay.includes('"UPCOMING"'), "upcoming stops have explicit status");
+
+check(overlay.includes('"DONE"'), "completed stops have explicit status");
+
+check(overlay.includes('"NEXT"'), "next stop remains strongly highlighted");
+
+check(
+  page.includes("selectedNextStopMapMarkers") &&
+    page.includes('emphasis: "next-stop"'),
+  "next stop alone is restored as a map pin",
+);
+
+check(
+  page.includes("childrenByTripStopId") &&
+    page.includes("listTrackingTripRiders"),
+  "Control Room groups assigned children by Trip stop",
+);
+
+check(
+  overlay.includes("childrenByStopId") && overlay.includes("children.join"),
+  "floating stop card shows student count and first names",
+);

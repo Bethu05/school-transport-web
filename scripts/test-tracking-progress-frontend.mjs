@@ -66,8 +66,8 @@ check(
 );
 
 check(
-  operational.includes("operationalStopMapMarkers"),
-  "Operations next stop plotted on map",
+  operational.includes("<TripStopsOverlay"),
+  "Operations next stop presented in Trip stops overlay",
 );
 
 check(

@@ -33,8 +33,23 @@ check(
 );
 
 check(
-  page.includes(`trip.status === "in_progress"`),
-  "only in-progress trips become active Control Room context",
+  page.includes(`trip.status === "in_progress"`) &&
+    page.includes(`trip.status === "boarding"`) &&
+    page.includes(`trip.status === "scheduled"`),
+  "Control Room accepts all backend-supported operational Trip states",
+);
+
+const inProgressPriority = page.indexOf(`trip.status === "in_progress"`);
+
+const boardingPriority = page.indexOf(`trip.status === "boarding"`);
+
+const scheduledPriority = page.indexOf(`trip.status === "scheduled"`);
+
+check(
+  inProgressPriority >= 0 &&
+    boardingPriority > inProgressPriority &&
+    scheduledPriority > boardingPriority,
+  "operational Trip priority is in-progress then boarding then scheduled",
 );
 
 check(
@@ -43,8 +58,10 @@ check(
 );
 
 check(
-  page.includes("selectedOperationalTrip?.routeId"),
-  "dated trip supplies canonical route before GPS arrives",
+  page.includes("getTrackingTripMap") &&
+    page.includes("selectedOperationalTrip.id") &&
+    page.includes("canonicalPlannedRoute"),
+  "dated trip supplies frozen canonical route before GPS arrives",
 );
 
 check(
@@ -63,8 +80,8 @@ check(page.includes("Awaiting first GPS signal"), "pre-GPS state is explicit");
 
 check(
   page.includes("plannedRoute={canonicalPlannedRoute}") &&
-    page.includes("selectedRouteStopMapMarkers"),
-  "route and stops can open the map before bus GPS",
+    page.includes("<TripStopsOverlay"),
+  "route and stop itinerary can open before bus GPS",
 );
 
 check(

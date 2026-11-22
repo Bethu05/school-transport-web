@@ -17,6 +17,7 @@ const shell = read("src/app/AppShell.tsx");
 const page = read("src/stops/StopsPage.tsx");
 const api = read("src/stops/stops.api.ts");
 const form = read("src/stops/StopFormDialog.tsx");
+const proposal = read("src/stops/StopProposalDialog.tsx");
 
 console.log("School-scoped Stops routing checkpoint");
 console.log("--------------------------------------");
@@ -57,8 +58,10 @@ check(
 );
 
 check(
-  page.includes("schoolId: input.schoolId ? schoolId : undefined"),
-  "Stop creation is constrained to current school or Shared",
+  proposal.includes(
+    'schoolId: "schoolId" in input && input.schoolId ? school.id : undefined',
+  ),
+  "Stop proposals are constrained to current school or Shared",
 );
 
 check(

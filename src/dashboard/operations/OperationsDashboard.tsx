@@ -1543,12 +1543,48 @@ export function OperationsDashboard({
 
               <Divider sx={{ my: 3 }} />
 
+              <Typography sx={{ fontSize: 12.5, fontWeight: 700, mb: 1.25 }}>
+                Tracking setup
+              </Typography>
+
+              <Box sx={{ display: "grid", gap: 1.1 }}>
+                {[
+                  ["Ready for tracking", fleet?.ready ?? 0],
+                  [
+                    "Missing school assignment",
+                    fleet?.missingSchoolAssignment ?? 0,
+                  ],
+                  ["Tracker not configured", fleet?.unconfiguredTracker ?? 0],
+                  ["Tracker change pending", fleet?.pendingTrackerChange ?? 0],
+                  ["No recent telemetry", fleet?.noRecentTelemetry ?? 0],
+                  ["Live telemetry (<5 min)", fleet?.onlineTelemetry ?? 0],
+                ].map(([label, value]) => (
+                  <Box
+                    key={String(label)}
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 1,
+                    }}
+                  >
+                    <Typography sx={{ color: "text.secondary", fontSize: 12 }}>
+                      {String(label)}
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800 }}>
+                      {String(value)}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+
+              <Divider sx={{ my: 3 }} />
+
               <Button
                 fullWidth
                 variant="outlined"
                 onClick={() => navigate("/vehicles")}
               >
-                Manage fleet
+                Review fleet readiness
               </Button>
             </>
           ) : null}

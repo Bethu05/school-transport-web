@@ -55,12 +55,8 @@ export interface ListStopsQuery {
 }
 
 /**
- * Stop lifecycle is intentionally not exposed through
- * generic create/update payloads here.
- *
- * New stops use the backend default active state.
- * Deactivation uses the dedicated DELETE endpoint protected by
- * stops.deactivate.
+ * The fields for a stop proposal. New stops require independent
+ * approval and are not created directly.
  */
 export interface CreateStopInput {
   schoolId?: string;
@@ -90,6 +86,8 @@ export interface UpdateStopInput {
   longitude?: number;
 
   geofenceRadiusMeters?: number;
+
+  correctionReason?: string;
 }
 
 function buildQueryString(query: ListStopsQuery): string {
@@ -162,19 +160,6 @@ export async function listStops(
 
     page += 1;
   }
-}
-
-export function createStop(
-  tenantId: string,
-  input: CreateStopInput,
-): Promise<Stop> {
-  return apiRequest<Stop>("/stops", {
-    method: "POST",
-
-    tenantId,
-
-    body: JSON.stringify(input),
-  });
 }
 
 export function updateStop(
