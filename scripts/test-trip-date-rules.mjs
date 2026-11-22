@@ -28,8 +28,8 @@ assert(
 );
 
 assert(
-  edit.includes("businessDateFromTimestamp("),
-  "Edit form derives date from existing trip timestamp",
+  edit.includes("serviceDate: trip.serviceDate"),
+  "Edit form uses the trip's calendar service date",
 );
 
 assert(

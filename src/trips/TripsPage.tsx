@@ -895,6 +895,11 @@ export function TripsPage() {
 
   return (
     <Box>
+      {mutationError && !scheduleOpen && !editingTrip && !cancelTarget ? (
+        <Alert severity="error" sx={{ mb: 2 }} role="alert">
+          {mutationError}
+        </Alert>
+      ) : null}
       {/* ======================================================
           HEADER
           ====================================================== */}
@@ -1767,9 +1772,7 @@ export function TripsPage() {
             setMutationError(null);
           }
         }}
-        onSchedule={async (input) => {
-          await scheduleMutation.mutateAsync(input);
-        }}
+        onSchedule={(input) => scheduleMutation.mutate(input)}
       />
 
       {/* ======================================================

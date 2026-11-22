@@ -20,7 +20,7 @@ import { DeleteOutlineRounded, PersonAddRounded } from "@mui/icons-material";
 
 import type { RouteStop } from "../../routes/routes.api";
 
-import type { Student } from "../../students/students.api";
+import type { RouteStudentCandidate } from "../../students/students.api";
 
 import type { TripSeries, TripSeriesStudent } from "./trip-series.api";
 
@@ -29,7 +29,7 @@ interface Props {
 
   series: TripSeries;
 
-  students: readonly Student[];
+  students: readonly RouteStudentCandidate[];
 
   routeStops: readonly RouteStop[];
 
@@ -141,9 +141,13 @@ export function TripSeriesStudentsDialog({
               onChange={(event) => chooseStudent(event.target.value)}
             >
               {students.map((student) => (
-                <MenuItem key={student.id} value={student.id}>
+                <MenuItem key={student.id} value={student.id}
+                  disabled={!student.eligible && !subscriptionByStudent.has(student.id)}>
                   {student.firstName} {student.lastName}
                   {student.externalRef ? ` — ${student.externalRef}` : ""}
+                  {!student.eligible && !subscriptionByStudent.has(student.id)
+                    ? " — stop does not match route direction"
+                    : ""}
                 </MenuItem>
               ))}
             </TextField>
