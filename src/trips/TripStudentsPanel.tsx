@@ -13,7 +13,7 @@ import {
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { listStudentsPage, type Student } from "../students/students.api";
+import { listRouteStudentCandidates, type RouteStudentCandidate } from "../students/students.api";
 
 import {
   addTripRider,
@@ -37,7 +37,7 @@ interface TripStudentsPanelProps {
   onChanged: () => void;
 }
 
-function studentLabel(student: Student): string {
+function studentLabel(student: RouteStudentCandidate): string {
   return [student.firstName, student.lastName].filter(Boolean).join(" ");
 }
 
@@ -78,7 +78,7 @@ export function TripStudentsPanel({
    * Read-only inspection needs only GET /trips/:id/riders.
    */
   const studentsQuery = useQuery({
-    queryKey: ["trip-student-candidates", tenantId, trip.schoolId],
+    queryKey: ["trip-student-candidates", tenantId, trip.routeId, trip.id],
 
     enabled:
       Boolean(tenantId && trip.schoolId) &&
@@ -86,32 +86,7 @@ export function TripStudentsPanel({
       canReadStudents &&
       planningStatus,
 
-    queryFn: async () => {
-      const students: Student[] = [];
-
-      let page = 1;
-      let totalPages = 1;
-
-      do {
-        const result = await listStudentsPage(tenantId, {
-          page,
-
-          limit: 100,
-
-          schoolId: trip.schoolId,
-
-          status: "active",
-        });
-
-        students.push(...result.items);
-
-        totalPages = result.totalPages;
-
-        page += 1;
-      } while (page <= totalPages);
-
-      return students;
-    },
+    queryFn: () => listRouteStudentCandidates(tenantId, trip.routeId, trip.id),
   });
 
   const activeRiders = useMemo(
@@ -129,7 +104,15 @@ export function TripStudentsPanel({
   const visibleStudents = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    const students = studentsQuery.data ?? [];
+    const students = [...(studentsQuery.data ?? [])];
+    for (const rider of activeRiders) {
+      if (!students.some((student) => student.id === rider.studentId)) {
+        students.push({
+          id: rider.studentId, firstName: rider.studentFirstName, lastName: rider.studentLastName,
+          externalRef: rider.studentExternalRef, grade: "", eligible: false,
+        });
+      }
+    }
 
     if (!query) {
       return students;
@@ -146,7 +129,7 @@ export function TripStudentsPanel({
         .toLowerCase()
         .includes(query),
     );
-  }, [studentsQuery.data, search]);
+  }, [studentsQuery.data, activeRiders, search]);
 
   const mutation = useMutation({
     mutationFn: async (studentId: string) => {
@@ -383,7 +366,7 @@ export function TripStudentsPanel({
                 mt: 1.5,
               }}
             >
-              Unable to load the school Student directory.
+              Unable to load route student candidates.
             </Alert>
           ) : (
             <Box
@@ -447,7 +430,7 @@ export function TripStudentsPanel({
                     >
                       <Checkbox
                         checked={selected}
-                        disabled={!editable || mutation.isPending}
+                        disabled={!editable || mutation.isPending || (!selected && !student.eligible)}
                         onChange={() => mutation.mutate(student.id)}
                       />
 
@@ -485,6 +468,9 @@ export function TripStudentsPanel({
                               : null,
 
                             rider?.stopName ?? null,
+                            !selected && !student.eligible
+                              ? "Stop does not match route direction"
+                              : null,
                           ]
                             .filter(Boolean)
                             .join(" · ") || "Active Student"}

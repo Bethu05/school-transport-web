@@ -46,7 +46,7 @@ interface TripScheduleDialogProps {
    * 1. create the draft trip
    * 2. immediately call /trips/:id/schedule
    */
-  onSchedule: (input: CreateTripInput) => Promise<void>;
+  onSchedule: (input: CreateTripInput) => void;
 }
 
 interface ScheduleFormState {
@@ -244,9 +244,9 @@ export function TripScheduleDialog({
     });
   }
 
-  async function handleSubmit(
+  function handleSubmit(
     event: FormEvent<HTMLFormElement>,
-  ): Promise<void> {
+  ): void {
     event.preventDefault();
 
     setValidationError(null);
@@ -327,15 +327,7 @@ export function TripScheduleDialog({
       notes: notes || undefined,
     };
 
-    /**
-     * IMPORTANT:
-     *
-     * The parent callback returns Promise<void>.
-     *
-     * We await it so the dialog remains in its saving state
-     * until both draft creation and scheduling have completed.
-     */
-    await onSchedule(input);
+    onSchedule(input);
   }
 
   return (

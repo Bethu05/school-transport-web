@@ -48,6 +48,35 @@ export interface Student {
   customFields?: StudentCustomFieldValue[];
 }
 
+export interface RouteStudentCandidate {
+  id: string;
+  firstName: string;
+  lastName: string;
+  grade: string;
+  externalRef: string | null;
+  eligible: boolean;
+}
+
+export async function listRouteStudentCandidates(
+  tenantId: string,
+  routeId: string,
+  tripId?: string,
+): Promise<RouteStudentCandidate[]> {
+  const candidates: RouteStudentCandidate[] = [];
+  let page = 1;
+  while (true) {
+    const params = new URLSearchParams({ page: String(page), limit: "100" });
+    if (tripId) params.set("tripId", tripId);
+    const items = await apiRequest<RouteStudentCandidate[]>(
+      `/students/route-candidates/${encodeURIComponent(routeId)}?${params}`,
+      { tenantId },
+    );
+    candidates.push(...items);
+    if (items.length < 100) return candidates;
+    page += 1;
+  }
+}
+
 export interface PaginatedStudents {
   items: Student[];
 
